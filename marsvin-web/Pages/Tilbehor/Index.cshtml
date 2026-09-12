@@ -44,11 +44,22 @@
                     </span>
                     @if (item.StockLevel != StockLevel.OutOfStock && !User.IsInRole("Employee") && !User.IsInRole("Admin"))
                     {
-                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
-                            <input type="hidden" name="productId" value="@item.ProductId" />
-                            <input type="hidden" name="quantity" value="1" />
-                            <button type="submit" class="btn btn--quiet" data-en="Add to cart">Læg i kurv</button>
-                        </form>
+                        if (User.Identity?.IsAuthenticated != true)
+                        {
+                            @* A POST to add-to-cart can't survive a login redirect (the form
+                               body is lost, so the add would silently fail after logging in).
+                               Send the customer to log in and back to this exact page instead. *@
+                            <a class="btn btn--quiet goods-buy" asp-page="/Account/Login"
+                               asp-route-returnUrl="@(Request.Path + Request.QueryString)" data-en="Log in to buy">Log ind for at købe</a>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
+                                <input type="hidden" name="productId" value="@item.ProductId" />
+                                <input type="hidden" name="quantity" value="1" />
+                                <button type="submit" class="btn btn--quiet" data-en="Add to cart">Læg i kurv</button>
+                            </form>
+                        }
                     }
                 </li>
             }

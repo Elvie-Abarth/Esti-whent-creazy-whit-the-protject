@@ -57,6 +57,14 @@
                     {
                         <span class="btn" aria-disabled="true" data-en="Staff accounts can't buy">Personalekonti kan ikke købe</span>
                     }
+                    else if (User.Identity?.IsAuthenticated != true)
+                    {
+                        @* A POST to add-to-cart can't survive a login redirect (the form
+                           body is lost, so the add would silently fail after logging in).
+                           Send the customer to log in and back to this exact page instead,
+                           so they can add it for real once they're actually signed in. *@
+                        <a class="btn" asp-page="/Account/Login" asp-route-returnUrl="@Request.Path" data-en="Log in to buy">Log ind for at købe</a>
+                    }
                     else
                     {
                         <form method="post" asp-page="/Cart/Index" asp-page-handler="Add">

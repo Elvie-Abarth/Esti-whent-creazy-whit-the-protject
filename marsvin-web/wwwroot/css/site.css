@@ -403,7 +403,10 @@ a:hover { color: var(--fleece); }
     list-style: none;
     margin: 0 0 0.5rem;
 }
-.form-errors:empty { display: none; }
+/* asp-validation-summary always renders a div>ul>li, even with zero errors
+   (the <li> just gets style="display:none"), so the div is never truly
+   :empty - the tag helper's own "no errors" marker is this class instead. */
+.form-errors.validation-summary-valid { display: none; }
 .field-error { color: #7A1F3D; font-size: 0.82rem; font-weight: 400; }
 
 /* ------------------------------ cart ------------------------------ */

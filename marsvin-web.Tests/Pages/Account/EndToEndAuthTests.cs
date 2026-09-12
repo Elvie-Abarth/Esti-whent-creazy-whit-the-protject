@@ -8,7 +8,8 @@ namespace MarsvinWebExample.Tests.Pages.Account;
 /// and - the part unit tests calling PageModel methods directly can't see -
 /// antiforgery/CSRF validation and actual cookie behavior).
 /// </summary>
-public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<MarsvinWebAppFactory>
+[Collection("WebApp collection")]
+public class EndToEndAuthTests(MarsvinWebAppFactory factory)
 {
     private HttpClient MakeClient() => factory.CreateClient(new WebApplicationFactoryClientOptions
     {
@@ -16,35 +17,13 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
         HandleCookies = false
     });
 
-    private static async Task<(HttpResponseMessage Response, string Html, string Token)> GetWithToken(
-        HttpClient client, CookieJar jar, string path)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, path);
-        jar.Apply(request);
-        var response = await client.SendAsync(request);
-        jar.Capture(response);
-        var html = await response.Content.ReadAsStringAsync();
-        var token = CookieJar.ExtractAntiforgeryToken(html);
-        return (response, html, token);
-    }
-
-    private static async Task<HttpResponseMessage> PostForm(
-        HttpClient client, CookieJar jar, string path, Dictionary<string, string> fields)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = new FormUrlEncodedContent(fields) };
-        jar.Apply(request);
-        var response = await client.SendAsync(request);
-        jar.Capture(response);
-        return response;
-    }
-
     [Fact]
     public async Task Get_RegisterPage_ReturnsAntiforgeryTokenAndCookie()
     {
         var client = MakeClient();
         var jar = new CookieJar();
 
-        var (response, _, token) = await GetWithToken(client, jar, "/Account/Register");
+        var (response, _, token) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(token));
@@ -57,10 +36,10 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
     {
         var client = MakeClient();
         var jar = new CookieJar();
-        await GetWithToken(client, jar, "/Account/Register"); // establishes the antiforgery cookie
+        await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register"); // establishes the antiforgery cookie
 
         var email = $"no-token-{Guid.NewGuid():N}@example.com";
-        var response = await PostForm(client, jar, "/Account/Register", new()
+        var response = await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
         {
             // Deliberately no __RequestVerificationToken field.
             ["Input.Email"] = email,
@@ -82,13 +61,13 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
         var client = MakeClient();
 
         var jarA = new CookieJar();
-        await GetWithToken(client, jarA, "/Account/Register");
+        await HttpTestHelpers.GetWithToken(client, jarA, "/Account/Register");
 
         var jarB = new CookieJar();
-        var (_, _, tokenFromSessionB) = await GetWithToken(client, jarB, "/Account/Register");
+        var (_, _, tokenFromSessionB) = await HttpTestHelpers.GetWithToken(client, jarB, "/Account/Register");
 
         var email = $"mismatched-{Guid.NewGuid():N}@example.com";
-        var response = await PostForm(client, jarA, "/Account/Register", new()
+        var response = await HttpTestHelpers.PostForm(client, jarA, "/Account/Register", new()
         {
             ["__RequestVerificationToken"] = tokenFromSessionB,
             ["Input.Email"] = email,
@@ -108,8 +87,8 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
         var email = $"fullflow-{Guid.NewGuid():N}@example.com";
 
         // 1. Register - a fresh Customer account, signed in immediately.
-        var (_, _, registerToken) = await GetWithToken(client, jar, "/Account/Register");
-        var registerResponse = await PostForm(client, jar, "/Account/Register", new()
+        var (_, _, registerToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
+        var registerResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
         {
             ["__RequestVerificationToken"] = registerToken,
             ["Input.Email"] = email,
@@ -131,7 +110,7 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
         // 3. Log out (with a valid antiforgery token from that same cart page).
         var cartHtml = await cartResponse.Content.ReadAsStringAsync();
         var logoutToken = CookieJar.ExtractAntiforgeryToken(cartHtml);
-        var logoutResponse = await PostForm(client, jar, "/Account/Logout", new()
+        var logoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Logout", new()
         {
             ["__RequestVerificationToken"] = logoutToken
         });
@@ -155,8 +134,8 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
         var jar = new CookieJar();
         var email = $"logout-no-token-{Guid.NewGuid():N}@example.com";
 
-        var (_, _, registerToken) = await GetWithToken(client, jar, "/Account/Register");
-        await PostForm(client, jar, "/Account/Register", new()
+        var (_, _, registerToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
+        await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
         {
             ["__RequestVerificationToken"] = registerToken,
             ["Input.Email"] = email,
@@ -165,7 +144,7 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory) : IClassFixture<Mar
             ["Input.ConfirmPassword"] = "SomePass123!"
         });
 
-        var logoutResponse = await PostForm(client, jar, "/Account/Logout", new());
+        var logoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Logout", new());
         Assert.Equal(HttpStatusCode.BadRequest, logoutResponse.StatusCode);
 
         // Still logged in - the rejected logout must not have signed the session out.
