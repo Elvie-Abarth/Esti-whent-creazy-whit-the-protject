@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/marsvin-web.Tests/">
+    <Project Path="marsvin-web.Tests/MarsvinWebExample.Tests.csproj" />
+  </Folder>
+  <Folder Name="/marsvin-web/">
+    <Project Path="marsvin-web/MarsvinWebExample.csproj" />
+  </Folder>
+</Solution>

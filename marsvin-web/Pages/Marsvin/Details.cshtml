@@ -1,0 +1,70 @@
+@page "{id:int}"
+@model MarsvinWebExample.Pages.Marsvin.DetailsModel
+@{
+    ViewData["Title"] = Model.Animal.Name;
+    var a = Model.Animal;
+}
+
+<div class="wrap">
+    <div class="detail">
+        <div>
+            <partial name="_Cavy" model="a" />
+        </div>
+
+        <div>
+            <a class="back" asp-page="/Marsvin/Index" data-en="Back to the guinea pigs">Tilbage til marsvinene</a>
+            <h1>@a.Name</h1>
+            <p data-en="@(a.DescriptionEn ?? a.Description)">@a.Description</p>
+            <p data-en="@(a.PersonalityEn ?? a.Personality)">@a.Personality</p>
+
+            <ul class="facts">
+                <li><span data-en="Breed">Race</span><span data-en="@(a.BreedEn ?? a.Breed)">@a.Breed</span></li>
+                <li><span data-en="Sex">Køn</span><span data-en="@a.SexNameEn">@a.SexName</span></li>
+                <li><span data-en="Age">Alder</span><span data-en="@a.AgeTextEn">@a.AgeText</span></li>
+                <li><span data-en="Colour">Farve</span><span data-en="@(a.ColourEn ?? a.Colour)">@a.Colour</span></li>
+                <li><span data-en="Status">Status</span><span class="@a.StatusClass" data-en="@a.StatusTextEn">@a.StatusText</span></li>
+                <li><span data-en="Price">Pris</span><span class="price">@a.Price.ToString("N0") kr.</span></li>
+            </ul>
+
+            @if (Model.Partner is not null)
+            {
+                <div class="callout">
+                    <p>
+                        <span data-en="@($"{a.Name} lives together with")">@a.Name bor sammen med</span>
+                        <a asp-page="/Marsvin/Details" asp-route-id="@Model.Partner.ProductId">@Model.Partner.Name</a>.
+                        <span data-en="@($"The two move in together — combined price {(a.Price + Model.Partner.Price).ToString("N0")} kr.")">
+                            De to flytter sammen — samlet pris
+                            @((a.Price + Model.Partner.Price).ToString("N0")) kr.
+                        </span>
+                    </p>
+                </div>
+            }
+
+            @if (!a.IsOldEnoughToSell())
+            {
+                <div class="callout">
+                    <p data-en="@($"{a.Name} is {a.AgeInWeeks()} weeks old and is still with its mother. Guinea pigs leave home no earlier than four weeks old.")">
+                        @a.Name er @a.AgeInWeeks() uger gammel og er stadig hos sin mor.
+                        Marsvin flytter tidligst hjemmefra som fire uger gamle.
+                    </p>
+                </div>
+            }
+
+            <div class="actions">
+                @if (a.Status == AnimalStatus.Available && a.IsOldEnoughToSell())
+                {
+                    <span class="btn" aria-disabled="true" data-en="Reserve (not built in the example)">Reservér (ikke bygget i eksemplet)</span>
+                }
+                else
+                {
+                    <span class="btn" aria-disabled="true" data-en="@a.StatusTextEn">@a.StatusText</span>
+                }
+                <a class="btn btn--quiet" asp-page="/Tilbehor/Index" data-en="Find a cage and hay">Find bur og hø</a>
+            </div>
+
+            <p class="cavy-meta" data-en="Guinea pigs are picked up in store. We don't ship live animals.">
+                Marsvin hentes i butikken. Vi sender ikke levende dyr med fragt.
+            </p>
+        </div>
+    </div>
+</div>

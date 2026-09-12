@@ -1,0 +1,155 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Marsvin og alt der hører til";
+    var hero = Model.Groups.FirstOrDefault();
+}
+
+<div class="wrap">
+    <section class="hero">
+        <div>
+            <h1 data-en="@($"{Model.AvailableCount} guinea pigs are looking for a cage right now")">@Model.AvailableCount marsvin leder efter et bur lige nu</h1>
+            <p data-en="We have guinea pigs, and everything they need. Every animal is listed with name, age and sex, so you know exactly who you're picking up — not just “a rodent”.">
+                Vi har marsvin, og vi har alt det de skal bruge. Hvert dyr står med navn,
+                alder og køn, så du ved præcis hvem du henter — ikke bare “en gnaver”.
+            </p>
+            <p data-en="We sell them in pairs. A guinea pig on its own gets bored, and that's not up for discussion here.">
+                Vi sælger dem parvis. Et marsvin alene keder sig, og det er ikke til
+                diskussion hos os.
+            </p>
+            <div class="actions">
+                <a class="btn" asp-page="/Marsvin/Index" data-en="See the guinea pigs">Se marsvinene</a>
+                <a class="btn btn--quiet" asp-page="/Tilbehor/Index" data-en="Set up the cage">Indret buret</a>
+            </div>
+        </div>
+
+        <div class="hero-art">
+            @if (hero is not null)
+            {
+                foreach (var animal in hero)
+                {
+                    <partial name="_Cavy" model="animal" />
+                }
+                <p class="hero-note"
+                   data-en="@($"{string.Join(" and ", hero.Select(a => a.Name))} — {hero[0].BreedEn ?? hero[0].Breed}, {hero[0].AgeTextEn} old. Litter siblings, moving in together.")">
+                    @string.Join(" og ", hero.Select(a => a.Name)) — @hero[0].Breed,
+                    @hero[0].AgeText gamle. Kuldsøskende, flytter sammen.
+                </p>
+            }
+        </div>
+    </section>
+</div>
+
+<section class="section section--paper">
+    <div class="wrap">
+        <div class="section-head">
+            <h2 data-en="Guinea pigs looking for a home">Marsvin der søger hjem</h2>
+            <p data-en="Animals that live together are shown together here. They move in together too.">Dyr der bor sammen står sammen her. De flytter også sammen.</p>
+        </div>
+
+        <div class="pairs">
+            @foreach (var group in Model.Groups)
+            {
+                <article class="pair">
+                    @if (group.Count > 1)
+                    {
+                        <p class="pair-label" data-en="Live together — sold as a pair">Bor sammen — sælges som par</p>
+                    }
+                    else
+                    {
+                        <p class="pair-label" data-en="Single animal — requires that you already have a guinea pig">Enkelt dyr — kræver at du allerede har et marsvin</p>
+                    }
+                    <div class="pair-body">
+                        @foreach (var animal in group)
+                        {
+                            <a class="cavy" asp-page="/Marsvin/Details" asp-route-id="@animal.ProductId">
+                                <partial name="_Cavy" model="animal" />
+                                <h3>@animal.Name</h3>
+                                <p class="cavy-meta" data-en="@($"{animal.BreedEn ?? animal.Breed} · {animal.SexNameEn} · {animal.AgeTextEn}")">@animal.Breed · @animal.SexName · @animal.AgeText</p>
+                                <p class="cavy-line" data-en="@(animal.PersonalityEn ?? animal.Personality)">@animal.Personality</p>
+                                <span class="cavy-foot">
+                                    <span class="price">@animal.Price.ToString("N0") kr.</span>
+                                    <span class="@animal.StatusClass" data-en="@animal.StatusTextEn">@animal.StatusText</span>
+                                </span>
+                            </a>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="actions">
+            <a class="btn btn--quiet" asp-page="/Marsvin/Index" data-en="See all guinea pigs">Se alle marsvin</a>
+        </div>
+    </div>
+</section>
+
+<section class="welfare" id="pasning">
+    <div class="wrap">
+        <div>
+            <h2 data-en="Four things we ask before you take one home">Fire ting vi spørger om, inden du henter</h2>
+            <p data-en="Not to be difficult. These are the four things that most often go wrong, and all of them are easy to sort out beforehand.">
+                Ikke for at være besværlige. Det er de fire ting der oftest går galt,
+                og de er alle sammen nemme at løse på forhånd.
+            </p>
+        </div>
+        <ul>
+            <li>
+                <strong data-en="Do you have room for two?">Har du plads til to?</strong>
+                <span data-en="At least 120 × 60 cm for a pair. Guinea pigs live in groups and become quiet and passive when alone.">
+                    Mindst 120 × 60 cm for et par.
+                    Marsvin lever i flok og bliver stille og passive alene.
+                </span>
+            </li>
+            <li>
+                <strong data-en="Do you have enough hay?">Har du hø nok?</strong>
+                <span data-en="Hay isn't an accessory, it's the main meal, and it needs to be there around the clock.">
+                    Hø er ikke tilbehør, det er hovedmåltidet,
+                    og det skal være der døgnet rundt.
+                </span>
+            </li>
+            <li>
+                <strong data-en="Do you know the vitamin C rule?">Kender du C-vitamin-reglen?</strong>
+                <span data-en="Guinea pigs can't produce it themselves. Without a daily supplement they get sick.">
+                    Marsvin danner det ikke selv.
+                    Uden dagligt tilskud bliver de syge.
+                </span>
+            </li>
+            <li>
+                <strong data-en="Can you get to a vet?">Kan du komme til dyrlægen?</strong>
+                <span data-en="A guinea pig that stops eating for a day is an emergency, not something that can wait until Monday.">
+                    Et marsvin der stopper med at
+                    spise i et døgn er en akut sag, ikke noget der kan vente til på mandag.
+                </span>
+            </li>
+        </ul>
+    </div>
+</section>
+
+<section class="section">
+    <div class="wrap">
+        <div class="section-head">
+            <h2 data-en="What the cage needs from day one">Det buret skal have fra dag ét</h2>
+            <p data-en="Three things you can't do without. The rest can wait until the following weekend.">Tre ting du ikke kan undvære. Resten kan vente til weekenden efter.</p>
+        </div>
+
+        <ul class="goods">
+            @foreach (var item in Model.Essentials)
+            {
+                <li>
+                    <p class="cat-tag" data-en="@item.CategoryNameEn">@item.CategoryName</p>
+                    <h3 data-en="@(item.NameEn ?? item.Name)">@item.Name</h3>
+                    <p data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
+                    <span class="goods-foot">
+                        <span class="price">@item.Price.ToString("N0") kr.</span>
+                        <span class="stock" data-en="@($"{item.StockQuantity} in stock")">@item.StockQuantity på lager</span>
+                    </span>
+                </li>
+            }
+        </ul>
+
+        <div class="actions">
+            <a class="btn" asp-page="/Tilbehor/Index" data-en="See all accessories">Se alt tilbehør</a>
+        </div>
+    </div>
+</section>

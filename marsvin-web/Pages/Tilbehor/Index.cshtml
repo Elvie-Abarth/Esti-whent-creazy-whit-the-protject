@@ -1,0 +1,51 @@
+@page
+@model MarsvinWebExample.Pages.Tilbehor.IndexModel
+@{
+    ViewData["Title"] = "Tilbehør";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Accessories">Tilbehør</h2>
+            <p data-en="Hay, food, cages, houses, toys and bedding. Everything is tested on our own animals.">Hø, foder, bure, huse, legetøj og strøelse. Alt er testet på vores egne dyr.</p>
+        </div>
+    </div>
+
+    <nav class="filters" aria-label="Filtrér efter kategori" data-en-aria-label="Filter by category">
+        <a class="filter" asp-page="/Tilbehor/Index"
+           aria-current="@(Model.Active is null ? "true" : "false")" data-en="All">Alt</a>
+        @foreach (var (value, label, labelEn) in MarsvinWebExample.Pages.Tilbehor.IndexModel.Categories)
+        {
+            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@value"
+               aria-current="@(Model.Active == value ? "true" : "false")" data-en="@labelEn">@label</a>
+        }
+    </nav>
+
+    @if (Model.Items.Count == 0)
+    {
+        <p data-en="No items in that category right now. Try another one, or call the shop.">Ingen varer i den kategori lige nu. Prøv en anden, eller ring til butikken.</p>
+    }
+    else
+    {
+        <ul class="goods">
+            @foreach (var item in Model.Items)
+            {
+                <li>
+                    <p class="cat-tag" data-en="@item.CategoryNameEn">@item.CategoryName</p>
+                    <h3 data-en="@(item.NameEn ?? item.Name)">@item.Name</h3>
+                    <p data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
+                    <span class="goods-foot">
+                        <span class="price">@item.Price.ToString("N0") kr.</span>
+                        <span class="@(item.StockQuantity < 10 ? "stock stock--low" : "stock")"
+                              data-en="@(item.StockQuantity < 10 ? $"Only {item.StockQuantity} left" : $"{item.StockQuantity} in stock")">
+                            @(item.StockQuantity < 10
+                                ? $"Kun {item.StockQuantity} tilbage"
+                                : $"{item.StockQuantity} på lager")
+                        </span>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</div>

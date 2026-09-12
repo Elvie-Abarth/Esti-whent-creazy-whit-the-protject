@@ -1,0 +1,350 @@
+/* ---------------------------------------------------------------
+   Marsvin - design tokens
+   Palette comes from the shop's own materials: dried hay, meadow
+   grass, unbleached paper, and the bright fleece that cavy owners
+   actually line their cages with.
+   --------------------------------------------------------------- */
+:root {
+    --hay:     #F0E7D2;
+    --paper:   #FBF7EC;
+    --meadow:  #2C4327;
+    --grass:   #74964A;
+    --fleece:  #B83C6E;
+    --bark:    #7A6A4F;
+    --line:    #D8C9A6;
+
+    --measure: 64ch;
+    --step:    clamp(1.25rem, 2.5vw, 2rem);
+
+    --font-display: "Bricolage Grotesque", Georgia, serif;
+    --font-body:    "Karla", system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+}
+
+body {
+    margin: 0;
+    background: var(--hay);
+    color: var(--meadow);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.5em;
+    text-wrap: balance;
+}
+
+h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
+h2 { font-size: clamp(1.7rem, 3.4vw, 2.5rem); }
+h3 { font-size: 1.2rem; }
+
+p { margin: 0 0 1rem; max-width: var(--measure); }
+
+a { color: var(--meadow); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--fleece); }
+
+:focus-visible {
+    outline: 3px solid var(--fleece);
+    outline-offset: 3px;
+}
+
+.wrap {
+    width: min(1140px, 100% - 2.5rem);
+    margin-inline: auto;
+}
+
+/* ------------------------------ header ------------------------- */
+.site-header {
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+}
+
+.site-header .wrap {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    padding: 1rem 0;
+}
+
+.brand {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.brand svg { width: 38px; height: auto; display: block; }
+
+.site-nav {
+    margin-left: auto;
+    display: flex;
+    gap: 1.6rem;
+    font-size: 0.975rem;
+}
+
+.site-nav a { text-decoration: none; padding-bottom: 2px; }
+.site-nav a[aria-current="page"] { border-bottom: 2px solid var(--fleece); }
+
+.lang-toggle {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+
+/* ------------------------------ hero --------------------------- */
+.hero {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 3rem;
+    align-items: center;
+    padding: clamp(2.5rem, 7vw, 5.5rem) 0;
+}
+
+.hero p { font-size: 1.15rem; }
+
+.hero-art {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    align-items: end;
+}
+
+.hero-art svg { width: 100%; height: auto; }
+.hero-art img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border-radius: 6px; }
+
+.hero-note {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    padding-top: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--bark);
+}
+
+/* ------------------------------ buttons ------------------------ */
+.btn {
+    display: inline-block;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.7rem 1.4rem;
+    border-radius: 3px;
+    border: 2px solid var(--fleece);
+    background: var(--fleece);
+    color: var(--paper);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn:hover { background: #9c3159; border-color: #9c3159; color: var(--paper); }
+
+.btn--quiet {
+    background: transparent;
+    border-color: var(--meadow);
+    color: var(--meadow);
+}
+.btn--quiet:hover { background: var(--meadow); color: var(--paper); border-color: var(--meadow); }
+
+.btn[aria-disabled="true"] {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--bark);
+    pointer-events: none;
+}
+
+.actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+
+/* ------------------------------ sections ----------------------- */
+.section { padding: clamp(2.5rem, 6vw, 4.5rem) 0; }
+.section--paper { background: var(--paper); border-block: 1px solid var(--line); }
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+.section-head h2 { margin-bottom: 0; }
+.section-head p { margin: 0; color: var(--bark); max-width: 46ch; }
+
+/* -------------------- animals: profiles, not cards -------------- */
+/* Animals get a full border because each one is an individual with a
+   profile. Accessories below get only a hairline rule. The difference
+   is deliberate. */
+.pairs { display: grid; gap: 1.75rem; }
+
+.pair {
+    border: 2px solid var(--meadow);
+    border-radius: 4px;
+    background: var(--paper);
+    overflow: hidden;
+}
+
+.pair-label {
+    background: var(--meadow);
+    color: var(--hay);
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.45rem 1rem;
+}
+
+.pair-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.cavy {
+    padding: 1.25rem 1.35rem 1.5rem;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+.cavy + .cavy { border-left: 1px dashed var(--line); }
+.cavy:hover { background: #F6F0E0; color: inherit; }
+.cavy:hover h3 { color: var(--fleece); }
+
+.cavy svg { width: 100%; max-width: 210px; height: auto; margin-bottom: 0.5rem; }
+.cavy img.cavy-photo {
+    width: 100%; max-width: 210px; aspect-ratio: 240 / 160;
+    object-fit: cover; border-radius: 6px; margin-bottom: 0.5rem;
+}
+.cavy h3 { margin-bottom: 0.2rem; }
+
+.cavy-meta {
+    font-size: 0.9rem;
+    color: var(--bark);
+    margin: 0 0 0.6rem;
+}
+
+.cavy-line { font-size: 0.95rem; margin: 0 0 0.75rem; }
+
+.cavy-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.6rem;
+}
+
+.price { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+
+.status {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+.status--ledig       { background: var(--grass);  color: var(--paper); }
+.status--reserveret  { background: var(--fleece); color: var(--paper); }
+.status--solgt       { background: var(--line);   color: var(--bark);  }
+
+/* ------------------------------ welfare band ------------------- */
+.welfare {
+    background: var(--meadow);
+    color: var(--hay);
+    padding: clamp(2.25rem, 5vw, 3.5rem) 0;
+}
+.welfare h2 { color: var(--paper); }
+.welfare p { color: #DCE6D2; }
+.welfare .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
+.welfare ul { margin: 0; padding-left: 1.1rem; color: #DCE6D2; }
+.welfare li { margin-bottom: 0.65rem; max-width: 46ch; }
+
+/* ------------------------------ accessories -------------------- */
+.filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
+
+.filter {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    text-decoration: none;
+    background: var(--paper);
+}
+.filter[aria-current="true"] { background: var(--meadow); color: var(--hay); border-color: var(--meadow); }
+
+.goods {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
+    gap: 0 2rem;
+}
+
+.goods li {
+    border-top: 1px solid var(--line);
+    padding: 1.1rem 0 1.3rem;
+}
+
+.goods h3 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+.goods p { font-size: 0.95rem; color: var(--bark); margin-bottom: 0.7rem; }
+
+.goods-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.stock { font-size: 0.85rem; color: var(--bark); }
+.stock--low { color: var(--fleece); font-weight: 700; }
+
+.cat-tag { font-size: 0.8rem; color: var(--bark); }
+
+/* ------------------------------ detail page -------------------- */
+.detail { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 3rem; padding: 3rem 0; align-items: start; }
+.detail svg { width: 100%; height: auto; }
+
+.facts { list-style: none; margin: 1.5rem 0; padding: 0; }
+.facts li { display: flex; gap: 1rem; border-bottom: 1px solid var(--line); padding: 0.5rem 0; }
+.facts span:first-child { min-width: 9rem; color: var(--bark); }
+
+.callout {
+    border-left: 3px solid var(--fleece);
+    background: var(--paper);
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+}
+.callout p { margin: 0; font-size: 0.95rem; }
+
+.back { display: inline-block; margin-bottom: 1rem; font-size: 0.95rem; }
+
+/* ------------------------------ footer ------------------------- */
+.site-footer {
+    background: var(--meadow);
+    color: #DCE6D2;
+    padding: 2.5rem 0;
+    font-size: 0.925rem;
+}
+.site-footer a { color: var(--hay); }
+.site-footer .wrap { display: flex; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+.site-footer p { max-width: 40ch; margin: 0; }
+
+/* ------------------------------ responsive --------------------- */
+@media (max-width: 860px) {
+    .hero,
+    .detail,
+    .welfare .wrap { grid-template-columns: 1fr; gap: 2rem; }
+
+    .hero-art { max-width: 420px; }
+    .site-nav { margin-left: 0; width: 100%; gap: 1.1rem; }
+    .cavy + .cavy { border-left: none; border-top: 1px dashed var(--line); }
+}

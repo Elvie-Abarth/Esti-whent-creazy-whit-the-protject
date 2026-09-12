@@ -1,0 +1,94 @@
+MARSVIN DATABASE - NOTES
+=========================
+
+WHAT IT IS
+----------
+This project uses SQL Server LocalDB (a lightweight SQL Server instance
+that runs under your Windows user account) as its database. It is NOT a
+file inside this project folder - it's managed by SQL Server itself.
+
+Database name:  MarsvinDb
+Server name:    (localdb)\MSSQLLocalDB
+Connection string: see appsettings.json -> ConnectionStrings:MarsvinDb
+
+WHERE THE FILES ACTUALLY LIVE
+------------------------------
+C:\Users\estib\MarsvinDb.mdf       (the data)
+C:\Users\estib\MarsvinDb_log.ldf   (the transaction log)
+
+The schema script (Data\Sql\schema.sql) and the connection string
+(appsettings.json) ARE part of this project - those are the source of
+truth. The .mdf/.ldf files are just the running database's storage and
+get recreated automatically if they ever go missing (see below).
+
+HOW TO OPEN / BROWSE THE DATABASE
+----------------------------------
+Using SQL Server Management Studio (SSMS):
+  1. Open SSMS.
+  2. Connect to server: (localdb)\MSSQLLocalDB
+  3. Authentication: Windows Authentication
+  4. Expand Databases -> MarsvinDb -> Tables to see Products, Animals,
+     StockProducts. Right-click a table -> "Select Top 1000 Rows" to
+     view its data.
+
+From the command line:
+  sqlcmd -S "(localdb)\MSSQLLocalDB" -d MarsvinDb
+
+HOW TO START THE PROJECT
+--------------------------
+From the marsvin-web folder:
+  dotnet run
+
+On startup, the app automatically:
+  1. Creates the MarsvinDb database if it doesn't exist yet.
+  2. Runs schema.sql (drops and recreates the three tables).
+  3. Seeds the tables from the demo data in Data\DemoCatalog.cs, but
+     only if the Products table is empty.
+
+You do NOT need to manually create the database or run any SQL scripts
+yourself - just running the project handles it.
+
+NOTE: because the schema script drops and recreates the tables every
+time the app starts, any data you hand-edit directly in SSMS will be
+wiped on the next "dotnet run". There are no write features in this
+project yet (no cart/checkout), so this is expected and harmless for
+now.
+
+IF THE DATABASE WON'T CONNECT / SEEMS DISCONNECTED
+-----------------------------------------------------
+LocalDB is not a background service that's always running - it starts
+on demand. Try these in order:
+
+1. Check its status:
+     sqllocaldb info MSSQLLocalDB
+
+2. Just start it (usually all that's needed):
+     sqllocaldb start MSSQLLocalDB
+
+3. If the instance itself is corrupted (info/start commands give odd
+   errors like "Cannot create an automatic instance" or "Unexpected
+   error occurred inside a LocalDB instance API method call"), reset
+   the LocalDB ENGINE (this does not touch your data files):
+     sqllocaldb stop MSSQLLocalDB
+     sqllocaldb delete MSSQLLocalDB
+     sqllocaldb create MSSQLLocalDB
+     sqllocaldb start MSSQLLocalDB
+
+4. If the MarsvinDb database itself is missing or broken, no manual
+   recovery is needed - just run the project again:
+     dotnet run
+   DbInitializer.cs recreates the schema and reseeds the demo data
+   automatically every time it starts.
+
+So in short: as long as appsettings.json still points at
+(localdb)\MSSQLLocalDB, simply running the project again will self-heal
+the database if it's missing. The only thing that ever needs manual
+fixing is the LocalDB instance itself (step 3 above).
+
+RELEVANT FILES IN THIS PROJECT
+---------------------------------
+Data\Sql\schema.sql     - table definitions (Products, Animals, StockProducts)
+Data\DbInitializer.cs   - creates the DB, runs the schema, seeds the data
+Data\SqlCatalog.cs      - reads the catalog from SQL Server via ADO.NET
+Data\DemoCatalog.cs     - the in-memory demo data used to seed the database
+appsettings.json        - connection string (ConnectionStrings:MarsvinDb)

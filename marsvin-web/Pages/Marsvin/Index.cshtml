@@ -1,0 +1,53 @@
+@page
+@model MarsvinWebExample.Pages.Marsvin.IndexModel
+@{
+    ViewData["Title"] = "Marsvinene";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Guinea pigs">Marsvinene</h2>
+            <p data-en="All animals in the shop right now. Click a name to see the full profile.">
+                Alle dyr i butikken lige nu. Klik på et navn for at se hele profilen.
+            </p>
+        </div>
+    </div>
+
+    <div class="pairs">
+        @foreach (var group in Model.Groups)
+        {
+            <article class="pair">
+                @if (group.Count > 1)
+                {
+                    <p class="pair-label"
+                       data-en="@($"{string.Join(" and ", group.Select(a => a.Name))} live together — sold as a pair")">
+                        @string.Join(" og ", group.Select(a => a.Name)) bor sammen — sælges som par
+                    </p>
+                }
+                else
+                {
+                    <p class="pair-label"
+                       data-en="@($"{group[0].Name} is alone — only sold if you already have a guinea pig")">
+                        @group[0].Name er alene — sælges kun hvis du allerede har et marsvin
+                    </p>
+                }
+                <div class="pair-body">
+                    @foreach (var animal in group)
+                    {
+                        <a class="cavy" asp-page="/Marsvin/Details" asp-route-id="@animal.ProductId">
+                            <partial name="_Cavy" model="animal" />
+                            <h3>@animal.Name</h3>
+                            <p class="cavy-meta" data-en="@($"{animal.BreedEn ?? animal.Breed} · {animal.SexNameEn} · {animal.AgeTextEn} · {animal.ColourEn ?? animal.Colour}")">@animal.Breed · @animal.SexName · @animal.AgeText · @animal.Colour</p>
+                            <p class="cavy-line" data-en="@(animal.PersonalityEn ?? animal.Personality)">@animal.Personality</p>
+                            <span class="cavy-foot">
+                                <span class="price">@animal.Price.ToString("N0") kr.</span>
+                                <span class="@animal.StatusClass" data-en="@animal.StatusTextEn">@animal.StatusText</span>
+                            </span>
+                        </a>
+                    }
+                </div>
+            </article>
+        }
+    </div>
+</div>

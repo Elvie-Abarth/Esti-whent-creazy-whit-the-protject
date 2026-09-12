@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - Marsvin</title>
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Karla:wght@400;500;700&display=swap" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+
+<header class="site-header">
+    <div class="wrap">
+        <a class="brand" asp-page="/Index">
+            <svg viewBox="0 0 240 160" aria-hidden="true">
+                <ellipse cx="132" cy="92" rx="96" ry="50" fill="#B5643C" />
+                <ellipse cx="58" cy="80" rx="46" ry="41" fill="#B5643C" />
+                <ellipse cx="52" cy="44" rx="17" ry="12" transform="rotate(-28 52 44)" fill="#F3EAD8" />
+                <circle cx="34" cy="74" r="6.5" fill="#23301F" />
+            </svg>
+            Marsvin
+        </a>
+
+        <nav class="site-nav" aria-label="Hovedmenu" data-en-aria-label="Main menu">
+            <a asp-page="/Marsvin/Index" data-en="Guinea pigs">Marsvinene</a>
+            <a asp-page="/Tilbehor/Index" data-en="Accessories">Tilbehør</a>
+            <a asp-page="/Index" asp-fragment="pasning" data-en="Care guide">Pasningsguide</a>
+        </nav>
+
+        <button type="button" id="lang-toggle" class="btn btn--quiet lang-toggle" aria-label="Switch to English">EN</button>
+    </div>
+</header>
+
+<main>
+    @RenderBody()
+</main>
+
+<footer class="site-footer">
+    <div class="wrap">
+        <div>
+            <p><strong>Marsvin</strong> —
+                <span data-en="Esbjerg. Open Thursday and Friday 14–18, Saturday 10–14.">Esbjerg. Åbent torsdag og fredag 14–18, lørdag 10–14.</span>
+            </p>
+            <p data-en="Guinea pigs are picked up in store, so we can talk through the cage first.">Marsvin hentes i butikken, så vi kan nå at snakke om buret først.</p>
+        </div>
+        <div>
+            <p data-en="Example shop built as inspiration for the Zealand project. Not a real business.">Eksempelbutik bygget som inspiration til Zealand-projektet. Ikke en rigtig forretning.</p>
+        </div>
+    </div>
+</footer>
+
+<script src="~/js/lang-toggle.js" asp-append-version="true"></script>
+</body>
+</html>

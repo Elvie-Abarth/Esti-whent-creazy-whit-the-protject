@@ -1,0 +1,37 @@
+@model MarsvinWebExample.Models.Animal
+@{
+    var uid = $"clip{Model.ProductId}";
+}
+@if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
+{
+    <img class="cavy-photo" src="@Model.PhotoUrl"
+         alt="Foto af @Model.Name, @Model.Colour @Model.Breed"
+         data-en-alt="@($"Photo of {Model.Name}, {Model.ColourEn ?? Model.Colour} {Model.BreedEn ?? Model.Breed}")" />
+}
+else
+{
+    <svg viewBox="0 0 240 160" role="img"
+         aria-label="Tegning af @Model.Name, @Model.Colour @Model.Breed"
+         data-en-aria-label="@($"Drawing of {Model.Name}, {Model.ColourEn ?? Model.Colour} {Model.BreedEn ?? Model.Breed}")">
+        <defs>
+            <clipPath id="@uid">
+                <ellipse cx="132" cy="92" rx="96" ry="50" />
+            </clipPath>
+        </defs>
+
+        <ellipse cx="132" cy="92" rx="96" ry="50" fill="@Model.CoatPrimary" />
+        <g clip-path="url(#@uid)">
+            <path d="M150 30 C205 38 240 70 240 160 L150 160 Z" fill="@Model.CoatSecondary" />
+        </g>
+
+        <ellipse cx="58" cy="80" rx="46" ry="41" fill="@Model.CoatPrimary" />
+        <ellipse cx="52" cy="44" rx="17" ry="12" transform="rotate(-28 52 44)"
+                 fill="@Model.CoatSecondary" />
+        <circle cx="34" cy="74" r="6.5" fill="#23301F" />
+        <path d="M16 84 q7 7 14 1" stroke="#23301F" stroke-width="3.2"
+              fill="none" stroke-linecap="round" />
+
+        <ellipse cx="86" cy="140" rx="15" ry="8" fill="@Model.CoatSecondary" />
+        <ellipse cx="168" cy="142" rx="15" ry="8" fill="@Model.CoatSecondary" />
+    </svg>
+}

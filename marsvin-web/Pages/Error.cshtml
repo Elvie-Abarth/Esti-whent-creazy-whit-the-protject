@@ -1,0 +1,17 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Siden findes ikke";
+}
+
+<div class="wrap section">
+    <h1>Den side findes ikke</h1>
+    <p>
+        Linket peger ingen steder hen. Prøv marsvinene eller tilbehøret —
+        eller ring til butikken hvis du ledte efter et bestemt dyr.
+    </p>
+    <div class="actions">
+        <a class="btn" asp-page="/Marsvin/Index">Se marsvinene</a>
+        <a class="btn btn--quiet" asp-page="/Index">Til forsiden</a>
+    </div>
+</div>
