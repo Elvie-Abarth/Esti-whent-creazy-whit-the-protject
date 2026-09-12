@@ -34,7 +34,8 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin) : PageModel
             Category = item.Category,
             Price = item.Price,
             StockQuantity = item.StockQuantity,
-            Unit = item.Unit
+            Unit = item.Unit,
+            PhotoUrl = item.PhotoUrl
         };
         return Page();
     }
@@ -55,7 +56,8 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin) : PageModel
             Category = Input.Category,
             Price = Input.Price,
             StockQuantity = Input.StockQuantity,
-            Unit = Input.Unit
+            Unit = Input.Unit,
+            PhotoUrl = Input.PhotoUrl
         };
 
         if (id == 0)
@@ -94,5 +96,8 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin) : PageModel
 
         [StringLength(20)]
         public string? Unit { get; set; }
+
+        [StringLength(300)]
+        public string? PhotoUrl { get; set; }
     }
 }

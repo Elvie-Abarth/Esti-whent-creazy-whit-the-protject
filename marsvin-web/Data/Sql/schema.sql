@@ -61,8 +61,16 @@ BEGIN
         Sku           NVARCHAR(50)  NOT NULL UNIQUE,
         Category      TINYINT       NOT NULL,             -- 0 Hay,1 Food,2 Cage,3 House,4 Toy,5 Bedding
         StockQuantity INT           NOT NULL,
-        Unit          NVARCHAR(20)  NULL
+        Unit          NVARCHAR(20)  NULL,
+        PhotoUrl      NVARCHAR(300) NULL
     );
+END
+
+-- Column added after StockProducts already existed on live databases (create-once
+-- tables don't pick up new columns from the CREATE TABLE above) - safe to run every time.
+IF COL_LENGTH('dbo.StockProducts', 'PhotoUrl') IS NULL
+BEGIN
+    ALTER TABLE dbo.StockProducts ADD PhotoUrl NVARCHAR(300) NULL;
 END
 
 -- ---------------------------------------------------------------------------

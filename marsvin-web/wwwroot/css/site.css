@@ -72,11 +72,16 @@ a:hover { color: var(--fleece); }
     background: var(--paper);
 }
 
+/* Grid, not flex: the account/language controls sit in their own column
+   with a fixed position, so translating the nav labels (which are naturally
+   a different length in Danish vs English) can never shift them sideways -
+   only a flex row where every item's width feeds into one shared line can
+   do that. */
 .site-header .wrap {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
     align-items: center;
     gap: 2rem;
-    flex-wrap: wrap;
     padding: 1rem 0;
 }
 
@@ -94,21 +99,41 @@ a:hover { color: var(--fleece); }
 .brand svg { width: 38px; height: auto; display: block; }
 
 .site-nav {
-    margin-left: auto;
     display: flex;
+    justify-content: flex-end;
     gap: 1.6rem;
     font-size: 0.975rem;
+    min-width: 0;
 }
 
 .site-nav a { text-decoration: none; padding-bottom: 2px; }
 .site-nav a[aria-current="page"] { border-bottom: 2px solid var(--fleece); }
 
-.lang-toggle {
-    padding: 0.35rem 0.75rem;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+/* Small utility controls in the header (log in/out, sign up, DA/EN) -
+   styled identically to the plain nav links either side of them: no
+   background, no border, just text that changes color on hover. */
+.header-btn {
+    display: inline-block;
+    font-family: var(--font-body);
+    font-size: 0.975rem;
+    font-weight: 400;
+    line-height: inherit;
+    margin: 0;
+    padding: 0 0 2px; /* matches .site-nav a's padding-bottom exactly, so both sit at the same height under align-items:center */
+    border: none;
+    background: transparent;
+    color: var(--meadow);
+    text-decoration: none;
+    vertical-align: baseline;
     cursor: pointer;
+}
+.header-btn:hover,
+.header-btn:focus-visible {
+    color: var(--fleece);
+}
+
+.lang-toggle {
+    letter-spacing: 0.02em;
 }
 
 /* ------------------------------ hero --------------------------- */
@@ -272,6 +297,11 @@ a:hover { color: var(--fleece); }
 .welfare .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
 .welfare ul { margin: 0; padding-left: 1.1rem; color: #DCE6D2; }
 .welfare li { margin-bottom: 0.65rem; max-width: 46ch; }
+.welfare .actions { grid-column: 1 / -1; margin-top: 0; }
+/* .btn--quiet is meadow-on-transparent - invisible on this section's own
+   meadow-green background, so it needs paper-colored text/border here. */
+.welfare .btn--quiet { border-color: var(--hay); color: var(--hay); }
+.welfare .btn--quiet:hover { background: var(--hay); color: var(--meadow); border-color: var(--hay); }
 
 /* ------------------------------ accessories -------------------- */
 .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
@@ -291,23 +321,59 @@ a:hover { color: var(--fleece); }
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
-    gap: 0 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.5rem;
 }
 
+/* Each product gets its own bounded card - background, border, padding on
+   every side - rather than just a hairline rule floating in open space.
+   Flex column + margin-top:auto on the footer keeps the price/action row
+   aligned along the bottom of every card in a row, however long the
+   description above it runs. */
 .goods li {
-    border-top: 1px solid var(--line);
-    padding: 1.1rem 0 1.3rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem 1.3rem;
 }
 
 .goods h3 { font-size: 1.05rem; margin-bottom: 0.25rem; }
 .goods p { font-size: 0.95rem; color: var(--bark); margin-bottom: 0.7rem; }
 
-.goods-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.goods-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: auto; padding-top: 0.5rem; }
 .stock { font-size: 0.85rem; color: var(--bark); }
 .stock--low { color: var(--fleece); font-weight: 700; }
 
 .cat-tag { font-size: 0.8rem; color: var(--bark); }
+
+.goods-icon, .goods-photo {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    margin-bottom: 0.8rem;
+    border-radius: 6px;
+}
+.goods-photo { object-fit: cover; }
+.goods-icon { background: var(--hay); }
+
+/* Same quiet chip language as .filter above - a repeated per-item action
+   next to five others shouldn't carry the same weight as a page's one real
+   call to action (.btn), or the whole grid turns into a wall of boxes. */
+.goods-action {
+    display: inline-block;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--meadow);
+    text-decoration: none;
+    cursor: pointer;
+}
+.goods-action:hover { border-color: var(--fleece); color: var(--fleece); }
 
 /* ------------------------------ detail page -------------------- */
 .detail { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 3rem; padding: 3rem 0; align-items: start; }
@@ -345,8 +411,14 @@ a:hover { color: var(--fleece); }
     .welfare .wrap { grid-template-columns: 1fr; gap: 2rem; }
 
     .hero-art { max-width: 420px; }
-    .site-nav { margin-left: 0; width: 100%; gap: 1.1rem; }
     .cavy + .cavy { border-left: none; border-top: 1px dashed var(--line); }
+
+    /* Too narrow for four fixed columns - wrap like a normal flex row
+       instead. Some reflow between languages is unavoidable at this width
+       (there just isn't room to keep everything pinned), but the wider
+       desktop layout above stays fully stable. */
+    .site-header .wrap { display: flex; flex-wrap: wrap; }
+    .site-nav { width: 100%; justify-content: flex-start; gap: 1.1rem; order: 3; }
 }
 
 /* ------------------------------ account nav --------------------- */
@@ -357,9 +429,8 @@ a:hover { color: var(--fleece); }
     font-size: 0.9rem;
 }
 .account-nav a { text-decoration: none; }
-.account-name { color: var(--bark); font-size: 0.85rem; }
+.account-name { color: var(--meadow); font-size: 0.9rem; font-weight: 600; }
 .logout-form { display: inline; }
-.logout-form button { padding: 0.3rem 0.7rem; font-size: 0.82rem; }
 
 /* ------------------------------ auth forms ----------------------- */
 .auth-page { max-width: 32rem; }
@@ -411,7 +482,6 @@ a:hover { color: var(--fleece); }
 
 /* ------------------------------ cart ------------------------------ */
 .goods-buy { margin-top: 0.5rem; }
-.goods-buy button { width: 100%; }
 
 .cart-table {
     width: 100%;
@@ -475,3 +545,35 @@ a:hover { color: var(--fleece); }
     max-width: 8rem;
 }
 .inline-form .btn { padding: 0.3rem 0.65rem; font-size: 0.82rem; }
+
+/* ------------------------------ care guide ---------------------- */
+.guide-intro { padding-top: clamp(2rem, 5vw, 3.5rem); }
+.guide-intro .section-head p { max-width: 70ch; }
+
+.guide-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+}
+.guide-grid li {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.2rem 1.3rem 1.4rem;
+}
+.guide-grid h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
+.guide-grid p { font-size: 0.92rem; color: var(--bark); margin-bottom: 0; }
+.guide-icon { width: 44px; height: 44px; margin-bottom: 0.7rem; }
+
+.guide-article { max-width: 70ch; }
+.guide-article article { margin-bottom: 2.5rem; }
+.guide-article article:last-child { margin-bottom: 0; }
+.guide-article h2 { font-size: 1.5rem; }
+.guide-article .callout { margin: 0 0 2.5rem; }
+.guide-article .callout h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
+.guide-article .callout ul { margin: 0; padding-left: 1.2rem; }
+.guide-article .callout li { margin-bottom: 0.6rem; font-size: 0.95rem; }
+.guide-article .callout li:last-child { margin-bottom: 0; }

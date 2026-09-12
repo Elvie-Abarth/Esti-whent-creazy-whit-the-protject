@@ -11,6 +11,9 @@ public sealed class StockProduct : Product
     public string? NameEn { get; init; }
     public string? DescriptionEn { get; init; }
 
+    /// <summary>Real product photo, once the shop has one. Falls back to a category icon when null.</summary>
+    public string? PhotoUrl { get; init; }
+
     public override bool CanBeAddedToCart(int quantity) =>
         quantity > 0 && quantity <= StockQuantity;
 

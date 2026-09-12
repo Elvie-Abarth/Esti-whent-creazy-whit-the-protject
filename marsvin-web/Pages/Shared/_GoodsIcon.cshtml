@@ -1,0 +1,62 @@
+@model MarsvinWebExample.Models.StockProduct
+@{
+    // No real product photos exist yet - a small line icon per category
+    // stands in, the same way the drawn guinea pig stands in for a photo
+    // on the animal pages, rather than leaving the card with nothing at all.
+}
+<svg class="goods-icon" viewBox="0 0 64 64" role="img" aria-hidden="true">
+    @switch (Model.Category)
+    {
+        case MarsvinWebExample.Models.AccessoryCategory.Hay:
+            <g fill="none" stroke="var(--grass)" stroke-width="2.5" stroke-linecap="round">
+                <rect x="10" y="18" width="44" height="28" rx="4" fill="var(--hay)" stroke="var(--bark)" />
+                <line x1="16" y1="18" x2="26" y2="46" />
+                <line x1="28" y1="18" x2="38" y2="46" />
+                <line x1="40" y1="18" x2="50" y2="46" />
+            </g>
+            break;
+
+        case MarsvinWebExample.Models.AccessoryCategory.Food:
+            <g fill="none" stroke="var(--bark)" stroke-width="2.5" stroke-linecap="round">
+                <path d="M12 28 a20 14 0 0 0 40 0 Z" fill="var(--hay)" />
+                <path d="M12 28 a20 14 0 0 0 40 0" />
+                <ellipse cx="32" cy="28" rx="20" ry="6" fill="var(--paper)" />
+                <path d="M22 22 q2 -6 0 -10" stroke="var(--grass)" />
+                <path d="M32 20 q2 -6 0 -10" stroke="var(--grass)" />
+                <path d="M42 22 q-2 -6 0 -10" stroke="var(--grass)" />
+            </g>
+            break;
+
+        case MarsvinWebExample.Models.AccessoryCategory.Cage:
+            <g fill="none" stroke="var(--bark)" stroke-width="2.5" stroke-linecap="round">
+                <rect x="10" y="14" width="44" height="36" rx="3" />
+                <line x1="19" y1="14" x2="19" y2="50" />
+                <line x1="28" y1="14" x2="28" y2="50" />
+                <line x1="37" y1="14" x2="37" y2="50" />
+                <line x1="46" y1="14" x2="46" y2="50" />
+            </g>
+            break;
+
+        case MarsvinWebExample.Models.AccessoryCategory.House:
+            <g fill="none" stroke="var(--bark)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+                <path d="M10 30 L32 14 L54 30" fill="none" />
+                <rect x="16" y="30" width="32" height="20" fill="var(--hay)" />
+                <path d="M27 50 V38 a5 5 0 0 1 10 0 V50" fill="var(--paper)" />
+            </g>
+            break;
+
+        case MarsvinWebExample.Models.AccessoryCategory.Toy:
+            <g fill="none" stroke="var(--fleece)" stroke-width="2.5" stroke-linecap="round">
+                <circle cx="32" cy="32" r="16" fill="var(--paper)" />
+                <path d="M32 16 v32 M16 32 h32 M21 21 l22 22 M43 21 l-22 22" opacity="0.55" />
+            </g>
+            break;
+
+        default: // Bedding
+            <g fill="none" stroke="var(--bark)" stroke-width="2.5" stroke-linecap="round">
+                <rect x="10" y="22" width="44" height="22" rx="6" fill="var(--hay)" />
+                <path d="M16 22 q4 -6 8 0 q4 -6 8 0 q4 -6 8 0 q4 -6 8 0 q4 -6 6 0" fill="none" />
+            </g>
+            break;
+    }
+</svg>

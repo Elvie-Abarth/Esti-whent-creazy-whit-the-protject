@@ -177,8 +177,8 @@ public static class DbInitializer
     {
         using var command = new SqlCommand(
             """
-            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit)
-            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit);
+            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl)
+            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl);
             """, connection);
 
         command.Parameters.AddWithValue("@ProductId", item.ProductId);
@@ -186,6 +186,7 @@ public static class DbInitializer
         command.Parameters.AddWithValue("@Category", (byte)item.Category);
         command.Parameters.AddWithValue("@StockQuantity", item.StockQuantity);
         command.Parameters.AddWithValue("@Unit", (object?)item.Unit ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PhotoUrl", (object?)item.PhotoUrl ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 }

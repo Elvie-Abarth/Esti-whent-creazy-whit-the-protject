@@ -32,6 +32,14 @@
             @foreach (var item in Model.Items)
             {
                 <li>
+                    @if (!string.IsNullOrWhiteSpace(item.PhotoUrl))
+                    {
+                        <img class="goods-photo" src="@item.PhotoUrl" alt="@(item.NameEn ?? item.Name)" />
+                    }
+                    else
+                    {
+                        <partial name="_GoodsIcon" model="item" />
+                    }
                     <p class="cat-tag" data-en="@item.CategoryNameEn">@item.CategoryName</p>
                     <h3 data-en="@(item.NameEn ?? item.Name)">@item.Name</h3>
                     <p data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
@@ -49,7 +57,7 @@
                             @* A POST to add-to-cart can't survive a login redirect (the form
                                body is lost, so the add would silently fail after logging in).
                                Send the customer to log in and back to this exact page instead. *@
-                            <a class="btn btn--quiet goods-buy" asp-page="/Account/Login"
+                            <a class="goods-action" asp-page="/Account/Login"
                                asp-route-returnUrl="@(Request.Path + Request.QueryString)" data-en="Log in to buy">Log ind for at købe</a>
                         }
                         else
@@ -57,7 +65,7 @@
                             <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
                                 <input type="hidden" name="productId" value="@item.ProductId" />
                                 <input type="hidden" name="quantity" value="1" />
-                                <button type="submit" class="btn btn--quiet" data-en="Add to cart">Læg i kurv</button>
+                                <button type="submit" class="goods-action" data-en="Add to cart">Læg i kurv</button>
                             </form>
                         }
                     }

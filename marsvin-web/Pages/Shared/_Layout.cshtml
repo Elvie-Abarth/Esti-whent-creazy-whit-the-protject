@@ -30,7 +30,7 @@
         <nav class="site-nav" aria-label="Hovedmenu" data-en-aria-label="Main menu">
             <a asp-page="/Marsvin/Index" data-en="Guinea pigs">Marsvinene</a>
             <a asp-page="/Tilbehor/Index" data-en="Accessories">Tilbehør</a>
-            <a asp-page="/Index" asp-fragment="pasning" data-en="Care guide">Pasningsguide</a>
+            <a asp-page="/Pasningsguide" data-en="Care guide">Pasningsguide</a>
         </nav>
 
         <nav class="account-nav" aria-label="Konto" data-en-aria-label="Account">
@@ -48,17 +48,17 @@
                 }
                 <span class="account-name">@User.Identity!.Name</span>
                 <form method="post" asp-page="/Account/Logout" class="logout-form">
-                    <button type="submit" class="btn btn--quiet" data-en="Log out">Log ud</button>
+                    <button type="submit" class="header-btn" data-en="Log out">Log ud</button>
                 </form>
             }
             else
             {
-                <a asp-page="/Account/Login" data-en="Log in">Log ind</a>
-                <a class="btn btn--quiet" asp-page="/Account/Register" data-en="Sign up">Opret konto</a>
+                <a class="header-btn" asp-page="/Account/Login" data-en="Log in">Log ind</a>
+                <a class="header-btn" asp-page="/Account/Register" data-en="Sign up">Opret konto</a>
             }
         </nav>
 
-        <button type="button" id="lang-toggle" class="btn btn--quiet lang-toggle" aria-label="Switch to English">EN</button>
+        <button type="button" id="lang-toggle" class="header-btn lang-toggle" aria-label="Switch to English">EN</button>
     </div>
 </header>
 

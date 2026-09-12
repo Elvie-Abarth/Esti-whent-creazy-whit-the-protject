@@ -50,6 +50,10 @@
             <span>Enhed (fx pose, stk)</span>
             <input asp-for="Input.Unit" />
         </label>
+        <label>
+            <span>Foto-URL (valgfri - viser et kategori-ikon hvis tom)</span>
+            <input asp-for="Input.PhotoUrl" />
+        </label>
 
         <button type="submit" class="btn">Gem</button>
         <a class="btn btn--quiet" asp-page="/Admin/Products/Index">Annullér</a>
