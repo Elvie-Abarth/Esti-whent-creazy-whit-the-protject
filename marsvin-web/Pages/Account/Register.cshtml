@@ -1,0 +1,49 @@
+@page
+@model MarsvinWebExample.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Opret konto";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Create an account">Opret konto</h2>
+            <p data-en="For customers who want to buy a guinea pig or accessories.">For kunder der vil købe et marsvin eller tilbehør.</p>
+        </div>
+    </div>
+
+    <form method="post" class="auth-form" asp-route-returnUrl="@Model.ReturnUrl">
+        <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+
+        <label>
+            <span data-en="Name">Navn</span>
+            <input asp-for="Input.DisplayName" autocomplete="name" />
+            <span asp-validation-for="Input.DisplayName" class="field-error"></span>
+        </label>
+
+        <label>
+            <span data-en="Email">E-mail</span>
+            <input asp-for="Input.Email" autocomplete="email" />
+            <span asp-validation-for="Input.Email" class="field-error"></span>
+        </label>
+
+        <label>
+            <span data-en="Password">Adgangskode</span>
+            <input asp-for="Input.Password" autocomplete="new-password" />
+            <span asp-validation-for="Input.Password" class="field-error"></span>
+        </label>
+
+        <label>
+            <span data-en="Confirm password">Gentag adgangskode</span>
+            <input asp-for="Input.ConfirmPassword" autocomplete="new-password" />
+            <span asp-validation-for="Input.ConfirmPassword" class="field-error"></span>
+        </label>
+
+        <button type="submit" class="btn" data-en="Create account">Opret konto</button>
+    </form>
+
+    <p class="auth-switch">
+        <span data-en="Already have an account?">Har du allerede en konto?</span>
+        <a asp-page="/Account/Login" asp-route-returnUrl="@Model.ReturnUrl" data-en="Log in">Log ind</a>
+    </p>
+</div>

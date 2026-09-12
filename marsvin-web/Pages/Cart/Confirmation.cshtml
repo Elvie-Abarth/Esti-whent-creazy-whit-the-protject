@@ -1,0 +1,48 @@
+@page "{orderId:int}"
+@model MarsvinWebExample.Pages.Cart.ConfirmationModel
+@{
+    ViewData["Title"] = "Tak for din bestilling";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Thank you for your order!">Tak for din bestilling!</h2>
+            <p data-en="@($"Order #{Model.Order.OrderId}, placed {Model.Order.CreatedAt:d MMM yyyy HH:mm}.")">
+                Ordre #@Model.Order.OrderId, oprettet @Model.Order.CreatedAt.ToString("d MMM yyyy HH:mm").
+            </p>
+        </div>
+    </div>
+
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th data-en="Item">Vare</th>
+                <th data-en="Quantity">Antal</th>
+                <th data-en="Price">Pris</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Order.Items)
+            {
+                <tr>
+                    <td>@item.ProductName</td>
+                    <td>@item.Quantity</td>
+                    <td>@item.LineTotal.ToString("N0") kr.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <p class="cart-total">
+        <strong data-en="Total">I alt</strong>: @Model.Order.TotalPrice.ToString("N0") kr.
+    </p>
+
+    <p data-en="Guinea pigs are picked up in store. Accessories too - there is no shipping in this example.">
+        Marsvin hentes i butikken. Det samme gælder tilbehør - der er ikke fragt i dette eksempel.
+    </p>
+
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Index" data-en="Back to the front page">Til forsiden</a>
+    </div>
+</div>

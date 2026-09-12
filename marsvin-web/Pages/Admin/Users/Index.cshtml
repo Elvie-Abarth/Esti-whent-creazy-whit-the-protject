@@ -1,0 +1,76 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Users.IndexModel
+@{
+    ViewData["Title"] = "Konti (admin)";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Accounts">Konti</h2>
+            <p data-en="Customers register themselves. Employee and admin accounts are created here.">Kunder opretter selv en konto. Medarbejder- og admin-konti oprettes her.</p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.ErrorMessage is not null)
+    {
+        <p class="form-errors">@Model.ErrorMessage</p>
+    }
+
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th data-en="Name">Navn</th>
+                <th>E-mail</th>
+                <th data-en="Role">Rolle</th>
+                <th data-en="Active">Aktiv</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model.Items)
+            {
+                <tr>
+                    <td>@user.DisplayName</td>
+                    <td>@user.Email</td>
+                    <td>
+                        <form method="post" asp-page-handler="UpdateRole" class="inline-form">
+                            <input type="hidden" name="userId" value="@user.UserId" />
+                            <select name="role">
+                                @foreach (var role in Enum.GetValues<UserRole>())
+                                {
+                                    <option value="@role" selected="@(role == user.Role)">@role</option>
+                                }
+                            </select>
+                            <button type="submit" class="btn btn--quiet" data-en="Update">Opdatér</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" asp-page-handler="ToggleActive" class="inline-form">
+                            <input type="hidden" name="userId" value="@user.UserId" />
+                            <input type="hidden" name="isActive" value="@(!user.IsActive)" />
+                            <button type="submit" class="btn btn--quiet">
+                                @(user.IsActive ? "Deaktivér" : "Aktivér")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h3 data-en="Create employee or admin account">Opret medarbejder- eller admin-konto</h3>
+    <form method="post" asp-page-handler="CreateStaff" class="auth-form">
+        <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+        <label><span>Navn</span><input asp-for="NewStaff.DisplayName" /></label>
+        <label><span>E-mail</span><input asp-for="NewStaff.Email" /></label>
+        <label><span>Adgangskode</span><input asp-for="NewStaff.Password" /></label>
+        <label>
+            <span>Rolle</span>
+            <select asp-for="NewStaff.Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
+        </label>
+        <button type="submit" class="btn" data-en="Create account">Opret konto</button>
+    </form>
+</div>

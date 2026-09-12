@@ -1,0 +1,48 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Promotions.IndexModel
+@{
+    ViewData["Title"] = "Kampagner (admin)";
+    var today = DateOnly.FromDateTime(DateTime.Today);
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Promotions">Kampagner</h2>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+        <a class="btn" asp-page="/Admin/Promotions/Edit" asp-route-id="0" data-en="Add new">Tilføj ny</a>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th data-en="Title">Titel</th>
+                <th data-en="Discount">Rabat</th>
+                <th data-en="Period">Periode</th>
+                <th data-en="Running?">Kører?</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var promo in Model.Items)
+            {
+                <tr>
+                    <td>@promo.Title</td>
+                    <td>@promo.DiscountPercent%</td>
+                    <td>@promo.StartDate.ToString("d MMM") – @promo.EndDate.ToString("d MMM yyyy")</td>
+                    <td>@(promo.IsCurrentlyRunning(today) ? "Ja" : "Nej")</td>
+                    <td>
+                        <a class="btn btn--quiet" asp-page="/Admin/Promotions/Edit" asp-route-id="@promo.PromotionId" data-en="Edit">Redigér</a>
+                        <form method="post" asp-page-handler="Delete" class="inline-form" onsubmit="return confirm('Slet @promo.Title?');">
+                            <input type="hidden" name="promotionId" value="@promo.PromotionId" />
+                            <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

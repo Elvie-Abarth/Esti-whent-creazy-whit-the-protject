@@ -1,11 +1,20 @@
 # Marsvin — webpage example build
 
-A working ASP.NET Core 9 Razor Pages front end for the guinea pig shop, backed
-by a real SQL Server LocalDB database via plain ADO.NET. Built as **visual and
-structural inspiration only** — it is deliberately not a solution to the
-graded assignment.
+A working ASP.NET Core 9 Razor Pages guinea pig shop, backed by a real SQL
+Server LocalDB database via plain ADO.NET — with accounts, roles, a cart and
+checkout, and an admin/employee panel.
 
 > Created with the help of Claude (AI).
+
+**A note on scope.** This repo started as visual/structural inspiration only,
+deliberately stopping short of the graded assignment (no cart, no login, no
+admin — "you learn nothing from me handing them over"). The auth, cart, and
+admin panel described below were added later, at explicit request, after
+being told directly that this is most of the graded work for a *secure
+coding* course. If this is your assignment: the point of that course is very
+likely the security decisions in here (password hashing, session handling,
+role-based authorization, preventing IDOR) — copying this in defeats that.
+Read it to see one way it can be done, then build your own.
 
 ## Run it
 
@@ -34,48 +43,76 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-52 tests: 41 run entirely in memory (models, page logic, catalog grouping);
-11 are integration tests against a disposable `MarsvinDb_Test` LocalDB
-database, so they require LocalDB installed and running.
+108 tests, three layers:
+
+- **41 in-memory unit tests** — models, page logic, catalog grouping. No database needed.
+- **61 integration tests against a disposable `MarsvinDb_Test` LocalDB database** — the SQL data layer (`SqlUserAccountStore`, `SqlCartStore`, `SqlOrderStore`, `SqlPromotionStore`, `SqlCatalog`), plus security-critical `PageModel` logic called directly: the checkout transaction (stock validation, rollback on failure), the IDOR guard on order confirmation, the admin self-protection guard, cart validation, and login lockout.
+- **6 end-to-end HTTP tests against a disposable `MarsvinDb_WebTest` database**, driving the real app in-process via `WebApplicationFactory<Program>` — the layer above can't see actual antiforgery/CSRF behavior or cookie flags, since calling a `PageModel` method directly skips the middleware pipeline entirely. These prove: a POST without an antiforgery token is rejected (400), a token from a different session is rejected (400) even though it's validly-formed, the auth cookie is `HttpOnly`, and logging out actually expires that cookie and blocks a subsequent request to a protected page.
+
+All three require LocalDB installed and running (`sqllocaldb info`).
 
 ## What's in it
 
-| Page | Route | What it shows |
-|---|---|---|
-| Front page | `/` | Hero, bonded pairs, the four welfare questions, three essentials |
-| Marsvinene | `/Marsvin` | All animals, grouped into the pairs they're sold as |
-| Profil | `/Marsvin/Details/{id}` | One animal: breed, sex, age, colour, status, partner |
-| Tilbehør | `/Tilbehor` | Accessories with category filtering via query string |
+| Page | Route | Who | What it shows |
+|---|---|---|---|
+| Front page | `/` | Everyone | Hero, bonded pairs, the four welfare questions, three essentials |
+| Marsvinene | `/Marsvin` | Everyone | All animals, grouped into the pairs they're sold as |
+| Profil | `/Marsvin/Details/{id}` | Everyone | One animal: breed, sex, age, colour, status, partner, buy button |
+| Tilbehør | `/Tilbehor` | Everyone | Accessories, category filter, stock shown as Available/Low/Out (never a raw number), buy button |
+| Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register a Customer account |
+| Kurv | `/Cart/Index` | Customer | View cart, remove lines, check out |
+| Kvittering | `/Cart/Confirmation/{orderId}` | Customer | Order summary — only the buyer can view their own order |
+| Personale | `/Admin/Index` | Employee, Admin | Dashboard with role-appropriate links |
+| Lager & status | `/Admin/Stock/Index` | Employee, Admin | Adjust accessory stock counts, change animal status |
+| Tilbehør (admin) | `/Admin/Products/Index` + `Edit` | Admin | Full CRUD on accessories |
+| Marsvin (admin) | `/Admin/Animals/Index` + `Edit` | Admin | Full CRUD on guinea pigs |
+| Kampagner | `/Admin/Promotions/Index` + `Edit` | Admin | Time-boxed discounts, shop-wide or per product |
+| Konti | `/Admin/Users/Index` | Admin | Change roles, activate/deactivate accounts, create Employee/Admin accounts |
 
 Every page also has an **EN / DA** toggle in the header — the site defaults
 to Danish and switches to English client-side, remembering the choice per
 browser.
 
+Demo login credentials (seeded once, on a fresh database — see
+`marsvin-web/DATABASE-NOTES.txt`):
+
 ```
-Models/          Product (abstract) → StockProduct, Animal
-Data/            ICatalog, DemoCatalog (in-memory), SqlCatalog (ADO.NET),
+Admin:    admin@marsvin.dk    / Admin123!
+Employee: employee@marsvin.dk / Employee123!
+```
+
+Customers always self-register; there's no seeded customer account.
+
+```
+Models/          Product → StockProduct, Animal; ApplicationUser, CartLine, Order, Promotion
+Data/            ICatalog / ICatalogAdmin (catalog), IUserAccountStore, ICartStore,
+                 IOrderStore, IPromotionStore — each with a Sql* ADO.NET implementation
                  DbInitializer, Sql/schema.sql
-Pages/           Razor Pages + PageModels
+Pages/Account/   Register, Login, Logout, AccessDenied
+Pages/Cart/      Index (view/add/remove/checkout), Confirmation
+Pages/Admin/     Index, Stock/, Products/, Animals/, Promotions/, Users/
 Pages/Shared/    _Layout.cshtml, _Cavy.cshtml (the drawn guinea pig)
 wwwroot/css/     site.css — all the design tokens live at the top
 wwwroot/js/      lang-toggle.js — the DA/EN switch
 marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 ```
 
-## What is deliberately missing
+## How the security-relevant parts work
 
-**No cart, no checkout, no login, no admin.** Those are your assignment —
-user stories 1 to 11 — and you learn nothing from me handing them over. This
-example stops at the point where your own work starts.
+- **Passwords**: hashed with ASP.NET Core's `PasswordHasher<T>` (PBKDF2, salted) — never stored or logged in plain text.
+- **Sessions**: cookie authentication (`HttpOnly`, `SameSite=Lax`), issued on login/register, checked server-side on every request via `[Authorize]`.
+- **Authorization is server-side, not just hidden buttons.** Every role check happens in the `PageModel` (`[Authorize(Roles = "...")]`); an Employee who navigates straight to an Admin-only URL gets redirected to `/Account/AccessDenied`, not just a missing link in the nav. Verified directly (see git history / test the pages yourself): Employee → 302 on `/Admin/Products`, Customer → 302 on `/Admin/Index`.
+- **IDOR guard on orders**: `/Cart/Confirmation/{orderId}` looks up the order *and* checks it belongs to the logged-in user in the same query (`IOrderStore.FindForUser`) — you can't view someone else's order by guessing the ID.
+- **Checkout re-validates inside a transaction.** The cart can go stale between "add to cart" and "check out" (someone else buys the last unit, an animal gets marked not-for-sale); `SqlOrderStore.Checkout` re-checks stock/availability against the database inside the same transaction that records the order and decrements stock, and rolls back the whole checkout rather than partially fulfilling it.
+- **Self-protection on `/Admin/Users`**: an admin can't change their own role or deactivate their own account (only someone else's), so you can't accidentally lock yourself out.
+- **Login throttling**: 5 failed attempts locks that email out for 5 minutes (in-memory — fine for a demo, would need to be persisted for a real multi-instance deployment).
+- **No raw SQL string-building anywhere** — every query is a parameterised `SqlCommand`, including the admin CRUD forms.
+- **CSRF**: Razor Pages validates the antiforgery token on every POST handler automatically; every form here uses `method="post"` with the framework's tag helpers, which include the token for free.
 
-The database layer (`SqlCatalog`, `DbInitializer`, `schema.sql`) uses plain
-ADO.NET with parameterised `SqlCommand` — no ORM — matching what the real
-assignment expects. The `Product` / `StockProduct` / `Animal` hierarchy is
-shaped for the `ProductType` discriminator column, so the models port across
-unchanged.
-
-Buttons that would need write operations (reservations, checkout) are marked
-`aria-disabled` and say so.
+The database layer (`SqlCatalog`, `SqlUserAccountStore`, `SqlCartStore`,
+`SqlOrderStore`, `SqlPromotionStore`) uses plain ADO.NET with parameterised
+`SqlCommand` throughout — no ORM. The `Product` / `StockProduct` / `Animal`
+hierarchy is shaped for the `ProductType` discriminator column.
 
 ## Design notes
 

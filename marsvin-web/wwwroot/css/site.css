@@ -348,3 +348,127 @@ a:hover { color: var(--fleece); }
     .site-nav { margin-left: 0; width: 100%; gap: 1.1rem; }
     .cavy + .cavy { border-left: none; border-top: 1px dashed var(--line); }
 }
+
+/* ------------------------------ account nav --------------------- */
+.account-nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+.account-nav a { text-decoration: none; }
+.account-name { color: var(--bark); font-size: 0.85rem; }
+.logout-form { display: inline; }
+.logout-form button { padding: 0.3rem 0.7rem; font-size: 0.82rem; }
+
+/* ------------------------------ auth forms ----------------------- */
+.auth-page { max-width: 32rem; }
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+.auth-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.auth-form input,
+.auth-form select {
+    font: inherit;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--meadow);
+}
+.auth-form input:focus-visible,
+.auth-form select:focus-visible { border-color: var(--fleece); }
+.auth-form .btn { align-self: flex-start; }
+.auth-form .checkbox-label { flex-direction: row; align-items: center; }
+
+.auth-switch { font-size: 0.9rem; color: var(--bark); }
+
+.form-errors {
+    color: #7A1F3D;
+    background: #FBE7EE;
+    border: 1px solid #E6A9C0;
+    border-radius: 6px;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+    list-style: none;
+    margin: 0 0 0.5rem;
+}
+.form-errors:empty { display: none; }
+.field-error { color: #7A1F3D; font-size: 0.82rem; font-weight: 400; }
+
+/* ------------------------------ cart ------------------------------ */
+.goods-buy { margin-top: 0.5rem; }
+.goods-buy button { width: 100%; }
+
+.cart-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+}
+.cart-table th, .cart-table td {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+}
+.cart-total { font-size: 1.1rem; margin-bottom: 1.5rem; }
+
+/* ------------------------------ admin ------------------------------ */
+.admin-links {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+.admin-links a {
+    display: block;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.1rem 1.25rem;
+    text-decoration: none;
+}
+.admin-links a:hover { border-color: var(--fleece); }
+.admin-links h3 { margin: 0 0 0.35rem; }
+.admin-links p { margin: 0; font-size: 0.9rem; color: var(--bark); }
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 2rem;
+    font-size: 0.92rem;
+}
+.admin-table th, .admin-table td {
+    text-align: left;
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+}
+
+.inline-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.inline-form input[type="number"],
+.inline-form select {
+    font: inherit;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--meadow);
+    max-width: 8rem;
+}
+.inline-form .btn { padding: 0.3rem 0.65rem; font-size: 0.82rem; }

@@ -28,11 +28,23 @@ Using SQL Server Management Studio (SSMS):
   2. Connect to server: (localdb)\MSSQLLocalDB
   3. Authentication: Windows Authentication
   4. Expand Databases -> MarsvinDb -> Tables to see Products, Animals,
-     StockProducts. Right-click a table -> "Select Top 1000 Rows" to
-     view its data.
+     StockProducts, Users, CartItems, Orders, OrderItems, Promotions.
+     Right-click a table -> "Select Top 1000 Rows" to view its data.
 
 From the command line:
   sqlcmd -S "(localdb)\MSSQLLocalDB" -d MarsvinDb
+
+DEMO LOGIN CREDENTIALS
+------------------------
+Seeded automatically the first time the database is created (see
+DbInitializer.SeedAccountsIfEmpty). Demo-only - not fit for anything else:
+
+  Admin:    admin@marsvin.dk    / Admin123!
+  Employee: employee@marsvin.dk / Employee123!
+
+Customers always register themselves at /Account/Register - there is no
+seeded customer account. Admins can create additional Employee/Admin
+accounts from /Admin/Users.
 
 HOW TO START THE PROJECT
 --------------------------
@@ -41,18 +53,21 @@ From the marsvin-web folder:
 
 On startup, the app automatically:
   1. Creates the MarsvinDb database if it doesn't exist yet.
-  2. Runs schema.sql (drops and recreates the three tables).
-  3. Seeds the tables from the demo data in Data\DemoCatalog.cs, but
-     only if the Products table is empty.
+  2. Runs schema.sql. Every table is created once, the first time it's
+     missing, and left alone after that - nothing is ever dropped.
+  3. Seeds Products/Animals/StockProducts from Data\DemoCatalog.cs, and
+     seeds the Admin/Employee accounts above - but only on a database
+     that doesn't have that data yet (checked by row count).
 
 You do NOT need to manually create the database or run any SQL scripts
 yourself - just running the project handles it.
 
-NOTE: because the schema script drops and recreates the tables every
-time the app starts, any data you hand-edit directly in SSMS will be
-wiped on the next "dotnet run". There are no write features in this
-project yet (no cart/checkout), so this is expected and harmless for
-now.
+NOTE: earlier versions of this project dropped and recreated the catalog
+tables on every startup. That stopped being safe once admin/employee
+pages could edit the catalog live - it would have erased their changes
+on every restart. Every table is now create-once. If you want a fully
+fresh database, delete it yourself (see below) and let the app recreate
+and reseed it.
 
 IF THE DATABASE WON'T CONNECT / SEEMS DISCONNECTED
 -----------------------------------------------------
@@ -85,10 +100,25 @@ So in short: as long as appsettings.json still points at
 the database if it's missing. The only thing that ever needs manual
 fixing is the LocalDB instance itself (step 3 above).
 
+HOW TO RESET TO A FRESH DATABASE
+-----------------------------------
+Since tables are no longer dropped automatically, resetting is a manual
+step now (this deletes everything - accounts, orders, admin edits):
+
+  sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER DATABASE MarsvinDb SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE MarsvinDb;"
+
+Then just run the project again - it recreates and reseeds everything.
+
 RELEVANT FILES IN THIS PROJECT
 ---------------------------------
-Data\Sql\schema.sql     - table definitions (Products, Animals, StockProducts)
-Data\DbInitializer.cs   - creates the DB, runs the schema, seeds the data
-Data\SqlCatalog.cs      - reads the catalog from SQL Server via ADO.NET
-Data\DemoCatalog.cs     - the in-memory demo data used to seed the database
-appsettings.json        - connection string (ConnectionStrings:MarsvinDb)
+Data\Sql\schema.sql       - table definitions (Products/Animals/StockProducts,
+                            Users/CartItems/Orders/OrderItems/Promotions)
+Data\DbInitializer.cs     - creates the DB, runs the schema, seeds demo data + accounts
+Data\SqlCatalog.cs        - reads AND writes the product/animal catalog (ICatalog + ICatalogAdmin)
+Data\SqlUserAccountStore.cs - user accounts (used by /Account and /Admin/Users)
+Data\SqlCartStore.cs      - shopping cart
+Data\SqlOrderStore.cs     - checkout: validates availability, decrements stock, records the order
+Data\SqlPromotionStore.cs - promotions (Admin/Promotions)
+Data\DemoCatalog.cs       - the in-memory demo data used to seed the database
+appsettings.json          - connection string (ConnectionStrings:MarsvinDb)
+Program.cs                - cookie authentication + authorization setup, DI wiring

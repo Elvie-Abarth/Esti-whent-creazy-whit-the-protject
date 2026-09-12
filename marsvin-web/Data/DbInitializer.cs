@@ -1,13 +1,17 @@
 using MarsvinWebExample.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
 /// <summary>
-/// Creates the local database and its schema if they don't exist yet, and seeds
-/// it from <see cref="DemoCatalog"/> so there is exactly one place the demo data
-/// is written down. Runs once at startup - this is a demo catalog, not a
-/// migration framework.
+/// Creates the local database and its schema if they don't exist yet, and -
+/// only the very first time, on a freshly created database - seeds the
+/// catalog from <see cref="DemoCatalog"/> and creates the demo Admin/Employee
+/// accounts. Runs on every startup, but every step is a no-op once the
+/// database already has data: nothing here ever overwrites a product an
+/// admin edited, a user's password, or an order's history. This is a demo
+/// catalog, not a migration framework.
 /// </summary>
 public static class DbInitializer
 {
@@ -20,6 +24,7 @@ public static class DbInitializer
 
         RunSchemaScript(connection);
         SeedIfEmpty(connection);
+        SeedAccountsIfEmpty(connection);
     }
 
     private static void EnsureDatabaseExists(string connectionString)
@@ -75,6 +80,48 @@ public static class DbInitializer
 
         foreach (var item in catalog.Accessories)
             InsertStockProduct(connection, item);
+    }
+
+    /// <summary>
+    /// Seeds one Admin and one Employee account, but only the very first time
+    /// (Users is never dropped, so this never overwrites a real password once
+    /// someone has logged in and possibly changed it - not that a change-
+    /// password feature exists here, but the guard is what would matter if
+    /// one gets added). Customers always self-register through /Account/Register.
+    ///
+    /// DEMO CREDENTIALS - not fit for anything but a local demo:
+    ///   admin@marsvin.dk    / Admin123!
+    ///   employee@marsvin.dk / Employee123!
+    /// </summary>
+    private static void SeedAccountsIfEmpty(SqlConnection connection)
+    {
+        using (var check = new SqlCommand("SELECT COUNT(*) FROM dbo.Users;", connection))
+        {
+            var count = (int)check.ExecuteScalar()!;
+            if (count > 0) return;
+        }
+
+        var hasher = new PasswordHasher<ApplicationUser>();
+
+        InsertUser(connection, "admin@marsvin.dk",
+            hasher.HashPassword(null!, "Admin123!"), "Butiksejer", UserRole.Admin);
+        InsertUser(connection, "employee@marsvin.dk",
+            hasher.HashPassword(null!, "Employee123!"), "Medarbejder", UserRole.Employee);
+    }
+
+    private static void InsertUser(
+        SqlConnection connection, string email, string passwordHash, string displayName, UserRole role)
+    {
+        using var command = new SqlCommand(
+            """
+            INSERT INTO dbo.Users (Email, PasswordHash, DisplayName, Role, IsActive)
+            VALUES (@Email, @PasswordHash, @DisplayName, @Role, 1);
+            """, connection);
+        command.Parameters.AddWithValue("@Email", email);
+        command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+        command.Parameters.AddWithValue("@DisplayName", displayName);
+        command.Parameters.AddWithValue("@Role", (byte)role);
+        command.ExecuteNonQuery();
     }
 
     private static void InsertProduct(

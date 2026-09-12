@@ -1,0 +1,52 @@
+@page
+@model MarsvinWebExample.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Personale";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Staff area">Personale</h2>
+            <p data-en="@($"Signed in as {User.Identity!.Name} ({(User.IsInRole("Admin") ? "Admin" : "Employee")}).")">
+                Logget ind som @User.Identity!.Name (@(User.IsInRole("Admin") ? "Admin" : "Medarbejder")).
+            </p>
+        </div>
+    </div>
+
+    <ul class="admin-links">
+        <li>
+            <a asp-page="/Admin/Stock/Index">
+                <h3 data-en="Stock &amp; status">Lager &amp; status</h3>
+                <p data-en="Update how much is in stock, and mark animals reserved / not for sale.">Opdatér lagerantal, og markér dyr reserveret / ikke til salg.</p>
+            </a>
+        </li>
+        @if (User.IsInRole("Admin"))
+        {
+            <li>
+                <a asp-page="/Admin/Products/Index">
+                    <h3 data-en="Accessories">Tilbehør</h3>
+                    <p data-en="Add, edit, or remove accessories.">Tilføj, redigér eller fjern tilbehør.</p>
+                </a>
+            </li>
+            <li>
+                <a asp-page="/Admin/Animals/Index">
+                    <h3 data-en="Guinea pigs">Marsvin</h3>
+                    <p data-en="Add, edit, or remove guinea pigs.">Tilføj, redigér eller fjern marsvin.</p>
+                </a>
+            </li>
+            <li>
+                <a asp-page="/Admin/Promotions/Index">
+                    <h3 data-en="Promotions">Kampagner</h3>
+                    <p data-en="Run time-boxed discounts.">Kør tidsbegrænsede rabatter.</p>
+                </a>
+            </li>
+            <li>
+                <a asp-page="/Admin/Users/Index">
+                    <h3 data-en="Accounts">Konti</h3>
+                    <p data-en="Manage customer, employee, and admin accounts.">Administrér kunde-, medarbejder- og admin-konti.</p>
+                </a>
+            </li>
+        }
+    </ul>
+</div>

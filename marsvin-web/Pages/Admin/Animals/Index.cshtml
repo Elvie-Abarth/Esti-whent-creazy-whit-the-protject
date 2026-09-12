@@ -1,0 +1,47 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Animals.IndexModel
+@{
+    ViewData["Title"] = "Marsvin (admin)";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Guinea pigs">Marsvin</h2>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+        <a class="btn" asp-page="/Admin/Animals/Edit" asp-route-id="0" data-en="Add new">Tilføj ny</a>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th data-en="Name">Navn</th>
+                <th data-en="Breed">Race</th>
+                <th data-en="Price">Pris</th>
+                <th data-en="Status">Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var animal in Model.Items)
+            {
+                <tr>
+                    <td>@animal.Name</td>
+                    <td>@animal.Breed</td>
+                    <td>@animal.Price.ToString("N0") kr.</td>
+                    <td>@animal.StatusText</td>
+                    <td>
+                        <a class="btn btn--quiet" asp-page="/Admin/Animals/Edit" asp-route-id="@animal.ProductId" data-en="Edit">Redigér</a>
+                        <form method="post" asp-page-handler="Delete" class="inline-form" onsubmit="return confirm('Slet @animal.Name?');">
+                            <input type="hidden" name="productId" value="@animal.ProductId" />
+                            <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

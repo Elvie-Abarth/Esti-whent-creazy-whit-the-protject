@@ -37,13 +37,19 @@
                     <p data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
                     <span class="goods-foot">
                         <span class="price">@item.Price.ToString("N0") kr.</span>
-                        <span class="@(item.StockQuantity < 10 ? "stock stock--low" : "stock")"
-                              data-en="@(item.StockQuantity < 10 ? $"Only {item.StockQuantity} left" : $"{item.StockQuantity} in stock")">
-                            @(item.StockQuantity < 10
-                                ? $"Kun {item.StockQuantity} tilbage"
-                                : $"{item.StockQuantity} på lager")
+                        <span class="@(item.StockLevel switch { StockLevel.OutOfStock => "stock stock--low", StockLevel.LowStock => "stock stock--low", _ => "stock" })"
+                              data-en="@item.StockLevelTextEn">
+                            @item.StockLevelText
                         </span>
                     </span>
+                    @if (item.StockLevel != StockLevel.OutOfStock && !User.IsInRole("Employee") && !User.IsInRole("Admin"))
+                    {
+                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
+                            <input type="hidden" name="productId" value="@item.ProductId" />
+                            <input type="hidden" name="quantity" value="1" />
+                            <button type="submit" class="btn btn--quiet" data-en="Add to cart">Læg i kurv</button>
+                        </form>
+                    }
                 </li>
             }
         </ul>

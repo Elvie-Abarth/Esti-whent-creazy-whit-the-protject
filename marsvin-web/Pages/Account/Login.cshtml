@@ -1,0 +1,35 @@
+@page
+@model MarsvinWebExample.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Log ind";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Log in">Log ind</h2>
+            <p data-en="For customers, employees, and the shop owner.">For kunder, medarbejdere og butiksejeren.</p>
+        </div>
+    </div>
+
+    <form method="post" class="auth-form" asp-route-returnUrl="@Model.ReturnUrl">
+        <div asp-validation-summary="All" class="form-errors"></div>
+
+        <label>
+            <span data-en="Email">E-mail</span>
+            <input asp-for="Input.Email" autocomplete="email" />
+        </label>
+
+        <label>
+            <span data-en="Password">Adgangskode</span>
+            <input asp-for="Input.Password" autocomplete="current-password" />
+        </label>
+
+        <button type="submit" class="btn" data-en="Log in">Log ind</button>
+    </form>
+
+    <p class="auth-switch">
+        <span data-en="New here?">Ny her?</span>
+        <a asp-page="/Account/Register" asp-route-returnUrl="@Model.ReturnUrl" data-en="Create an account">Opret konto</a>
+    </p>
+</div>

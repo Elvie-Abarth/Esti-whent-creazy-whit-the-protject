@@ -35,4 +35,36 @@ public sealed class StockProduct : Product
         AccessoryCategory.Bedding => "Bedding",
         _ => "Other"
     };
+
+    /// <summary>
+    /// Customers never see the raw stock number - only whether it's available,
+    /// running low, or gone. StockQuantity itself stays visible to admin/employee.
+    /// </summary>
+    public StockLevel StockLevel => StockQuantity switch
+    {
+        <= 0 => StockLevel.OutOfStock,
+        < 10 => StockLevel.LowStock,
+        _ => StockLevel.InStock
+    };
+
+    public string StockLevelText => StockLevel switch
+    {
+        StockLevel.OutOfStock => "Udsolgt",
+        StockLevel.LowStock   => "Få tilbage",
+        _                     => "På lager"
+    };
+
+    public string StockLevelTextEn => StockLevel switch
+    {
+        StockLevel.OutOfStock => "Out of stock",
+        StockLevel.LowStock   => "Low stock",
+        _                     => "In stock"
+    };
+}
+
+public enum StockLevel
+{
+    OutOfStock,
+    LowStock,
+    InStock
 }

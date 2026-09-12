@@ -4,22 +4,30 @@ using Microsoft.Data.SqlClient;
 namespace MarsvinWebExample.Data;
 
 /// <summary>
-/// Reads the catalog from SQL Server (LocalDB in development) via plain ADO.NET -
-/// no ORM, every query parameterised. Loads once at startup; this is a small
-/// demo catalog, not a paged repository.
+/// Reads and writes the catalog in SQL Server (LocalDB in development) via
+/// plain ADO.NET - no ORM, every query parameterised. Queries fresh on every
+/// access rather than caching, since ICatalogAdmin lets the catalog change
+/// mid-run (admin/employee edits) - registered per-request in DI, not as a
+/// singleton, for the same reason.
 /// </summary>
-public sealed class SqlCatalog : ICatalog
+public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmin
 {
-    public IReadOnlyList<Animal> Animals { get; }
-    public IReadOnlyList<StockProduct> Accessories { get; }
-
-    public SqlCatalog(string connectionString)
+    public IReadOnlyList<Animal> Animals
     {
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
+        get
+        {
+            using var connection = Open();
+            return LoadAnimals(connection);
+        }
+    }
 
-        Animals = LoadAnimals(connection);
-        Accessories = LoadAccessories(connection);
+    public IReadOnlyList<StockProduct> Accessories
+    {
+        get
+        {
+            using var connection = Open();
+            return LoadAccessories(connection);
+        }
     }
 
     public Animal? FindAnimal(int id) => Animals.FirstOrDefault(a => a.ProductId == id);
@@ -29,12 +37,14 @@ public sealed class SqlCatalog : ICatalog
 
     public IEnumerable<IReadOnlyList<Animal>> AnimalGroups()
     {
+        var animals = Animals;
+        var byId = animals.ToDictionary(a => a.ProductId);
         var seen = new HashSet<int>();
-        foreach (var animal in Animals)
+        foreach (var animal in animals)
         {
             if (!seen.Add(animal.ProductId)) continue;
 
-            var partner = animal.BondedWithId is int id ? FindAnimal(id) : null;
+            var partner = animal.BondedWithId is int id && byId.TryGetValue(id, out var found) ? found : null;
             if (partner is not null && seen.Add(partner.ProductId))
                 yield return [animal, partner];
             else
@@ -114,6 +124,236 @@ public sealed class SqlCatalog : ICatalog
             });
         }
         return accessories;
+    }
+
+    public void CreateAnimal(Animal animal)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        var productId = NextProductId(connection, transaction);
+        InsertProduct(connection, transaction, productId, productType: 1,
+            animal.Name, nameEn: null, animal.Description, animal.DescriptionEn, animal.Price);
+
+        using var command = new SqlCommand(
+            """
+            INSERT INTO dbo.Animals
+                (ProductId, Breed, BreedEn, Sex, DateOfBirth, Colour, ColourEn,
+                 CoatPrimary, CoatSecondary, Status, BondedWithId, Personality, PersonalityEn, PhotoUrl)
+            VALUES
+                (@ProductId, @Breed, @BreedEn, @Sex, @DateOfBirth, @Colour, @ColourEn,
+                 @CoatPrimary, @CoatSecondary, @Status, @BondedWithId, @Personality, @PersonalityEn, @PhotoUrl);
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        BindAnimal(command, animal);
+        command.ExecuteNonQuery();
+
+        transaction.Commit();
+    }
+
+    public void UpdateAnimal(Animal animal)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        UpdateProduct(connection, transaction, animal.ProductId,
+            animal.Name, nameEn: null, animal.Description, animal.DescriptionEn, animal.Price);
+
+        using var command = new SqlCommand(
+            """
+            UPDATE dbo.Animals SET
+                Breed = @Breed, BreedEn = @BreedEn, Sex = @Sex, DateOfBirth = @DateOfBirth,
+                Colour = @Colour, ColourEn = @ColourEn, CoatPrimary = @CoatPrimary,
+                CoatSecondary = @CoatSecondary, Status = @Status, BondedWithId = @BondedWithId,
+                Personality = @Personality, PersonalityEn = @PersonalityEn, PhotoUrl = @PhotoUrl
+            WHERE ProductId = @ProductId;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", animal.ProductId);
+        BindAnimal(command, animal);
+        command.ExecuteNonQuery();
+
+        transaction.Commit();
+    }
+
+    public void DeleteAnimal(int productId)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        using (var command = new SqlCommand(
+            "DELETE FROM dbo.Animals WHERE ProductId = @ProductId;", connection, transaction))
+        {
+            command.Parameters.AddWithValue("@ProductId", productId);
+            command.ExecuteNonQuery();
+        }
+        DeleteProduct(connection, transaction, productId);
+
+        transaction.Commit();
+    }
+
+    public void CreateStockProduct(StockProduct product)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        var productId = NextProductId(connection, transaction);
+        InsertProduct(connection, transaction, productId, productType: 2,
+            product.Name, product.NameEn, product.Description, product.DescriptionEn, product.Price);
+
+        using var command = new SqlCommand(
+            """
+            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit)
+            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit);
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        BindStockProduct(command, product);
+        command.ExecuteNonQuery();
+
+        transaction.Commit();
+    }
+
+    public void UpdateStockProduct(StockProduct product)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        UpdateProduct(connection, transaction, product.ProductId,
+            product.Name, product.NameEn, product.Description, product.DescriptionEn, product.Price);
+
+        using var command = new SqlCommand(
+            """
+            UPDATE dbo.StockProducts SET
+                Sku = @Sku, Category = @Category, StockQuantity = @StockQuantity, Unit = @Unit
+            WHERE ProductId = @ProductId;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", product.ProductId);
+        BindStockProduct(command, product);
+        command.ExecuteNonQuery();
+
+        transaction.Commit();
+    }
+
+    public void DeleteStockProduct(int productId)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        using (var command = new SqlCommand(
+            "DELETE FROM dbo.StockProducts WHERE ProductId = @ProductId;", connection, transaction))
+        {
+            command.Parameters.AddWithValue("@ProductId", productId);
+            command.ExecuteNonQuery();
+        }
+        DeleteProduct(connection, transaction, productId);
+
+        transaction.Commit();
+    }
+
+    public void UpdateStockQuantity(int productId, int quantity)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.StockProducts SET StockQuantity = @Quantity WHERE ProductId = @ProductId;", connection);
+        command.Parameters.AddWithValue("@Quantity", quantity);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        command.ExecuteNonQuery();
+    }
+
+    public void UpdateAnimalStatus(int productId, AnimalStatus status)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Animals SET Status = @Status WHERE ProductId = @ProductId;", connection);
+        command.Parameters.AddWithValue("@Status", (byte)status);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        command.ExecuteNonQuery();
+    }
+
+    private static int NextProductId(SqlConnection connection, SqlTransaction transaction)
+    {
+        using var command = new SqlCommand(
+            "SELECT ISNULL(MAX(ProductId), 0) + 1 FROM dbo.Products WITH (TABLOCKX, HOLDLOCK);",
+            connection, transaction);
+        return (int)command.ExecuteScalar()!;
+    }
+
+    private static void InsertProduct(
+        SqlConnection connection, SqlTransaction transaction, int productId, byte productType,
+        string name, string? nameEn, string description, string? descriptionEn, decimal price)
+    {
+        using var command = new SqlCommand(
+            """
+            INSERT INTO dbo.Products (ProductId, ProductType, Name, NameEn, Description, DescriptionEn, Price)
+            VALUES (@ProductId, @ProductType, @Name, @NameEn, @Description, @DescriptionEn, @Price);
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        command.Parameters.AddWithValue("@ProductType", productType);
+        command.Parameters.AddWithValue("@Name", name);
+        command.Parameters.AddWithValue("@NameEn", (object?)nameEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Description", description);
+        command.Parameters.AddWithValue("@DescriptionEn", (object?)descriptionEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Price", price);
+        command.ExecuteNonQuery();
+    }
+
+    private static void UpdateProduct(
+        SqlConnection connection, SqlTransaction transaction, int productId,
+        string name, string? nameEn, string description, string? descriptionEn, decimal price)
+    {
+        using var command = new SqlCommand(
+            """
+            UPDATE dbo.Products SET
+                Name = @Name, NameEn = @NameEn, Description = @Description,
+                DescriptionEn = @DescriptionEn, Price = @Price
+            WHERE ProductId = @ProductId;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        command.Parameters.AddWithValue("@Name", name);
+        command.Parameters.AddWithValue("@NameEn", (object?)nameEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Description", description);
+        command.Parameters.AddWithValue("@DescriptionEn", (object?)descriptionEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Price", price);
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteProduct(SqlConnection connection, SqlTransaction transaction, int productId)
+    {
+        using var command = new SqlCommand(
+            "DELETE FROM dbo.Products WHERE ProductId = @ProductId;", connection, transaction);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        command.ExecuteNonQuery();
+    }
+
+    private static void BindAnimal(SqlCommand command, Animal animal)
+    {
+        command.Parameters.AddWithValue("@Breed", animal.Breed);
+        command.Parameters.AddWithValue("@BreedEn", (object?)animal.BreedEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Sex", (byte)animal.Sex);
+        command.Parameters.AddWithValue("@DateOfBirth", animal.DateOfBirth.ToDateTime(TimeOnly.MinValue));
+        command.Parameters.AddWithValue("@Colour", animal.Colour);
+        command.Parameters.AddWithValue("@ColourEn", (object?)animal.ColourEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@CoatPrimary", animal.CoatPrimary);
+        command.Parameters.AddWithValue("@CoatSecondary", animal.CoatSecondary);
+        command.Parameters.AddWithValue("@Status", (byte)animal.Status);
+        command.Parameters.AddWithValue("@BondedWithId", (object?)animal.BondedWithId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Personality", animal.Personality);
+        command.Parameters.AddWithValue("@PersonalityEn", (object?)animal.PersonalityEn ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PhotoUrl", (object?)animal.PhotoUrl ?? DBNull.Value);
+    }
+
+    private static void BindStockProduct(SqlCommand command, StockProduct product)
+    {
+        command.Parameters.AddWithValue("@Sku", product.Sku);
+        command.Parameters.AddWithValue("@Category", (byte)product.Category);
+        command.Parameters.AddWithValue("@StockQuantity", product.StockQuantity);
+        command.Parameters.AddWithValue("@Unit", (object?)product.Unit ?? DBNull.Value);
+    }
+
+    private SqlConnection Open()
+    {
+        var connection = new SqlConnection(connectionString);
+        connection.Open();
+        return connection;
     }
 }
 

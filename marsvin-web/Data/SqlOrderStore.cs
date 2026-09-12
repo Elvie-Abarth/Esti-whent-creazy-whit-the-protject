@@ -1,0 +1,232 @@
+using MarsvinWebExample.Models;
+using Microsoft.Data.SqlClient;
+
+namespace MarsvinWebExample.Data;
+
+public sealed class SqlOrderStore(string connectionString) : IOrderStore
+{
+    public CheckoutResult Checkout(int userId)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var lines = LoadCartLines(connection, transaction, userId);
+            if (lines.Count == 0)
+                return CheckoutResult.Fail("Din kurv er tom.");
+
+            foreach (var line in lines)
+            {
+                var problem = ValidateLine(connection, transaction, line);
+                if (problem is not null)
+                {
+                    transaction.Rollback();
+                    return CheckoutResult.Fail(problem);
+                }
+            }
+
+            var orderId = InsertOrder(connection, transaction, userId, lines);
+
+            foreach (var line in lines)
+                ApplyStockChange(connection, transaction, line);
+
+            ClearCart(connection, transaction, userId);
+
+            transaction.Commit();
+
+            var order = FindForUser(orderId, userId)
+                ?? throw new InvalidOperationException("Order vanished immediately after being created.");
+            return CheckoutResult.Ok(order);
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public Order? FindForUser(int orderId, int userId)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        using var orderCommand = new SqlCommand(
+            "SELECT OrderId, UserId, TotalPrice, CreatedAt FROM dbo.Orders " +
+            "WHERE OrderId = @OrderId AND UserId = @UserId;", connection);
+        orderCommand.Parameters.AddWithValue("@OrderId", orderId);
+        orderCommand.Parameters.AddWithValue("@UserId", userId);
+
+        int foundUserId;
+        decimal totalPrice;
+        DateTime createdAt;
+        using (var reader = orderCommand.ExecuteReader())
+        {
+            if (!reader.Read()) return null;
+            foundUserId = reader.GetInt32(reader.GetOrdinal("UserId"));
+            totalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice"));
+            createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
+        }
+
+        using var itemsCommand = new SqlCommand(
+            "SELECT ProductId, ProductName, UnitPrice, Quantity FROM dbo.OrderItems " +
+            "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
+        itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
+
+        var items = new List<OrderItem>();
+        using (var reader = itemsCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                items.Add(new OrderItem
+                {
+                    ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                    ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                    UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                    Quantity = reader.GetInt32(reader.GetOrdinal("Quantity"))
+                });
+            }
+        }
+
+        return new Order
+        {
+            OrderId = orderId,
+            UserId = foundUserId,
+            TotalPrice = totalPrice,
+            CreatedAt = createdAt,
+            Items = items
+        };
+    }
+
+    private static List<CartLine> LoadCartLines(SqlConnection connection, SqlTransaction transaction, int userId)
+    {
+        using var command = new SqlCommand(
+            """
+            SELECT c.ProductId, c.Quantity, p.Name, p.Price,
+                   CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal
+            FROM dbo.CartItems c
+            JOIN dbo.Products p ON p.ProductId = c.ProductId
+            LEFT JOIN dbo.Animals a ON a.ProductId = p.ProductId
+            WHERE c.UserId = @UserId;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@UserId", userId);
+
+        var lines = new List<CartLine>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            lines.Add(new CartLine
+            {
+                ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                ProductName = reader.GetString(reader.GetOrdinal("Name")),
+                UnitPrice = reader.GetDecimal(reader.GetOrdinal("Price")),
+                Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
+                IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1
+            });
+        }
+        return lines;
+    }
+
+    /// <summary>Returns an error message if the line can no longer be fulfilled, otherwise null.</summary>
+    private static string? ValidateLine(SqlConnection connection, SqlTransaction transaction, CartLine line)
+    {
+        if (line.IsAnimal)
+        {
+            using var command = new SqlCommand(
+                "SELECT Status, DateOfBirth FROM dbo.Animals WHERE ProductId = @ProductId;",
+                connection, transaction);
+            command.Parameters.AddWithValue("@ProductId", line.ProductId);
+
+            using var reader = command.ExecuteReader();
+            if (!reader.Read())
+                return $"{line.ProductName} findes ikke længere.";
+
+            var status = (AnimalStatus)reader.GetByte(reader.GetOrdinal("Status"));
+            var dateOfBirth = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("DateOfBirth")));
+            var weeksOld = (DateOnly.FromDateTime(DateTime.Today).DayNumber - dateOfBirth.DayNumber) / 7;
+
+            if (status != AnimalStatus.Available)
+                return $"{line.ProductName} er ikke længere til salg.";
+            if (weeksOld < 4)
+                return $"{line.ProductName} er endnu ikke gammel nok til at flytte hjemmefra.";
+
+            return null;
+        }
+        else
+        {
+            using var command = new SqlCommand(
+                "SELECT StockQuantity FROM dbo.StockProducts WHERE ProductId = @ProductId;",
+                connection, transaction);
+            command.Parameters.AddWithValue("@ProductId", line.ProductId);
+
+            var stock = (int?)command.ExecuteScalar();
+            if (stock is null)
+                return $"{line.ProductName} findes ikke længere.";
+            if (stock < line.Quantity)
+                return $"Der er ikke {line.Quantity} styk tilbage af {line.ProductName}.";
+
+            return null;
+        }
+    }
+
+    private static int InsertOrder(
+        SqlConnection connection, SqlTransaction transaction, int userId, IReadOnlyList<CartLine> lines)
+    {
+        var total = lines.Sum(l => l.LineTotal);
+
+        using var orderCommand = new SqlCommand(
+            "INSERT INTO dbo.Orders (UserId, TotalPrice) OUTPUT INSERTED.OrderId VALUES (@UserId, @TotalPrice);",
+            connection, transaction);
+        orderCommand.Parameters.AddWithValue("@UserId", userId);
+        orderCommand.Parameters.AddWithValue("@TotalPrice", total);
+        var orderId = (int)orderCommand.ExecuteScalar()!;
+
+        foreach (var line in lines)
+        {
+            using var itemCommand = new SqlCommand(
+                """
+                INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity)
+                VALUES (@OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity);
+                """, connection, transaction);
+            itemCommand.Parameters.AddWithValue("@OrderId", orderId);
+            itemCommand.Parameters.AddWithValue("@ProductId", line.ProductId);
+            itemCommand.Parameters.AddWithValue("@ProductName", line.ProductName);
+            itemCommand.Parameters.AddWithValue("@UnitPrice", line.UnitPrice);
+            itemCommand.Parameters.AddWithValue("@Quantity", line.Quantity);
+            itemCommand.ExecuteNonQuery();
+        }
+
+        return orderId;
+    }
+
+    private static void ApplyStockChange(SqlConnection connection, SqlTransaction transaction, CartLine line)
+    {
+        if (line.IsAnimal)
+        {
+            using var command = new SqlCommand(
+                "UPDATE dbo.Animals SET Status = @Sold WHERE ProductId = @ProductId;",
+                connection, transaction);
+            command.Parameters.AddWithValue("@Sold", (byte)AnimalStatus.Sold);
+            command.Parameters.AddWithValue("@ProductId", line.ProductId);
+            command.ExecuteNonQuery();
+        }
+        else
+        {
+            using var command = new SqlCommand(
+                "UPDATE dbo.StockProducts SET StockQuantity = StockQuantity - @Quantity WHERE ProductId = @ProductId;",
+                connection, transaction);
+            command.Parameters.AddWithValue("@Quantity", line.Quantity);
+            command.Parameters.AddWithValue("@ProductId", line.ProductId);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void ClearCart(SqlConnection connection, SqlTransaction transaction, int userId)
+    {
+        using var command = new SqlCommand(
+            "DELETE FROM dbo.CartItems WHERE UserId = @UserId;", connection, transaction);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+}

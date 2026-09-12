@@ -1,0 +1,53 @@
+@page "{id:int}"
+@model MarsvinWebExample.Pages.Admin.Animals.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Nyt marsvin" : "Redigér marsvin";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2>@(Model.IsNew ? "Nyt marsvin" : "Redigér marsvin")</h2>
+        </div>
+    </div>
+
+    <form method="post" class="auth-form">
+        <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+
+        <label><span>Navn</span><input asp-for="Input.Name" /></label>
+        <label><span>Beskrivelse (dansk)</span><input asp-for="Input.Description" /></label>
+        <label><span>Description (English)</span><input asp-for="Input.DescriptionEn" /></label>
+        <label><span>Race (dansk)</span><input asp-for="Input.Breed" /></label>
+        <label><span>Breed (English)</span><input asp-for="Input.BreedEn" /></label>
+        <label>
+            <span>Køn</span>
+            <select asp-for="Input.Sex" asp-items="Html.GetEnumSelectList<Sex>()"></select>
+        </label>
+        <label><span>Fødselsdato</span><input asp-for="Input.DateOfBirth" type="date" /></label>
+        <label><span>Farve (dansk)</span><input asp-for="Input.Colour" /></label>
+        <label><span>Colour (English)</span><input asp-for="Input.ColourEn" /></label>
+        <label><span>Pelsfarve 1 (hex)</span><input asp-for="Input.CoatPrimary" type="color" /></label>
+        <label><span>Pelsfarve 2 (hex)</span><input asp-for="Input.CoatSecondary" type="color" /></label>
+        <label>
+            <span>Status</span>
+            <select asp-for="Input.Status" asp-items="Html.GetEnumSelectList<AnimalStatus>()"></select>
+        </label>
+        <label>
+            <span>Bor sammen med (valgfri)</span>
+            <select asp-for="Input.BondedWithId">
+                <option value="">—</option>
+                @foreach (var other in Model.OtherAnimals)
+                {
+                    <option value="@other.ProductId">@other.Name</option>
+                }
+            </select>
+        </label>
+        <label><span>Personlighed (dansk)</span><input asp-for="Input.Personality" /></label>
+        <label><span>Personality (English)</span><input asp-for="Input.PersonalityEn" /></label>
+        <label><span>Foto-URL (valgfri - viser tegning hvis tom)</span><input asp-for="Input.PhotoUrl" /></label>
+        <label><span>Pris (kr.)</span><input asp-for="Input.Price" type="number" step="1" /></label>
+
+        <button type="submit" class="btn">Gem</button>
+        <a class="btn btn--quiet" asp-page="/Admin/Animals/Index">Annullér</a>
+    </form>
+</div>

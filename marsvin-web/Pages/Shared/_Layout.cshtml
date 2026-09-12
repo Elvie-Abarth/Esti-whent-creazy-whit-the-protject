@@ -1,3 +1,5 @@
+@using System.Security.Claims
+@inject MarsvinWebExample.Data.ICartStore CartStoreForNav
 <!DOCTYPE html>
 <html lang="da">
 <head>
@@ -29,6 +31,31 @@
             <a asp-page="/Marsvin/Index" data-en="Guinea pigs">Marsvinene</a>
             <a asp-page="/Tilbehor/Index" data-en="Accessories">Tilbehør</a>
             <a asp-page="/Index" asp-fragment="pasning" data-en="Care guide">Pasningsguide</a>
+        </nav>
+
+        <nav class="account-nav" aria-label="Konto" data-en-aria-label="Account">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                if (User.IsInRole("Admin") || User.IsInRole("Employee"))
+                {
+                    <a asp-page="/Admin/Index" data-en="Staff">Personale</a>
+                }
+                if (User.IsInRole("Customer"))
+                {
+                    var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                    var cartCount = CartStoreForNav.GetLines(userId).Sum(l => l.Quantity);
+                    <a asp-page="/Cart/Index" data-en="@($"Cart ({cartCount})")">Kurv (@cartCount)</a>
+                }
+                <span class="account-name">@User.Identity!.Name</span>
+                <form method="post" asp-page="/Account/Logout" class="logout-form">
+                    <button type="submit" class="btn btn--quiet" data-en="Log out">Log ud</button>
+                </form>
+            }
+            else
+            {
+                <a asp-page="/Account/Login" data-en="Log in">Log ind</a>
+                <a class="btn btn--quiet" asp-page="/Account/Register" data-en="Sign up">Opret konto</a>
+            }
         </nav>
 
         <button type="button" id="lang-toggle" class="btn btn--quiet lang-toggle" aria-label="Switch to English">EN</button>

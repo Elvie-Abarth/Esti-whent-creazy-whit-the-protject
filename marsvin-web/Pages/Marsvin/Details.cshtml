@@ -53,7 +53,18 @@
             <div class="actions">
                 @if (a.Status == AnimalStatus.Available && a.IsOldEnoughToSell())
                 {
-                    <span class="btn" aria-disabled="true" data-en="Reserve (not built in the example)">Reservér (ikke bygget i eksemplet)</span>
+                    if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+                    {
+                        <span class="btn" aria-disabled="true" data-en="Staff accounts can't buy">Personalekonti kan ikke købe</span>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add">
+                            <input type="hidden" name="productId" value="@a.ProductId" />
+                            <input type="hidden" name="quantity" value="1" />
+                            <button type="submit" class="btn" data-en="Add to cart">Læg i kurv</button>
+                        </form>
+                    }
                 }
                 else
                 {

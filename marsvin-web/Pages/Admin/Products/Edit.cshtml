@@ -1,0 +1,57 @@
+@page "{id:int}"
+@model MarsvinWebExample.Pages.Admin.Products.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Nyt tilbehør" : "Redigér tilbehør";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2>@(Model.IsNew ? "Nyt tilbehør" : "Redigér tilbehør")</h2>
+        </div>
+    </div>
+
+    <form method="post" class="auth-form">
+        <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+
+        <label>
+            <span>Navn (dansk)</span>
+            <input asp-for="Input.Name" />
+        </label>
+        <label>
+            <span>Name (English)</span>
+            <input asp-for="Input.NameEn" />
+        </label>
+        <label>
+            <span>Beskrivelse (dansk)</span>
+            <input asp-for="Input.Description" />
+        </label>
+        <label>
+            <span>Description (English)</span>
+            <input asp-for="Input.DescriptionEn" />
+        </label>
+        <label>
+            <span>SKU</span>
+            <input asp-for="Input.Sku" />
+        </label>
+        <label>
+            <span>Kategori</span>
+            <select asp-for="Input.Category" asp-items="Html.GetEnumSelectList<AccessoryCategory>()"></select>
+        </label>
+        <label>
+            <span>Pris (kr.)</span>
+            <input asp-for="Input.Price" type="number" step="1" />
+        </label>
+        <label>
+            <span>Lagerantal</span>
+            <input asp-for="Input.StockQuantity" type="number" />
+        </label>
+        <label>
+            <span>Enhed (fx pose, stk)</span>
+            <input asp-for="Input.Unit" />
+        </label>
+
+        <button type="submit" class="btn">Gem</button>
+        <a class="btn btn--quiet" asp-page="/Admin/Products/Index">Annullér</a>
+    </form>
+</div>
