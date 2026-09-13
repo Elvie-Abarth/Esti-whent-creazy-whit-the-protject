@@ -1,0 +1,373 @@
+# Marsvin website architecture
+
+This is the companion to `DATABASE-ARCHITECTURE.md` - that one explains the
+data layer, this one explains **the web application itself**: how a request
+becomes a response, how the site is organised, how login/roles/security
+work, how the bilingual DA/EN toggle works, and how it's tested. For
+operational how-tos (starting the project, credentials, resetting the DB),
+see `DATABASE-NOTES.txt`.
+
+## 1. Tech stack
+
+- **ASP.NET Core 9, Razor Pages** - not MVC (no separate `Controllers/` +
+  `Views/` split) and not Blazor. Each page is a pair of files: a `.cshtml`
+  (the HTML/Razor view) and a `.cshtml.cs` (the `PageModel` behind it,
+  holding the `OnGet`/`OnPost*` handlers).
+- **Plain ADO.NET, no ORM** - see `DATABASE-ARCHITECTURE.md` §1.
+- **Cookie authentication** (`Microsoft.AspNetCore.Authentication.Cookies`)
+  - no ASP.NET Core Identity, no JWTs, no external auth providers. A hand-
+    rolled claims principal, described in §4.
+- **No frontend framework** - no React/Vue/etc., no build step, no NPM
+  dependency for the site itself. Styling is one hand-written CSS file
+  (`wwwroot/css/site.css`); the only JavaScript in the whole site is one
+  small file for the DA/EN language toggle (`wwwroot/js/lang-toggle.js`,
+  see §6) - everything else is server-rendered Razor and plain HTML forms.
+- **MailKit** for real SMTP email (see §7).
+- **xUnit** for tests, in a separate `marsvin-web.Tests` project, with two
+  distinct testing strategies (see §9).
+
+## 2. Project layout
+
+```
+marsvin-web/
+  Pages/            - every route in the site: one .cshtml (+ .cshtml.cs) per page
+  Data/             - IXxxStore interfaces, SqlXxxStore implementations, DbInitializer, email
+  Models/           - plain C# classes/enums the stores read and write (Animal, Order, Shift, ...)
+  wwwroot/          - site.css, lang-toggle.js, favicon.svg - static files served as-is
+  Program.cs        - composition root: DI registrations, middleware pipeline, startup
+  appsettings.json  - connection string, SMTP host/port (not credentials - see below), base URL
+  DATABASE-NOTES.txt / DATABASE-ARCHITECTURE.md / WEBSITE-ARCHITECTURE.md - project docs
+
+marsvin-web.Tests/
+  Data/             - store tests, against a real (disposable) SQL Server LocalDB database
+  Pages/            - PageModel tests, both direct-construction unit tests and full-HTTP ones
+  TestAuth.cs, MarsvinWebAppFactory.cs, CookieJar.cs, HttpTestHelpers.cs - shared test plumbing
+```
+
+Nothing in `Pages/` is orphaned scaffolding - every `.cshtml` file
+corresponds to a real, reachable route (Razor Pages' convention-based
+routing turns `Pages/Marsvin/Details.cshtml` into the route
+`/Marsvin/Details`, `Pages/Admin/Schedule/Index.cshtml` into
+`/Admin/Schedule`, and so on - folder structure *is* URL structure).
+
+## 3. Request pipeline (`Program.cs`)
+
+In order, on every request:
+
+1. **`app.UseHttpsRedirection()`** - redirect plain HTTP to HTTPS (in
+   production; LocalDB/dev runs over plain HTTP on `localhost:5080`, which
+   is why `appsettings.json`'s `App:BaseUrl` defaults to `http://...`).
+2. **`app.UseStaticFiles()`** - serves `wwwroot/*` directly, no page code
+   involved.
+3. **`app.UseRouting()`** - matches the request path to a Razor Page.
+4. **`app.UseAuthentication()`** - reads the auth cookie (if any) and builds
+   the `ClaimsPrincipal` that every page sees as `User`.
+5. **`app.UseAuthorization()`** - enforces `[Authorize]`/
+   `[Authorize(Roles = "...")]` attributes on the matched page; an
+   unauthenticated request to a protected page redirects to
+   `/Account/Login`, an authenticated-but-wrong-role request redirects to
+   `/Account/AccessDenied`.
+6. **`app.MapRazorPages()`** - hands off to the matched `PageModel`'s
+   `OnGet`/`OnPost` handler.
+
+Before any of that, at the very top of `Program.cs`,
+**`DbInitializer.EnsureCreatedAndSeeded(connectionString)`** runs
+synchronously - the database exists and has its schema applied before the
+web server ever starts accepting requests (see
+`DATABASE-ARCHITECTURE.md` §6).
+
+Also registered as a `Singleton` hosted service:
+**`InactiveAccountCleanupService`** (a `BackgroundService`) - it runs
+independently of any request, once a day, for as long as the app process is
+alive (see `DATABASE-ARCHITECTURE.md` §7).
+
+### Dependency injection
+
+Every `IXxxStore` is registered `Scoped` (one instance per HTTP request) as
+a lambda that closes over the connection string read once from
+configuration - e.g.:
+
+```csharp
+builder.Services.AddScoped<IUserAccountStore>(_ => new SqlUserAccountStore(connectionString));
+```
+
+`ICatalog`/`ICatalogAdmin` are the one exception with two interfaces
+mapping to a single registered `SqlCatalog` instance per request (so admin
+edits and customer-facing reads within the same request share one
+connection rather than each interface getting its own). `IEmailSender` is
+the other exception - registered `Singleton`, because it's stateless
+(just wraps an SMTP client per send) and there's no reason to spin up a new
+one per request.
+
+## 4. Authentication & authorization
+
+### Roles
+
+Three roles, stored as a `TINYINT` on `Users.Role`: **Customer** (`0`),
+**Employee** (`1`), **Admin** (`2`). Customers always self-register at
+`/Account/Register` - there's no way to create a Customer account any other
+way. Employee/Admin accounts are provisioned either by seeding
+(`admin@marsvin.dk`/`employee@marsvin.dk`, see `DATABASE-NOTES.txt`) or by
+an existing Admin from `/Admin/Users`.
+
+Pages restrict access with `[Authorize]` (any signed-in role) or
+`[Authorize(Roles = "Admin")]` / `[Authorize(Roles = "Admin,Employee")]` on
+the `PageModel` class. A handful of pages go further than the role
+attribute allows and check inside the handler itself
+(`if (!User.IsInRole("Admin")) return Forbid();`) - used wherever only part
+of a shared page needs restricting (e.g. `/Admin/Schedule` is reachable by
+both roles, but only an Admin may create/delete a shift or decide a day-off
+request).
+
+### The login flow: password *and* an email link
+
+This is more involved than typical cookie auth, and worth walking through
+end to end:
+
+1. **`LoginModel.OnPostAsync`** - verifies email + password
+   (`PasswordHasher<ApplicationUser>`, PBKDF2). If correct, it does **not**
+   sign the user in yet. Instead it generates a random 256-bit token
+   (`RandomNumberGenerator`), stores only its SHA-256 hash in
+   `dbo.PendingLogins` (via `IPendingLoginStore.Create`), and emails the raw
+   token as a link to `/Account/ConfirmLogin?token=...` - then redirects to
+   `/Account/CheckEmail` ("we sent you a link").
+2. **`ConfirmLoginModel.OnGetAsync`** - hashes whatever token is in the URL,
+   looks it up (`IPendingLoginStore.Consume`, single-use, 15-minute expiry).
+   If it matches an unexpired row, *this* is the point that actually calls
+   `HttpContext.SignInAsync(...)` and creates the real session cookie -
+   also the point `Users.LastActiveAt` gets refreshed
+   (`IUserAccountStore.RecordActivity`), not the password-check step.
+3. If the token is missing, wrong, expired, or already used,
+   `ConfirmLogin.cshtml` just shows "log in again" - no session is created.
+
+This means a correct password is necessary but not sufficient - proof of
+access to the account's own inbox is also required, every single time,
+regardless of role. Five wrong password attempts within a short window
+locks that email out for 5 minutes (`LoginModel`'s in-memory
+`FailedAttempts` dictionary - a demo-scale rate limiter, not something that
+would survive an app restart or work across multiple instances in a real
+deployment).
+
+**`RegisterModel`** is the one exception to all of this: registration signs
+the new account in immediately, no email-confirmation step - you just
+proved you control that password by choosing it a second ago.
+
+### The session itself
+
+`HttpContext.SignInAsync` builds a `ClaimsPrincipal` with four claims
+(`NameIdentifier` = UserId, `Email`, `Name` = DisplayName, `Role`), backed
+by an `HttpOnly`, `SameSite=Lax` cookie that expires after 8 hours of
+inactivity (sliding). Every page that needs "who is this" reads
+`User.FindFirstValue(ClaimTypes.NameIdentifier)` - there's a small private
+`CurrentUserId` property repeated in most PageModels for this rather than a
+shared base class, matching the project's general preference for small,
+explicit, repeated code over an extra abstraction layer.
+
+Changing your name/email/password on `/Account/Profile` re-issues the
+session (`SignInAsync` again) so the header immediately reflects the new
+name instead of waiting for the next login.
+
+## 5. Site map
+
+### Public storefront (no login required)
+
+| Route | What it is |
+|---|---|
+| `/` (`Index`) | Home page - available guinea pigs, hero content |
+| `/Marsvin` | Full guinea pig listing |
+| `/Marsvin/Details/{id}` | One guinea pig's profile, add-to-cart |
+| `/Tilbehor` | Accessories listing, filterable by category |
+| `/Pasningsguide`, `/PasningsguideHurtig` | Full and "quick" care guides (printable) |
+| `/Foderliste` | Food safety list (printable) |
+| `/OmOs`, `/Kontakt`, `/BetalingOgLevering` | About/contact/payment&delivery info pages |
+| `/Privatliv` | GDPR privacy policy - what's collected, retention, rights |
+
+### Account (`/Account/*`)
+
+| Route | What it is |
+|---|---|
+| `/Account/Register` | Customer self-registration (auto-signs in) |
+| `/Account/Login` | Password check -> sends confirmation email |
+| `/Account/CheckEmail` | "We sent you a link" interstitial |
+| `/Account/ConfirmLogin` | Consumes the emailed token, creates the session |
+| `/Account/Profile` | Name/email/password, order history (Customer), work hours + day-off requests (Employee/Admin), self-delete account (Customer) |
+| `/Account/Logout` | Signs out |
+| `/Account/AccessDenied` | Shown on a role mismatch |
+
+### Cart & checkout (Customer only)
+
+| Route | What it is |
+|---|---|
+| `/Cart` | Cart contents, quantity updates |
+| `/Cart/Payment` | Demo payment form (no real card processing) |
+| `/Cart/Confirmation` | Order receipt after checkout |
+
+### Staff area - `/Admin` ("Personale")
+
+Restricted to Admin + Employee. Deliberately holds **only** staff/people
+concerns:
+
+| Route | What it is |
+|---|---|
+| `/Admin/Users` | Account management - all roles, create staff, change role/active, delete (Admin only) |
+| `/Admin/Schedule` ("Vagtplan") | Shift assignment (Admin) / own shifts (Employee); day-off requests and their approval |
+
+### Shop management - `/Admin/Shop` ("Butiksstyring")
+
+Also Admin + Employee, but everything here is about running the *shop*, not
+the *staff* - split out from the staff area specifically because they're
+different concerns (see the commit history for why):
+
+| Route | What it is |
+|---|---|
+| `/Admin/Stock` | Stock levels, animal availability - Admin + Employee |
+| `/Admin/Products`, `/Admin/Products/Edit` | Accessory catalog CRUD - Admin only |
+| `/Admin/Animals`, `/Admin/Animals/Edit` | Guinea pig catalog CRUD - Admin only |
+| `/Admin/Promotions`, `/Admin/Promotions/Edit` | Time-boxed discounts - Admin only |
+
+## 6. The bilingual DA/EN system
+
+Danish is the default, hard-coded language of every page's markup; English
+is a **client-side swap**, not a second copy of every page or a
+localisation resource file. The mechanism, end to end:
+
+1. Every piece of user-facing text carries a `data-en="..."` attribute
+   alongside its Danish text:
+   ```html
+   <h2 data-en="Staff area">Personale</h2>
+   ```
+2. `wwwroot/js/lang-toggle.js` (the *only* JS file in the project) finds
+   every `[data-en]` element on `DOMContentLoaded`, remembers the original
+   Danish text, and swaps `textContent` between the two based on a
+   `localStorage` preference - toggled by the `EN`/`DA` button in the
+   header. `data-en-aria-label` and `data-en-alt` do the same for
+   `aria-label`/`alt` attributes that aren't visible text.
+3. The `<title>` tag participates in the exact same generic `[data-en]`
+   mechanism: every page sets both `ViewData["Title"]` (Danish) and
+   `ViewData["TitleEn"]` (English) in its `@{ }` block, and
+   `_Layout.cshtml`'s `<title data-en="@ViewData["TitleEn"] - Marsvin">`
+   just works with the same swap code - no special-casing needed for the
+   browser tab title.
+
+No page is ever served twice for the two languages, and nothing here needs
+a round-trip to the server to switch - it's a pure client-side text
+substitution, remembered per browser via `localStorage`.
+
+## 7. Email notifications
+
+Four distinct things trigger a real email (`IEmailSender` ->
+`SmtpEmailSender`, MailKit, Gmail SMTP - see `DATABASE-ARCHITECTURE.md`
+§7 for how credentials are kept out of the repo):
+
+| Trigger | Sent to | Where in the code |
+|---|---|---|
+| Login attempt with a correct password | The account itself | `LoginModel.OnPostAsync` |
+| Account approaching the 2-year inactivity cutoff (2 months out, then 1 month out) | The customer | `InactiveAccountCleanupService` |
+| An Employee submits a day-off request | Every active Admin | `ProfileModel.OnPostRequestTimeOffAsync` |
+| An Admin adds or removes a shift | That specific staff member | `Admin/Schedule/IndexModel.OnPostCreateAsync` / `OnPostDeleteAsync` |
+
+All four share the same `IEmailSender.SendAsync(toEmail, subject, body)`
+shape - plain-text email, no HTML templates, no queue (sent synchronously,
+inline in the request/background-job that triggered it).
+
+## 8. Security practices (a summary - see the code comments for the "why")
+
+- **SQL injection**: every query is parameterised, no exceptions -
+  see `DATABASE-ARCHITECTURE.md` §5.
+- **Passwords**: PBKDF2 via `PasswordHasher<ApplicationUser>`, never
+  compared or stored as plain text.
+- **Login tokens**: only ever stored as a SHA-256 hash
+  (`PendingLogins.TokenHash`) - the raw token exists only in the email.
+- **CSRF**: Razor Pages' built-in antiforgery token on every form
+  (`asp-validation-summary`/form tag helpers wire it in automatically) -
+  the end-to-end HTTP tests (§9) specifically verify a request without a
+  valid token is rejected.
+- **IDOR (Insecure Direct Object Reference)**: anywhere a request carries
+  an ID for something owned by a user (an order to reorder, for instance),
+  the store method takes *both* the ID and the current user's ID and only
+  returns a match if they agree (`IOrderStore.FindForUser(orderId, userId)`)
+  - a stranger's order ID just looks like "not found," never leaks its
+  contents.
+- **Open-redirect prevention**: anywhere a `returnUrl` comes back from a
+  form/query string, it's checked against `IsSafeLocalUrl` (exactly one
+  leading slash, not `//host/evil` or `/\host/evil`) before ever being used
+  in a redirect - repeated locally in each PageModel that needs it rather
+  than `PageModel.Url.IsLocalUrl`, because the latter needs framework
+  services that aren't available when a PageModel is constructed directly
+  in a unit test (see §9).
+- **Self-protection on staff management**: an Admin can't change their own
+  role, deactivate, or delete themselves from `/Admin/Users`; the *last*
+  active Admin account can't be demoted, deactivated, or deleted by anyone,
+  full stop - the shop can never end up with zero admins.
+- **GDPR**: `/Privatliv` documents what's collected and why; a customer can
+  delete their own account at any time from `/Account/Profile` (right to
+  erasure); inactive accounts are deleted automatically after 2 years, with
+  warning emails first (see `DATABASE-ARCHITECTURE.md` §7); past orders
+  survive account deletion but are orphaned, never personally identifiable
+  again.
+
+## 9. Testing - two layers
+
+### Layer 1: direct `PageModel`/store unit tests
+
+Most of `marsvin-web.Tests/Pages/**` and all of `marsvin-web.Tests/Data/**`
+construct a `PageModel` or `SqlXxxStore` directly in C#
+(`new ProfileModel(...)`) rather than going over HTTP. `PageContext` is
+built by hand (`TestAuth.ContextFor(userId, role)` for a fake signed-in
+user), and dependencies are either the real `SqlXxxStore` classes (against
+a dedicated, disposable `MarsvinDb_Test` database created and dropped per
+test run by `SqlCatalogFixture`) or small recording test doubles for things
+that shouldn't really happen in a test - `RecordingAuthenticationService`
+(captures what `SignInAsync` was called with, instead of touching real auth
+middleware) and `RecordingEmailSender` (captures what would have been sent,
+instead of hitting real SMTP).
+
+This is fast and lets a test assert on a `PageModel`'s C# properties
+directly (`model.ErrorMessage`, `model.Shifts`, ...), but it deliberately
+bypasses `[Authorize]`, routing, antiforgery, and the real cookie - those
+are framework-level concerns this layer can't see.
+
+### Layer 2: full end-to-end HTTP tests
+
+`EndToEndAuthTests.cs` and `EndToEndCartTests.cs` (plus `WebAppCollection`)
+instead boot the *entire real app* in-process via `MarsvinWebAppFactory`
+(`WebApplicationFactory<Program>`, pointed at its own disposable
+`MarsvinDb_WebTest` database) and drive it with a real `HttpClient` -
+actual HTTP requests through the actual middleware pipeline: routing,
+`[Authorize]`, antiforgery, the real `Set-Cookie` header. `CookieJar` is a
+deliberately manual cookie store (not `HttpClientHandler`'s automatic one)
+because these tests need to inspect the raw `Set-Cookie` header itself
+(checking the `HttpOnly` flag is actually set, checking a cookie really
+expires on logout) and sometimes deliberately send a *mismatched* or
+missing antiforgery token to prove a forged request gets rejected - both
+need manual control that an automatic cookie container would hide.
+
+Together, the two layers cover both ends: layer 1 checks the *logic* is
+right in isolation and cheaply, layer 2 checks the *whole request actually
+behaves correctly* when nothing is mocked or bypassed.
+
+## 10. Frontend conventions (`wwwroot/css/site.css`)
+
+A few reusable patterns worth knowing before touching a page's markup:
+
+- **`.toast` / `.toast--error`** - the fixed-to-the-viewport popup used for
+  every one-off notification ("added to cart", form errors after a
+  redirect). Rendered *once*, globally, in `_Layout.cshtml`, reading
+  `TempData["ToastMessage"]`/`TempData["ErrorMessage"]` - any page that
+  wants to show one just sets its `[TempData]`-attributed `ToastMessage`/
+  `ErrorMessage` property and redirects; it does not render its own toast
+  markup.
+- **`.status` + `.status--*`** - small coloured badges, originally for
+  animal availability (`ledig`/`reserveret`/`solgt`) and reused for
+  day-off-request status (`pending`/`approved`/`denied`) with the same base
+  class and new colour modifiers.
+- **`.admin-table`** - the shared table style for every admin/staff list
+  page (Accounts, Schedule, Products, Animals, Promotions).
+- **`.callout` / `.callout--danger`** - a bordered info box; the `--danger`
+  variant (the site's one red, `#7A1F3D`) is reserved for irreversible or
+  negative actions (delete account, day-off denied).
+- **`[data-en]` / `[data-en-aria-label]` / `[data-en-alt]`** - see §6.
+
+There is no CSS framework (no Bootstrap/Tailwind) - `site.css` is one
+hand-written file, organised by page/section with a comment above each
+non-obvious rule explaining the *why*, not the *what*.
