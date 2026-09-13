@@ -22,9 +22,12 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* scroll-behavior stays "auto" (the default), not "smooth": the add-to-cart
+   forms land back on this same page at a #product-id anchor (see Tilbehor/
+   Index.cshtml), and a *smooth* jump to that anchor after a full page
+   reload is exactly the animated, jarring scroll we don't want - "auto"
+   snaps straight there instead. */
 @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
     * { animation: none !important; transition: none !important; }
 }
 
@@ -101,7 +104,7 @@ a:hover { color: var(--fleece); }
 .site-nav {
     display: flex;
     justify-content: flex-end;
-    gap: 1.6rem;
+    gap: 2rem; /* matches .site-header .wrap's grid gap and .account-nav's gap, so every word in the header sits an equal distance apart */
     font-size: 0.975rem;
     min-width: 0;
 }
@@ -110,19 +113,22 @@ a:hover { color: var(--fleece); }
 .site-nav a[aria-current="page"] { border-bottom: 2px solid var(--fleece); }
 
 /* Small utility controls in the header (log in/out, sign up, DA/EN) -
-   styled identically to the plain nav links either side of them: no
-   background, no border, just text that changes color on hover. */
+   deliberately a size step down and in --bark (not --meadow), so the
+   account/utility cluster reads as secondary to Marsvinene/Tilbehør/
+   Pasningsguide. Bold weight keeps that smaller, muted text from
+   reading as low-emphasis at a glance. No background, no border,
+   just text that changes color on hover. */
 .header-btn {
     display: inline-block;
     font-family: var(--font-body);
-    font-size: 0.975rem;
-    font-weight: 400;
+    font-size: 0.9rem;
+    font-weight: 700;
     line-height: inherit;
     margin: 0;
     padding: 0 0 2px; /* matches .site-nav a's padding-bottom exactly, so both sit at the same height under align-items:center */
     border: none;
     background: transparent;
-    color: var(--meadow);
+    color: var(--bark);
     text-decoration: none;
     vertical-align: baseline;
     cursor: pointer;
@@ -425,11 +431,16 @@ a:hover { color: var(--fleece); }
 .account-nav {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 2rem; /* matches .site-nav's gap and .site-header .wrap's grid gap, so every word in the header sits an equal distance apart */
     font-size: 0.9rem;
 }
-.account-nav a { text-decoration: none; }
-.account-name { color: var(--meadow); font-size: 0.9rem; font-weight: 600; }
+/* Same size/weight/color as .header-btn (Log ud, EN) so Personale, Kurv
+   and the account name all read as one visual group; padding-bottom
+   matches .header-btn's too, so every item in the row sits on the same
+   baseline instead of drifting a couple of px depending on element type. */
+.account-nav a { text-decoration: none; color: var(--bark); font-weight: 700; padding-bottom: 2px; }
+.account-nav a:hover { color: var(--fleece); }
+.account-name { color: var(--bark); font-weight: 700; padding-bottom: 2px; display: inline-block; }
 .logout-form { display: inline; }
 
 /* ------------------------------ auth forms ----------------------- */
@@ -474,6 +485,46 @@ a:hover { color: var(--fleece); }
     list-style: none;
     margin: 0 0 0.5rem;
 }
+
+/* "Added to cart" popup (see _Layout.cshtml) - fixed to the viewport so it's
+   visible no matter where on the page you were when you clicked "Læg i
+   kurv", then times itself out on its own; no JS needed. The static
+   transform (not just the one in the keyframes) is what keeps it centred
+   under prefers-reduced-motion too, where the global `animation:none
+   !important` rule cancels the animation and this is just a plain,
+   persistently-visible, centred box instead - a toast that never
+   auto-dismisses beats one a reduced-motion user can't finish reading. */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    z-index: 100;
+    transform: translateX(-50%);
+    /* Solid --meadow, not a pale tint - the same dark-green-on-light pairing
+       as .welfare/.site-footer, chosen because a pale toast barely showed up
+       against the page's own --hay/--paper background. The --grass border
+       (not --fleece: that pink reads as an error/warning colour, wrong for
+       a success message) is what keeps it reading as a distinct popup
+       rather than blending in on the rare page short enough for this
+       fixed-to-the-bottom toast to land over that same dark green footer. */
+    color: var(--hay);
+    background: var(--meadow);
+    border: 2px solid var(--grass);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(35, 48, 31, 0.35);
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    max-width: min(90vw, 32rem);
+    animation: toast-lifecycle 4s ease forwards;
+}
+@keyframes toast-lifecycle {
+    0%   { opacity: 0; transform: translate(-50%, 0.5rem); }
+    8%   { opacity: 1; transform: translate(-50%, 0); }
+    85%  { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; visibility: hidden; transform: translate(-50%, 0.5rem); }
+}
+
 /* asp-validation-summary always renders a div>ul>li, even with zero errors
    (the <li> just gets style="display:none"), so the div is never truly
    :empty - the tag helper's own "no errors" marker is this class instead. */

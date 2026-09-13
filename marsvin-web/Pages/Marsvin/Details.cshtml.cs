@@ -10,6 +10,9 @@ public class DetailsModel(ICatalog catalog) : PageModel
     public Animal Animal { get; private set; } = null!;
     public Animal? Partner { get; private set; }
 
+    [TempData]
+    public string? ErrorMessage { get; set; }
+
     public IActionResult OnGet(int id)
     {
         var animal = catalog.FindAnimal(id);

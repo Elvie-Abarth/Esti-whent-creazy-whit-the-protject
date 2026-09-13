@@ -1,5 +1,6 @@
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MarsvinWebExample.Pages.Tilbehor;
@@ -8,6 +9,9 @@ public class IndexModel(ICatalog catalog) : PageModel
 {
     public IReadOnlyList<StockProduct> Items { get; private set; } = [];
     public AccessoryCategory? Active { get; private set; }
+
+    [TempData]
+    public string? ErrorMessage { get; set; }
 
     public static readonly (AccessoryCategory Value, string Label, string LabelEn)[] Categories =
     [

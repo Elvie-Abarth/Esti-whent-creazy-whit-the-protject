@@ -20,7 +20,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
 
     public void OnGet() => Lines = cart.GetLines(CurrentUserId);
 
-    public IActionResult OnPostAdd(int productId, int quantity = 1)
+    public IActionResult OnPostAdd(int productId, int quantity = 1, string? returnUrl = null)
     {
         var animal = catalog.FindAnimal(productId);
         if (animal is not null)
@@ -28,27 +28,40 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
             if (!animal.CanBeAddedToCart(1))
             {
                 ErrorMessage = $"{animal.Name} kan ikke lægges i kurven lige nu.";
-                return RedirectToPage();
+                return RedirectAfterAdd(returnUrl);
             }
             cart.AddOrIncrement(CurrentUserId, productId, 1);
-            return RedirectToPage();
+            TempData["ToastMessage"] = $"{animal.Name} er lagt i kurven.";
+            return RedirectAfterAdd(returnUrl);
         }
 
         var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == productId);
         if (product is null || quantity < 1)
         {
             ErrorMessage = "Varen findes ikke.";
-            return RedirectToPage();
+            return RedirectAfterAdd(returnUrl);
         }
         if (!product.CanBeAddedToCart(quantity))
         {
             ErrorMessage = $"Der er ikke {quantity} styk tilbage af {product.Name}.";
-            return RedirectToPage();
+            return RedirectAfterAdd(returnUrl);
         }
 
         cart.AddOrIncrement(CurrentUserId, productId, quantity);
-        return RedirectToPage();
+        TempData["ToastMessage"] = $"{product.Name} er lagt i kurven.";
+        return RedirectAfterAdd(returnUrl);
     }
+
+    // "Add to cart" is posted to from the catalog and animal-profile pages, not just
+    // from the cart itself - always bouncing back to /Cart/Index after every add made
+    // it impossible to add several items without clicking back each time. Every "Læg i
+    // kurv" form carries a returnUrl back to where it was submitted from, so browsing
+    // continues from there; Url.IsLocalUrl guards against it being used to redirect
+    // off-site (an attacker-crafted returnUrl on a link/form pointing here).
+    private IActionResult RedirectAfterAdd(string? returnUrl) =>
+        !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? LocalRedirect(returnUrl)
+            : RedirectToPage();
 
     public IActionResult OnPostRemove(int productId)
     {

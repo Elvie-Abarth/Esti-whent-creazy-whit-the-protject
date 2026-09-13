@@ -13,6 +13,12 @@
 
         <div>
             <a class="back" asp-page="/Marsvin/Index" data-en="Back to the guinea pigs">Tilbage til marsvinene</a>
+
+            @if (Model.ErrorMessage is not null)
+            {
+                <p class="form-errors">@Model.ErrorMessage</p>
+            }
+
             <h1>@a.Name</h1>
             <p data-en="@(a.DescriptionEn ?? a.Description)">@a.Description</p>
             <p data-en="@(a.PersonalityEn ?? a.Personality)">@a.Personality</p>
@@ -70,6 +76,7 @@
                         <form method="post" asp-page="/Cart/Index" asp-page-handler="Add">
                             <input type="hidden" name="productId" value="@a.ProductId" />
                             <input type="hidden" name="quantity" value="1" />
+                            <input type="hidden" name="returnUrl" value="@Request.Path" />
                             <button type="submit" class="btn" data-en="Add to cart">Læg i kurv</button>
                         </form>
                     }

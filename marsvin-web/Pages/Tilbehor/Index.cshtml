@@ -12,6 +12,11 @@
         </div>
     </div>
 
+    @if (Model.ErrorMessage is not null)
+    {
+        <p class="form-errors">@Model.ErrorMessage</p>
+    }
+
     <nav class="filters" aria-label="Filtrér efter kategori" data-en-aria-label="Filter by category">
         <a class="filter" asp-page="/Tilbehor/Index"
            aria-current="@(Model.Active is null ? "true" : "false")" data-en="All">Alt</a>
@@ -31,7 +36,7 @@
         <ul class="goods">
             @foreach (var item in Model.Items)
             {
-                <li>
+                <li id="product-@item.ProductId">
                     @if (!string.IsNullOrWhiteSpace(item.PhotoUrl))
                     {
                         <img class="goods-photo" src="@item.PhotoUrl" alt="@(item.NameEn ?? item.Name)" />
@@ -65,6 +70,7 @@
                             <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
                                 <input type="hidden" name="productId" value="@item.ProductId" />
                                 <input type="hidden" name="quantity" value="1" />
+                                <input type="hidden" name="returnUrl" value="@(Request.Path + Request.QueryString)#product-@item.ProductId" />
                                 <button type="submit" class="goods-action" data-en="Add to cart">Læg i kurv</button>
                             </form>
                         }
