@@ -14,6 +14,11 @@ public interface IUserAccountStore
     void UpdateRole(int userId, UserRole role);
     void SetActive(int userId, bool isActive);
 
+    /// <summary>Self-service profile update. Returns false if the email is already used by a different account.</summary>
+    bool UpdateProfile(int userId, string displayName, string email);
+
+    void UpdatePassword(int userId, string passwordHash);
+
     /// <summary>
     /// Permanently deletes the account. Their cart (if any) is deleted with it, but
     /// past orders are kept as a historical record - just orphaned (Order.UserId set

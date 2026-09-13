@@ -84,6 +84,36 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         command.ExecuteNonQuery();
     }
 
+    public bool UpdateProfile(int userId, string displayName, string email)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            """
+            IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Email = @Email AND UserId <> @UserId)
+            BEGIN
+                UPDATE dbo.Users SET DisplayName = @DisplayName, Email = @Email WHERE UserId = @UserId;
+                SELECT CAST(1 AS BIT);
+            END
+            ELSE
+                SELECT CAST(0 AS BIT);
+            """, connection);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.Parameters.AddWithValue("@DisplayName", displayName);
+        command.Parameters.AddWithValue("@Email", email);
+
+        return (bool)command.ExecuteScalar()!;
+    }
+
+    public void UpdatePassword(int userId, string passwordHash)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET PasswordHash = @PasswordHash WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+
     public void DeleteUser(int userId)
     {
         using var connection = Open();

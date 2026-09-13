@@ -54,7 +54,8 @@
                     var cartCount = CartStoreForNav.GetLines(userId).Sum(l => l.Quantity);
                     <a asp-page="/Cart/Index" data-en="@($"Cart ({cartCount})")">Kurv (@cartCount)</a>
                 }
-                <span class="account-name">@User.Identity!.Name</span>
+                <a class="account-name" asp-page="/Account/Profile"
+                   aria-label="Kontoindstillinger" data-en-aria-label="Account settings">@User.Identity!.Name</a>
                 <form method="post" asp-page="/Account/Logout" class="logout-form">
                     <button type="submit" class="header-btn" data-en="Log out">Log ud</button>
                 </form>

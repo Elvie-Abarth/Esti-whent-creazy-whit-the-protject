@@ -119,10 +119,20 @@ a:hover { color: var(--fleece); }
    navigating away - acceptable for three rarely-used info links. */
 .nav-dropdown { position: relative; }
 .nav-dropdown > summary {
+    /* <summary> isn't an <a>, so it doesn't pick up the global `a` colour
+       rule or .site-nav's own font-size the way the plain links do just by
+       being inside .site-nav - some browsers also give it a bold UA-stylesheet
+       default. Set everything explicitly so it's identical, not "close". */
+    display: inline-block;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    color: var(--meadow);
     list-style: none;
     cursor: pointer;
     padding-bottom: 2px;
 }
+.nav-dropdown > summary:hover { color: var(--fleece); }
 .nav-dropdown > summary::-webkit-details-marker { display: none; }
 .nav-dropdown > summary::after { content: "\25BE"; margin-left: 0.3em; font-size: 0.8em; }
 .nav-dropdown[open] > summary::after { content: "\25B4"; }
