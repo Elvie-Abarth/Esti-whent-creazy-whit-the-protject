@@ -183,3 +183,22 @@ BEGIN
         IsActive        BIT NOT NULL DEFAULT 1
     );
 END
+
+-- Staff work schedule (see Admin/Schedule): an Admin assigns shifts to any
+-- Employee or Admin account, and each staff member sees their own. A FK on
+-- UserId (not a plain column, unlike CartItems/Orders/Promotions above) is
+-- fine here because a shift only ever makes sense tied to an account that
+-- still exists - there's no "orphaned shift" concept the way there's an
+-- orphaned order.
+IF OBJECT_ID('dbo.Shifts', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Shifts
+    (
+        ShiftId   INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        UserId    INT NOT NULL REFERENCES dbo.Users (UserId),
+        StartAt   DATETIME2 NOT NULL,
+        EndAt     DATETIME2 NOT NULL,
+        Note      NVARCHAR(200) NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END

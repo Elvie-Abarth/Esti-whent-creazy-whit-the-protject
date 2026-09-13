@@ -1,0 +1,45 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Shop.IndexModel
+@{
+    ViewData["Title"] = "Butiksstyring";
+    ViewData["TitleEn"] = "Shop management";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Shop management">Butiksstyring</h2>
+            <p data-en="Running the shop itself - catalog, stock, and promotions.">Selve butikkens drift - katalog, lager og kampagner.</p>
+        </div>
+    </div>
+
+    <ul class="admin-links">
+        <li>
+            <a asp-page="/Admin/Stock/Index">
+                <h3 data-en="Stock &amp; status">Lager &amp; status</h3>
+                <p data-en="Update how much is in stock, and mark animals reserved / not for sale.">Opdatér lagerantal, og markér dyr reserveret / ikke til salg.</p>
+            </a>
+        </li>
+        @if (User.IsInRole("Admin"))
+        {
+            <li>
+                <a asp-page="/Admin/Products/Index">
+                    <h3 data-en="Accessories">Tilbehør</h3>
+                    <p data-en="Add, edit, or remove accessories.">Tilføj, redigér eller fjern tilbehør.</p>
+                </a>
+            </li>
+            <li>
+                <a asp-page="/Admin/Animals/Index">
+                    <h3 data-en="Guinea pigs">Marsvin</h3>
+                    <p data-en="Add, edit, or remove guinea pigs.">Tilføj, redigér eller fjern marsvin.</p>
+                </a>
+            </li>
+            <li>
+                <a asp-page="/Admin/Promotions/Index">
+                    <h3 data-en="Promotions">Kampagner</h3>
+                    <p data-en="Run time-boxed discounts.">Kør tidsbegrænsede rabatter.</p>
+                </a>
+            </li>
+        }
+    </ul>
+</div>

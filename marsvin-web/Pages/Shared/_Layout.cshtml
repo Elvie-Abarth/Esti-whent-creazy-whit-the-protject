@@ -48,6 +48,7 @@
                 if (User.IsInRole("Admin") || User.IsInRole("Employee"))
                 {
                     <a asp-page="/Admin/Index" data-en="Staff">Personale</a>
+                    <a asp-page="/Admin/Shop/Index" data-en="Shop management">Butiksstyring</a>
                 }
                 if (User.IsInRole("Customer"))
                 {

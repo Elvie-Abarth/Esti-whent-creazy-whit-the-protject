@@ -126,6 +126,16 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
             cartCommand.ExecuteNonQuery();
         }
 
+        // Shifts have a real FK to Users (unlike Orders, which orphan instead -
+        // a departed staff member's schedule isn't a record worth keeping the
+        // way a sales order is), so it has to go before the Users row does.
+        using (var shiftsCommand = new SqlCommand(
+            "DELETE FROM dbo.Shifts WHERE UserId = @UserId;", connection, transaction))
+        {
+            shiftsCommand.Parameters.AddWithValue("@UserId", userId);
+            shiftsCommand.ExecuteNonQuery();
+        }
+
         using (var ordersCommand = new SqlCommand(
             "UPDATE dbo.Orders SET UserId = NULL WHERE UserId = @UserId;", connection, transaction))
         {

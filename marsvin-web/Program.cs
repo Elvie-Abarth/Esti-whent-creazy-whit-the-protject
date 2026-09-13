@@ -27,6 +27,7 @@ builder.Services.AddScoped<ICartStore>(_ => new SqlCartStore(connectionString));
 builder.Services.AddScoped<IOrderStore>(_ => new SqlOrderStore(connectionString));
 builder.Services.AddScoped<IPromotionStore>(_ => new SqlPromotionStore(connectionString));
 builder.Services.AddScoped<IPendingLoginStore>(_ => new SqlPendingLoginStore(connectionString));
+builder.Services.AddScoped<IShiftStore>(_ => new SqlShiftStore(connectionString));
 
 // Host/Port/FromName are plain config; Username/Password are meant to come
 // from `dotnet user-secrets` (or real environment variables in production),

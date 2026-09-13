@@ -1,0 +1,108 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Schedule.IndexModel
+@{
+    ViewData["Title"] = "Vagtplan";
+    ViewData["TitleEn"] = "Work schedule";
+    var isAdmin = User.IsInRole("Admin");
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Work schedule">Vagtplan</h2>
+            @if (isAdmin)
+            {
+                <p data-en="Every staff member's shifts. Assign a new one below.">Alle medarbejderes vagter. Tilføj en ny nedenfor.</p>
+            }
+            else
+            {
+                <p data-en="Your own upcoming shifts.">Dine egne kommende vagter.</p>
+            }
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.Shifts.Count == 0)
+    {
+        <p data-en="No shifts yet.">Ingen vagter endnu.</p>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    @if (isAdmin)
+                    {
+                        <th data-en="Staff">Medarbejder</th>
+                    }
+                    <th data-en="Date">Dato</th>
+                    <th data-en="Time">Tidspunkt</th>
+                    <th data-en="Note">Note</th>
+                    @if (isAdmin)
+                    {
+                        <th></th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var shift in Model.Shifts)
+                {
+                    <tr>
+                        @if (isAdmin)
+                        {
+                            <td>@shift.StaffName</td>
+                        }
+                        <td>@shift.StartAt.ToString("d MMM yyyy")</td>
+                        <td>@shift.StartAt.ToString("HH:mm")–@shift.EndAt.ToString("HH:mm")</td>
+                        <td>@shift.Note</td>
+                        @if (isAdmin)
+                        {
+                            <td>
+                                <form method="post" asp-page-handler="Delete" class="inline-form"
+                                      onsubmit="return confirm('Slet denne vagt?');">
+                                    <input type="hidden" name="shiftId" value="@shift.ShiftId" />
+                                    <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (isAdmin)
+    {
+        <h3 data-en="Assign a shift">Tilføj en vagt</h3>
+        <form method="post" asp-page-handler="Create" class="auth-form">
+            <label>
+                <span data-en="Staff member">Medarbejder</span>
+                <select name="userId">
+                    @foreach (var staff in Model.StaffMembers)
+                    {
+                        <option value="@staff.UserId">@staff.DisplayName (@staff.Role)</option>
+                    }
+                </select>
+            </label>
+            <label>
+                <span data-en="Date">Dato</span>
+                <input type="date" name="date" required />
+            </label>
+            <label>
+                <span data-en="Start time">Starttidspunkt</span>
+                <input type="time" name="startTime" required />
+            </label>
+            <label>
+                <span data-en="End time">Sluttidspunkt</span>
+                <input type="time" name="endTime" required />
+            </label>
+            <label>
+                <span data-en="Note (optional)">Note (valgfrit)</span>
+                <input type="text" name="note" maxlength="200" />
+            </label>
+            <button type="submit" class="btn" data-en="Add shift">Tilføj vagt</button>
+        </form>
+    }
+</div>
