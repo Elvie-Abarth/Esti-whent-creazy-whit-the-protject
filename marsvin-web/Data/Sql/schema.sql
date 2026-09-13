@@ -88,17 +88,41 @@ BEGIN
         Role         TINYINT       NOT NULL,             -- 0 Customer, 1 Employee, 2 Admin
         IsActive     BIT           NOT NULL DEFAULT 1,
         CreatedAt    DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
-        LastActiveAt DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME() -- set at registration, refreshed on login; drives 2-year inactivity auto-deletion
+        LastActiveAt DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(), -- set at registration, refreshed on login; drives 2-year inactivity auto-deletion
+        InactivityWarningStage TINYINT NOT NULL DEFAULT 0             -- 0 none sent, 1 "2 months left" sent, 2 "1 month left" sent; reset to 0 on every login
     );
 END
 
--- Column added after Users already existed on live databases (create-once
+-- Columns added after Users already existed on live databases (create-once
 -- tables don't pick up new columns from the CREATE TABLE above) - safe to run
 -- every time. Existing accounts start their 2-year countdown from today
 -- rather than being auto-deleted the first time the cleanup job sees them.
 IF COL_LENGTH('dbo.Users', 'LastActiveAt') IS NULL
 BEGIN
     ALTER TABLE dbo.Users ADD LastActiveAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME();
+END
+
+IF COL_LENGTH('dbo.Users', 'InactivityWarningStage') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD InactivityWarningStage TINYINT NOT NULL DEFAULT 0;
+END
+
+-- Short-lived, single-use tokens for the email login-confirmation step (see
+-- LoginModel/ConfirmLoginModel): only the token's hash is ever stored, the
+-- same way a password never is - a leaked database can't be turned into
+-- working login links. At most one row per user - a fresh login attempt
+-- replaces any earlier unconfirmed one, so this table never grows unbounded.
+IF OBJECT_ID('dbo.PendingLogins', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PendingLogins
+    (
+        PendingLoginId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        UserId         INT NOT NULL REFERENCES dbo.Users (UserId),
+        TokenHash      CHAR(64) NOT NULL UNIQUE, -- SHA-256 hex of the raw token emailed to the user
+        ReturnUrl      NVARCHAR(512) NULL,
+        ExpiresAt      DATETIME2 NOT NULL,
+        CreatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
 END
 
 IF OBJECT_ID('dbo.CartItems', 'U') IS NULL

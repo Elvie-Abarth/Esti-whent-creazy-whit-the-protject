@@ -1,17 +1,18 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MarsvinWebExample.Pages.Account;
 
-public class LoginModel(IUserAccountStore users) : PageModel
+public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender) : PageModel
 {
+    // Long enough that "check your email" doesn't feel like a race against the
+    // inbox, short enough that a link sitting unread stops being useful fast.
+    private static readonly TimeSpan ConfirmationValidFor = TimeSpan.FromMinutes(15);
+
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(5);
     private const int MaxFailedAttempts = 5;
 
@@ -55,10 +56,30 @@ public class LoginModel(IUserAccountStore users) : PageModel
         }
 
         ClearFailedAttempts(email);
-        users.RecordActivity(user!.UserId);
-        await SignInAsync(user!);
 
-        return LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+        // Password alone doesn't sign you in - a confirmation link goes to the
+        // account's own email first (proof you also control the inbox, not
+        // just the password), and ConfirmLoginModel finishes the sign-in once
+        // that link is opened.
+        var safeReturnUrl = !string.IsNullOrEmpty(returnUrl) && IsSafeLocalUrl(returnUrl) ? returnUrl : null;
+        var token = pendingLogins.Create(user!.UserId, safeReturnUrl, ConfirmationValidFor);
+        var confirmUrl = $"{Request.Scheme}://{Request.Host}/Account/ConfirmLogin?token={Uri.EscapeDataString(token)}";
+
+        await emailSender.SendAsync(user.Email, "Bekræft login til Marsvin",
+            $"""
+            Hej {user.DisplayName},
+
+            Nogen (forhåbentlig dig) forsøgte at logge ind på din Marsvin-konto. Bekræft det er dig ved at åbne linket herunder - det udløber om 15 minutter:
+
+            {confirmUrl}
+
+            Var det ikke dig? Så kan du roligt ignorere denne mail - der sker ikke noget uden bekræftelse.
+
+            Venlig hilsen
+            Marsvin
+            """);
+
+        return RedirectToPage("CheckEmail");
     }
 
     private static bool IsLockedOut(string email)
@@ -89,18 +110,12 @@ public class LoginModel(IUserAccountStore users) : PageModel
         }
     }
 
-    private async Task SignInAsync(ApplicationUser user)
-    {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Name, user.DisplayName),
-            new(ClaimTypes.Role, user.Role.ToString())
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-    }
+    // Deliberately not PageModel.Url.IsLocalUrl: that needs an IUrlHelper wired up
+    // through the full request pipeline, which a PageModel constructed directly in
+    // a unit test doesn't have (Url is null there), so it throws where this doesn't.
+    // Same local-path shape Url.IsLocalUrl checks - see Cart/Index.cshtml.cs.
+    private static bool IsSafeLocalUrl(string url) =>
+        url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\");
 
     public sealed class InputModel
     {

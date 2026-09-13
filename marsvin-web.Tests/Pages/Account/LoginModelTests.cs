@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using MarsvinWebExample.Pages.Account;
@@ -35,20 +36,34 @@ internal sealed class RecordingAuthenticationService : IAuthenticationService
         Task.CompletedTask;
 }
 
+/// <summary>Records SendAsync calls instead of actually sending anything - shared across every test that triggers email.</summary>
+internal sealed class RecordingEmailSender : IEmailSender
+{
+    public List<(string ToEmail, string Subject, string Body)> Sent { get; } = [];
+
+    public Task SendAsync(string toEmail, string subject, string body)
+    {
+        Sent.Add((toEmail, subject, body));
+        return Task.CompletedTask;
+    }
+}
+
 [Collection("SqlCatalog collection")]
 public class LoginModelTests(SqlCatalogFixture fixture)
 {
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
+    private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
 
-    private (LoginModel Model, RecordingAuthenticationService Auth) MakeModel()
+    private (LoginModel Model, RecordingAuthenticationService Auth, RecordingEmailSender Email) MakeModel()
     {
         var services = new ServiceCollection();
         var auth = new RecordingAuthenticationService();
         services.AddSingleton<IAuthenticationService>(auth);
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
-        var model = new LoginModel(_users) { PageContext = new PageContext { HttpContext = httpContext } };
-        return (model, auth);
+        var email = new RecordingEmailSender();
+        var model = new LoginModel(_users, _pendingLogins, email) { PageContext = new PageContext { HttpContext = httpContext } };
+        return (model, auth, email);
     }
 
     private string NewCustomerWithPassword(string password, [System.Runtime.CompilerServices.CallerMemberName] string caller = "")
@@ -59,30 +74,40 @@ public class LoginModelTests(SqlCatalogFixture fixture)
         return email;
     }
 
+    private static string ExtractToken(string emailBody)
+    {
+        var match = Regex.Match(emailBody, "token=([0-9A-Fa-f]+)");
+        Assert.True(match.Success, "confirmation email did not contain a token in the expected format");
+        return match.Groups[1].Value;
+    }
+
     [Fact]
-    public async Task OnPostAsync_CorrectPassword_SignsInAndRedirectsHome()
+    public async Task OnPostAsync_CorrectPassword_SendsConfirmationEmailAndDoesNotSignInYet()
     {
         var email = NewCustomerWithPassword("CorrectPass123!");
-        var (model, auth) = MakeModel();
+        var (model, auth, sentEmail) = MakeModel();
         model.Input = new LoginModel.InputModel { Email = email, Password = "CorrectPass123!" };
 
         var result = await model.OnPostAsync(returnUrl: null);
 
-        Assert.NotNull(auth.SignedInAs);
-        var redirect = Assert.IsType<LocalRedirectResult>(result);
-        Assert.Equal("/", redirect.Url);
+        Assert.Null(auth.SignedInAs);
+        var sent = Assert.Single(sentEmail.Sent);
+        Assert.Equal(email, sent.ToEmail);
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("CheckEmail", redirect.PageName);
     }
 
     [Fact]
     public async Task OnPostAsync_WrongPassword_DoesNotSignInAndShowsError()
     {
         var email = NewCustomerWithPassword("CorrectPass123!");
-        var (model, auth) = MakeModel();
+        var (model, auth, sentEmail) = MakeModel();
         model.Input = new LoginModel.InputModel { Email = email, Password = "WrongPassword!" };
 
         var result = await model.OnPostAsync(returnUrl: null);
 
         Assert.Null(auth.SignedInAs);
+        Assert.Empty(sentEmail.Sent);
         Assert.IsType<PageResult>(result);
         Assert.False(model.ModelState.IsValid);
     }
@@ -90,12 +115,13 @@ public class LoginModelTests(SqlCatalogFixture fixture)
     [Fact]
     public async Task OnPostAsync_UnknownEmail_FailsWithoutThrowing()
     {
-        var (model, auth) = MakeModel();
+        var (model, auth, sentEmail) = MakeModel();
         model.Input = new LoginModel.InputModel { Email = $"nobody-{Guid.NewGuid():N}@example.com", Password = "Whatever123!" };
 
         var result = await model.OnPostAsync(returnUrl: null);
 
         Assert.Null(auth.SignedInAs);
+        Assert.Empty(sentEmail.Sent);
         Assert.IsType<PageResult>(result);
     }
 
@@ -106,29 +132,47 @@ public class LoginModelTests(SqlCatalogFixture fixture)
 
         for (var i = 0; i < 5; i++)
         {
-            var (attempt, _) = MakeModel();
+            var (attempt, _, _) = MakeModel();
             attempt.Input = new LoginModel.InputModel { Email = email, Password = "WrongPassword!" };
             await attempt.OnPostAsync(returnUrl: null);
         }
 
-        var (finalTry, auth) = MakeModel();
+        var (finalTry, auth, sentEmail) = MakeModel();
         finalTry.Input = new LoginModel.InputModel { Email = email, Password = "CorrectPass123!" };
         var result = await finalTry.OnPostAsync(returnUrl: null);
 
         Assert.Null(auth.SignedInAs);
+        Assert.Empty(sentEmail.Sent);
         Assert.IsType<PageResult>(result);
     }
 
     [Fact]
-    public async Task OnPostAsync_ReturnUrl_RedirectsThereInsteadOfHome()
+    public async Task OnPostAsync_ReturnUrl_IsPreservedForAfterConfirmation()
     {
         var email = NewCustomerWithPassword("CorrectPass123!");
-        var (model, _) = MakeModel();
+        var (model, _, sentEmail) = MakeModel();
         model.Input = new LoginModel.InputModel { Email = email, Password = "CorrectPass123!" };
 
-        var result = await model.OnPostAsync(returnUrl: "/Marsvin");
+        await model.OnPostAsync(returnUrl: "/Marsvin");
 
-        var redirect = Assert.IsType<LocalRedirectResult>(result);
-        Assert.Equal("/Marsvin", redirect.Url);
+        var token = ExtractToken(sentEmail.Sent[0].Body);
+        var ticket = _pendingLogins.Consume(token);
+        Assert.NotNull(ticket);
+        Assert.Equal("/Marsvin", ticket!.ReturnUrl);
+    }
+
+    [Fact]
+    public async Task OnPostAsync_UnsafeReturnUrl_IsDroppedRatherThanStored()
+    {
+        var email = NewCustomerWithPassword("CorrectPass123!");
+        var (model, _, sentEmail) = MakeModel();
+        model.Input = new LoginModel.InputModel { Email = email, Password = "CorrectPass123!" };
+
+        await model.OnPostAsync(returnUrl: "//evil.example.com");
+
+        var token = ExtractToken(sentEmail.Sent[0].Body);
+        var ticket = _pendingLogins.Consume(token);
+        Assert.NotNull(ticket);
+        Assert.Null(ticket!.ReturnUrl);
     }
 }

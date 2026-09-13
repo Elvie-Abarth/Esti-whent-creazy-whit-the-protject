@@ -26,11 +26,25 @@ builder.Services.AddScoped<IUserAccountStore>(_ => new SqlUserAccountStore(conne
 builder.Services.AddScoped<ICartStore>(_ => new SqlCartStore(connectionString));
 builder.Services.AddScoped<IOrderStore>(_ => new SqlOrderStore(connectionString));
 builder.Services.AddScoped<IPromotionStore>(_ => new SqlPromotionStore(connectionString));
+builder.Services.AddScoped<IPendingLoginStore>(_ => new SqlPendingLoginStore(connectionString));
+
+// Host/Port/FromName are plain config; Username/Password are meant to come
+// from `dotnet user-secrets` (or real environment variables in production),
+// never from a file that gets committed.
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+
+// Used to build absolute links (login-confirmation, inactivity-warning
+// emails) from a BackgroundService, which has no HttpContext/Request to read
+// the real scheme+host from the way a PageModel can.
+var appBaseUrl = builder.Configuration["App:BaseUrl"] ?? "http://localhost:5080";
 
 // See /Privatliv for the policy this enforces: a Customer account with no
-// login for 2 years is deleted automatically.
+// login for 2 years is deleted automatically, with warning emails first.
 builder.Services.AddHostedService(sp =>
-    new InactiveAccountCleanupService(connectionString, sp.GetRequiredService<ILogger<InactiveAccountCleanupService>>()));
+    new InactiveAccountCleanupService(
+        connectionString, appBaseUrl, sp.GetRequiredService<IEmailSender>(),
+        sp.GetRequiredService<ILogger<InactiveAccountCleanupService>>()));
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

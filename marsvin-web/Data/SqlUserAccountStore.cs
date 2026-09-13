@@ -156,7 +156,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "UPDATE dbo.Users SET LastActiveAt = SYSUTCDATETIME() WHERE UserId = @UserId;", connection);
+            "UPDATE dbo.Users SET LastActiveAt = SYSUTCDATETIME(), InactivityWarningStage = 0 WHERE UserId = @UserId;", connection);
         command.Parameters.AddWithValue("@UserId", userId);
         command.ExecuteNonQuery();
     }
@@ -186,6 +186,33 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         }
 
         return toDelete.Select(u => u.Email).ToList();
+    }
+
+    public IReadOnlyList<ApplicationUser> GetCustomersNeedingInactivityWarning(DateTime lastActiveBefore, byte stage)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
+            "FROM dbo.Users WHERE Role = @CustomerRole AND LastActiveAt <= @LastActiveBefore AND InactivityWarningStage < @Stage;",
+            connection);
+        command.Parameters.AddWithValue("@CustomerRole", (byte)UserRole.Customer);
+        command.Parameters.AddWithValue("@LastActiveBefore", lastActiveBefore);
+        command.Parameters.AddWithValue("@Stage", stage);
+
+        var users = new List<ApplicationUser>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) users.Add(ReadUser(reader));
+        return users;
+    }
+
+    public void SetInactivityWarningStage(int userId, byte stage)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET InactivityWarningStage = @Stage WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@Stage", stage);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
     }
 
     private SqlConnection Open()

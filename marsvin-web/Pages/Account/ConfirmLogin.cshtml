@@ -1,0 +1,20 @@
+@page
+@model MarsvinWebExample.Pages.Account.ConfirmLoginModel
+@{
+    ViewData["Title"] = "Login ikke bekræftet";
+    ViewData["TitleEn"] = "Login not confirmed";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Link expired or already used">Linket er udløbet eller allerede brugt</h2>
+            <p data-en="Confirmation links are only valid for 15 minutes, and only work once. Log in again to get a new one.">
+                Bekræftelseslinks er kun gyldige i 15 minutter, og virker kun én gang. Log ind igen for at få et nyt.
+            </p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn" asp-page="/Account/Login" data-en="Back to login">Tilbage til login</a>
+    </div>
+</div>

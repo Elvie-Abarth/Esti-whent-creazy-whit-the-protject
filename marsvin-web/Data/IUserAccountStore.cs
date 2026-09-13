@@ -29,7 +29,11 @@ public interface IUserAccountStore
     /// </summary>
     void DeleteUser(int userId);
 
-    /// <summary>Marks the account as active right now. Called on every successful login - see Privatliv.cshtml for the retention policy this supports.</summary>
+    /// <summary>
+    /// Marks the account as active right now and clears any pending inactivity-warning
+    /// stage - called once a login is fully confirmed (see ConfirmLoginModel), not just
+    /// password-verified. See Privatliv.cshtml for the retention policy this supports.
+    /// </summary>
     void RecordActivity(int userId);
 
     /// <summary>
@@ -39,4 +43,14 @@ public interface IUserAccountStore
     /// accounts' emails, for logging.
     /// </summary>
     IReadOnlyList<string> DeleteInactiveCustomers(DateTime cutoff);
+
+    /// <summary>
+    /// Customer accounts that haven't logged in since <paramref name="lastActiveBefore"/>
+    /// and haven't already had this warning stage (or a later one) sent - see
+    /// InactiveAccountCleanupService. Stage 1 is the "2 months left" email, stage 2 is
+    /// "1 month left", so each account gets every applicable warning exactly once.
+    /// </summary>
+    IReadOnlyList<ApplicationUser> GetCustomersNeedingInactivityWarning(DateTime lastActiveBefore, byte stage);
+
+    void SetInactivityWarningStage(int userId, byte stage);
 }

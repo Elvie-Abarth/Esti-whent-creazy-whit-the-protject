@@ -36,6 +36,16 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
         command.ExecuteNonQuery();
     }
 
+    private byte ReadWarningStage(int userId)
+    {
+        using var connection = new SqlConnection(fixture.ConnectionString);
+        connection.Open();
+        using var command = new SqlCommand(
+            "SELECT InactivityWarningStage FROM dbo.Users WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@UserId", userId);
+        return (byte)command.ExecuteScalar()!;
+    }
+
     [Fact]
     public void CreateUser_ThenFindByEmail_RoundTrips()
     {
@@ -161,6 +171,88 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
 
         var refreshed = _users.FindById(user.UserId)!;
         Assert.True(refreshed.LastActiveAt > DateTime.UtcNow.AddMinutes(-1));
+    }
+
+    [Fact]
+    public void RecordActivity_ResetsInactivityWarningStage()
+    {
+        var email = $"activity-resets-stage-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Activity Resets Stage", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        _users.SetInactivityWarningStage(user.UserId, 2);
+
+        _users.RecordActivity(user.UserId);
+
+        Assert.Equal(0, ReadWarningStage(user.UserId));
+    }
+
+    [Fact]
+    public void SetInactivityWarningStage_UpdatesStage()
+    {
+        var email = $"set-stage-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Set Stage", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+
+        _users.SetInactivityWarningStage(user.UserId, 1);
+
+        Assert.Equal(1, ReadWarningStage(user.UserId));
+    }
+
+    [Fact]
+    public void GetCustomersNeedingInactivityWarning_WithinWindowAndBelowStage_IsIncluded()
+    {
+        var email = $"needs-warning-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Needs Warning", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        // ~2 years and 10 days inactive - well within the 2-month ("60 day lead time") warning window.
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-2).AddDays(-10));
+        var lastActiveBefore = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold + TimeSpan.FromDays(60);
+
+        var matches = _users.GetCustomersNeedingInactivityWarning(lastActiveBefore, stage: 1);
+
+        Assert.Contains(matches, u => u.UserId == user.UserId);
+    }
+
+    [Fact]
+    public void GetCustomersNeedingInactivityWarning_RecentlyActive_IsExcluded()
+    {
+        var email = $"not-yet-warned-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Not Yet Warned", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        var lastActiveBefore = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold + TimeSpan.FromDays(60);
+
+        var matches = _users.GetCustomersNeedingInactivityWarning(lastActiveBefore, stage: 1);
+
+        Assert.DoesNotContain(matches, u => u.UserId == user.UserId);
+    }
+
+    [Fact]
+    public void GetCustomersNeedingInactivityWarning_AlreadyAtOrPastStage_IsExcluded()
+    {
+        var email = $"already-warned-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Already Warned", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-2).AddDays(-10));
+        _users.SetInactivityWarningStage(user.UserId, 1);
+        var lastActiveBefore = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold + TimeSpan.FromDays(60);
+
+        var matches = _users.GetCustomersNeedingInactivityWarning(lastActiveBefore, stage: 1);
+
+        Assert.DoesNotContain(matches, u => u.UserId == user.UserId);
+    }
+
+    [Fact]
+    public void GetCustomersNeedingInactivityWarning_NeverTouchesStaffAccounts()
+    {
+        var email = $"staff-not-warned-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Staff Not Warned", UserRole.Employee);
+        var user = _users.FindByEmail(email)!;
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-3));
+        var lastActiveBefore = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold + TimeSpan.FromDays(60);
+
+        var matches = _users.GetCustomersNeedingInactivityWarning(lastActiveBefore, stage: 1);
+
+        Assert.DoesNotContain(matches, u => u.UserId == user.UserId);
     }
 
     [Fact]
