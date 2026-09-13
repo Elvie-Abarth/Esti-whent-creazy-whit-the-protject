@@ -27,6 +27,11 @@ builder.Services.AddScoped<ICartStore>(_ => new SqlCartStore(connectionString));
 builder.Services.AddScoped<IOrderStore>(_ => new SqlOrderStore(connectionString));
 builder.Services.AddScoped<IPromotionStore>(_ => new SqlPromotionStore(connectionString));
 
+// See /Privatliv for the policy this enforces: a Customer account with no
+// login for 2 years is deleted automatically.
+builder.Services.AddHostedService(sp =>
+    new InactiveAccountCleanupService(connectionString, sp.GetRequiredService<ILogger<InactiveAccountCleanupService>>()));
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

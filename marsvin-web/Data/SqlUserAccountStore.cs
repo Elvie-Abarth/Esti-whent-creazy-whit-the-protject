@@ -9,7 +9,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
             "FROM dbo.Users WHERE Email = @Email;", connection);
         command.Parameters.AddWithValue("@Email", email);
 
@@ -21,7 +21,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
             "FROM dbo.Users WHERE UserId = @UserId;", connection);
         command.Parameters.AddWithValue("@UserId", userId);
 
@@ -33,7 +33,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
             "FROM dbo.Users ORDER BY UserId;", connection);
 
         var users = new List<ApplicationUser>();
@@ -143,6 +143,51 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         transaction.Commit();
     }
 
+    public int CountActiveAdmins()
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "SELECT COUNT(*) FROM dbo.Users WHERE Role = @AdminRole AND IsActive = 1;", connection);
+        command.Parameters.AddWithValue("@AdminRole", (byte)UserRole.Admin);
+        return (int)command.ExecuteScalar()!;
+    }
+
+    public void RecordActivity(int userId)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET LastActiveAt = SYSUTCDATETIME() WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+
+    public IReadOnlyList<string> DeleteInactiveCustomers(DateTime cutoff)
+    {
+        var toDelete = new List<(int UserId, string Email)>();
+        using (var connection = Open())
+        using (var command = new SqlCommand(
+            "SELECT UserId, Email FROM dbo.Users WHERE Role = @CustomerRole AND LastActiveAt < @Cutoff;", connection))
+        {
+            command.Parameters.AddWithValue("@CustomerRole", (byte)UserRole.Customer);
+            command.Parameters.AddWithValue("@Cutoff", cutoff);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                toDelete.Add((reader.GetInt32(reader.GetOrdinal("UserId")), reader.GetString(reader.GetOrdinal("Email"))));
+            }
+        }
+
+        // Same transaction DeleteUser already uses per account (cart cleared,
+        // orders orphaned not destroyed) - reused rather than duplicated, so a
+        // manual admin delete and this automatic one can never drift apart.
+        foreach (var (userId, _) in toDelete)
+        {
+            DeleteUser(userId);
+        }
+
+        return toDelete.Select(u => u.Email).ToList();
+    }
+
     private SqlConnection Open()
     {
         var connection = new SqlConnection(connectionString);
@@ -158,6 +203,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         DisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
         Role = (UserRole)reader.GetByte(reader.GetOrdinal("Role")),
         IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+        LastActiveAt = reader.GetDateTime(reader.GetOrdinal("LastActiveAt"))
     };
 }

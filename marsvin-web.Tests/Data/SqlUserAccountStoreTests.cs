@@ -22,6 +22,20 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
         return value is DBNull or null ? null : (int)value;
     }
 
+    // No public API sets LastActiveAt to an arbitrary point in the past (by
+    // design - the only writer is RecordActivity, which always means "now").
+    // Tests for the 2-year cutoff have to reach past that on purpose.
+    private void BackdateLastActiveAt(int userId, DateTime lastActiveAt)
+    {
+        using var connection = new SqlConnection(fixture.ConnectionString);
+        connection.Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET LastActiveAt = @LastActiveAt WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@LastActiveAt", lastActiveAt);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+
     [Fact]
     public void CreateUser_ThenFindByEmail_RoundTrips()
     {
@@ -133,6 +147,98 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
         _users.DeleteUser(user.UserId);
 
         Assert.Empty(_cart.GetLines(user.UserId));
+    }
+
+    [Fact]
+    public void RecordActivity_SetsLastActiveAtToNow()
+    {
+        var email = $"activity-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Activity Test", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-3));
+
+        _users.RecordActivity(user.UserId);
+
+        var refreshed = _users.FindById(user.UserId)!;
+        Assert.True(refreshed.LastActiveAt > DateTime.UtcNow.AddMinutes(-1));
+    }
+
+    [Fact]
+    public void DeleteInactiveCustomers_InactiveOverTwoYears_IsDeleted()
+    {
+        var email = $"stale-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Stale Customer", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-3));
+        var cutoff = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold;
+
+        var deletedEmails = _users.DeleteInactiveCustomers(cutoff);
+
+        Assert.Contains(email, deletedEmails);
+        Assert.Null(_users.FindById(user.UserId));
+    }
+
+    [Fact]
+    public void DeleteInactiveCustomers_RecentlyActive_IsNotDeleted()
+    {
+        var email = $"recent-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Recent Customer", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        var cutoff = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold;
+
+        var deletedEmails = _users.DeleteInactiveCustomers(cutoff);
+
+        Assert.DoesNotContain(email, deletedEmails);
+        Assert.NotNull(_users.FindById(user.UserId));
+    }
+
+    [Fact]
+    public void DeleteInactiveCustomers_NeverTouchesInactiveStaffAccounts()
+    {
+        var email = $"stale-staff-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Stale Employee", UserRole.Employee);
+        var user = _users.FindByEmail(email)!;
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-3));
+        var cutoff = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold;
+
+        var deletedEmails = _users.DeleteInactiveCustomers(cutoff);
+
+        Assert.DoesNotContain(email, deletedEmails);
+        Assert.NotNull(_users.FindById(user.UserId));
+    }
+
+    [Fact]
+    public void DeleteInactiveCustomers_KeepsTheirOrdersOrphanedLikeDeleteUserDoes()
+    {
+        var email = $"stale-with-order-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Stale With Order", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        _cart.AddOrIncrement(user.UserId, 104, 1);
+        var order = _orders.Checkout(user.UserId).Order!;
+        BackdateLastActiveAt(user.UserId, DateTime.UtcNow.AddYears(-3));
+        var cutoff = DateTime.UtcNow - InactiveAccountCleanupService.InactivityThreshold;
+
+        _users.DeleteInactiveCustomers(cutoff);
+
+        Assert.Null(_users.FindById(user.UserId));
+        Assert.Null(ReadOrderUserId(order.OrderId));
+    }
+
+    [Fact]
+    public void CountActiveAdmins_CountsOnlyActiveAdmins()
+    {
+        var before = _users.CountActiveAdmins();
+        var email = $"count-admin-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Count Admin", UserRole.Admin);
+        var created = _users.FindByEmail(email)!;
+        Assert.Equal(before + 1, _users.CountActiveAdmins());
+
+        _users.SetActive(created.UserId, false);
+        Assert.Equal(before, _users.CountActiveAdmins());
+
+        _users.SetActive(created.UserId, true);
+        _users.UpdateRole(created.UserId, UserRole.Employee);
+        Assert.Equal(before, _users.CountActiveAdmins());
     }
 
     [Fact]

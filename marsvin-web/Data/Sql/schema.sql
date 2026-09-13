@@ -87,8 +87,18 @@ BEGIN
         DisplayName  NVARCHAR(200) NOT NULL,
         Role         TINYINT       NOT NULL,             -- 0 Customer, 1 Employee, 2 Admin
         IsActive     BIT           NOT NULL DEFAULT 1,
-        CreatedAt    DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME()
+        CreatedAt    DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
+        LastActiveAt DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME() -- set at registration, refreshed on login; drives 2-year inactivity auto-deletion
     );
+END
+
+-- Column added after Users already existed on live databases (create-once
+-- tables don't pick up new columns from the CREATE TABLE above) - safe to run
+-- every time. Existing accounts start their 2-year countdown from today
+-- rather than being auto-deleted the first time the cleanup job sees them.
+IF COL_LENGTH('dbo.Users', 'LastActiveAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD LastActiveAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME();
 END
 
 IF OBJECT_ID('dbo.CartItems', 'U') IS NULL

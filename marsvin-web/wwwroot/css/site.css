@@ -446,6 +446,11 @@ a:hover { color: var(--fleece); }
 }
 .callout p { margin: 0; font-size: 0.95rem; }
 
+/* Same red as .form-errors/.food-callout--never - an irreversible action
+   (deleting your own account) gets the same visual weight as "this is
+   wrong", not the brand-pink of every other .callout on the site. */
+.callout--danger { border-left-color: #7A1F3D; }
+
 .back { display: inline-block; margin-bottom: 1rem; font-size: 0.95rem; }
 
 /* ------------------------------ footer ------------------------- */

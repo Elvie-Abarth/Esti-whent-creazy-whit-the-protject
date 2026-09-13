@@ -119,4 +119,28 @@
             }
         </div>
     </section>
+
+    <section class="section">
+        <div class="wrap auth-page">
+            <div class="callout callout--danger">
+                <h2 data-en="Delete your account">Slet din konto</h2>
+                <p data-en="Permanently deletes your account - the same right to erasure described on Privatliv. Your past orders are kept, just no longer linked to any account, exactly like an admin deleting your account or the 2-year inactivity policy.">
+                    Sletter din konto permanent - den samme ret til sletning
+                    som er beskrevet under Privatliv. Dine tidligere ordrer
+                    bevares, blot ikke længere knyttet til nogen konto, helt
+                    som hvis en admin slettede din konto, eller
+                    2-års-inaktivitetspolitikken gjorde det.
+                </p>
+                <form method="post" asp-page-handler="DeleteAccount"
+                      onsubmit="return confirm('Er du sikker på, du vil slette din konto permanent? Det kan ikke fortrydes.');"
+                      class="auth-form">
+                    <label>
+                        <span data-en="Current password">Nuværende adgangskode</span>
+                        <input type="password" name="currentPassword" required autocomplete="current-password" />
+                    </label>
+                    <button type="submit" class="btn btn--quiet" data-en="Delete my account">Slet min konto</button>
+                </form>
+            </div>
+        </div>
+    </section>
 }

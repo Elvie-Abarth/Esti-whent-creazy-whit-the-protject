@@ -291,4 +291,68 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
 
         _catalog.UpdateStockQuantity(productId, stock - 1); // restore for other tests in this shared fixture
     }
+
+    [Fact]
+    public async Task OnPostDeleteAccountAsync_CorrectPassword_DeletesTheAccount()
+    {
+        var user = NewCustomer();
+        var (model, _) = MakeModel(user.UserId);
+
+        var result = await model.OnPostDeleteAccountAsync(OriginalPassword);
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("/Index", redirect.PageName);
+        Assert.Null(_users.FindById(user.UserId));
+        Assert.NotNull(model.ToastMessage);
+    }
+
+    [Fact]
+    public async Task OnPostDeleteAccountAsync_WrongPassword_DoesNotDeleteAndShowsError()
+    {
+        var user = NewCustomer();
+        var (model, _) = MakeModel(user.UserId);
+
+        await model.OnPostDeleteAccountAsync("WrongPassword!");
+
+        Assert.NotNull(_users.FindById(user.UserId));
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task OnPostDeleteAccountAsync_NonCustomerAccount_IsForbiddenAndAccountRemains()
+    {
+        var user = NewCustomer();
+        var (model, _) = MakeModel(user.UserId, role: "Admin");
+
+        var result = await model.OnPostDeleteAccountAsync(OriginalPassword);
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.NotNull(_users.FindById(user.UserId));
+    }
+
+    [Fact]
+    public async Task OnPostDeleteAccountAsync_WithPastOrders_KeepsTheOrderRowButOrphansIt()
+    {
+        var user = NewCustomer();
+        _cart.AddOrIncrement(user.UserId, 104, 1);
+        var order = _orders.Checkout(user.UserId).Order!;
+        var (model, _) = MakeModel(user.UserId);
+
+        await model.OnPostDeleteAccountAsync(OriginalPassword);
+
+        Assert.Null(_users.FindById(user.UserId));
+        // FindForUser requires a matching UserId, which is now null on the
+        // order row, so it correctly can't find it "for" the deleted user
+        // either way - check the row itself still exists, via GetOrdersForUser
+        // for a *different*, freshly-made customer who never placed it: if the
+        // row were gone, this proves nothing; the real check is the raw count.
+        using var connection = new Microsoft.Data.SqlClient.SqlConnection(fixture.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT UserId FROM dbo.Orders WHERE OrderId = @OrderId;";
+        command.Parameters.AddWithValue("@OrderId", order.OrderId);
+        var value = command.ExecuteScalar();
+        Assert.NotNull(value); // the row exists at all
+        Assert.True(value is DBNull); // ...but UserId on it is now NULL, not just absent
+    }
 }

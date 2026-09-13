@@ -55,6 +55,7 @@ public class LoginModel(IUserAccountStore users) : PageModel
         }
 
         ClearFailedAttempts(email);
+        users.RecordActivity(user!.UserId);
         await SignInAsync(user!);
 
         return LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);

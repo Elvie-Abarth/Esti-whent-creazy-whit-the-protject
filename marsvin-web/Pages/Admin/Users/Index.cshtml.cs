@@ -29,6 +29,16 @@ public class IndexModel(IUserAccountStore users) : PageModel
             ErrorMessage = "Du kan ikke ændre din egen rolle.";
             return RedirectToPage();
         }
+        // Self-protection above stops an admin locking themselves out, but
+        // says nothing about demoting a *different* admin down to the last
+        // one standing - guard that here too, the same way as toggle-active
+        // and delete below, so all three can never take the active-admin
+        // count to zero.
+        if (role != UserRole.Admin && IsLastActiveAdmin(userId))
+        {
+            ErrorMessage = "Der skal være mindst én aktiv admin-konto - denne kan ikke ændres til en anden rolle.";
+            return RedirectToPage();
+        }
         users.UpdateRole(userId, role);
         return RedirectToPage();
     }
@@ -38,6 +48,11 @@ public class IndexModel(IUserAccountStore users) : PageModel
         if (userId == CurrentUserId)
         {
             ErrorMessage = "Du kan ikke deaktivere din egen konto.";
+            return RedirectToPage();
+        }
+        if (!isActive && IsLastActiveAdmin(userId))
+        {
+            ErrorMessage = "Der skal være mindst én aktiv admin-konto - denne kan ikke deaktiveres.";
             return RedirectToPage();
         }
         users.SetActive(userId, isActive);
@@ -51,8 +66,22 @@ public class IndexModel(IUserAccountStore users) : PageModel
             ErrorMessage = "Du kan ikke slette din egen konto.";
             return RedirectToPage();
         }
+        if (IsLastActiveAdmin(userId))
+        {
+            ErrorMessage = "Der skal være mindst én aktiv admin-konto - denne kan ikke slettes.";
+            return RedirectToPage();
+        }
         users.DeleteUser(userId);
         return RedirectToPage();
+    }
+
+    // True only for a target who is themselves an active Admin *and* is the
+    // only one left - never blocks touching an Employee/Customer, and never
+    // blocks a second, third, etc. admin while at least one other remains.
+    private bool IsLastActiveAdmin(int userId)
+    {
+        var target = users.FindById(userId);
+        return target is { Role: UserRole.Admin, IsActive: true } && users.CountActiveAdmins() <= 1;
     }
 
     public IActionResult OnPostCreateStaff()

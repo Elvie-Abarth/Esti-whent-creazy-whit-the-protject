@@ -16,6 +16,21 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         return model;
     }
 
+    // Deactivates every other active admin (including the seeded
+    // admin@marsvin.dk) so `keepActive` becomes the only one - callers must
+    // reactivate the returned list afterward, since this is a shared fixture
+    // database other tests in the same run also depend on having their admins intact.
+    private List<ApplicationUser> IsolateAsOnlyActiveAdmin(int keepActiveUserId) =>
+        _users.GetAll()
+            .Where(u => u.Role == UserRole.Admin && u.IsActive && u.UserId != keepActiveUserId)
+            .Select(u => { _users.SetActive(u.UserId, false); return u; })
+            .ToList();
+
+    private void Reactivate(IEnumerable<ApplicationUser> admins)
+    {
+        foreach (var admin in admins) _users.SetActive(admin.UserId, true);
+    }
+
     private ApplicationUser NewAdmin([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
     {
         var email = $"{caller}-{Guid.NewGuid():N}@example.com";
@@ -93,5 +108,91 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         model.OnPostDelete(other.UserId);
 
         Assert.Null(_users.FindById(other.UserId));
+    }
+
+    [Fact]
+    public void OnPostDelete_LastActiveAdmin_IsBlockedAndAccountRemains()
+    {
+        var lastAdmin = NewAdmin();
+        var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
+        try
+        {
+            Assert.Equal(1, _users.CountActiveAdmins());
+            // Acting as a different id than lastAdmin so self-protection
+            // doesn't fire instead - only IsLastActiveAdmin's own logic is
+            // under test here ([Authorize(Roles="Admin")] on the real page
+            // is enforced by the framework, not this method call).
+            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+
+            model.OnPostDelete(lastAdmin.UserId);
+
+            Assert.NotNull(_users.FindById(lastAdmin.UserId));
+            Assert.NotNull(model.ErrorMessage);
+        }
+        finally
+        {
+            Reactivate(deactivated);
+        }
+    }
+
+    [Fact]
+    public void OnPostUpdateRole_LastActiveAdmin_IsBlockedAndRoleUnchanged()
+    {
+        var lastAdmin = NewAdmin();
+        var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
+        try
+        {
+            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+
+            model.OnPostUpdateRole(lastAdmin.UserId, UserRole.Employee);
+
+            Assert.Equal(UserRole.Admin, _users.FindById(lastAdmin.UserId)!.Role);
+            Assert.NotNull(model.ErrorMessage);
+        }
+        finally
+        {
+            Reactivate(deactivated);
+        }
+    }
+
+    [Fact]
+    public void OnPostUpdateRole_LastActiveAdmin_StayingAdmin_IsAllowed()
+    {
+        // Not actually a role change (Admin -> Admin), so there's nothing for
+        // the last-admin guard to object to.
+        var lastAdmin = NewAdmin();
+        var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
+        try
+        {
+            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+
+            model.OnPostUpdateRole(lastAdmin.UserId, UserRole.Admin);
+
+            Assert.Null(model.ErrorMessage);
+        }
+        finally
+        {
+            Reactivate(deactivated);
+        }
+    }
+
+    [Fact]
+    public void OnPostToggleActive_LastActiveAdmin_DeactivationIsBlocked()
+    {
+        var lastAdmin = NewAdmin();
+        var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
+        try
+        {
+            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+
+            model.OnPostToggleActive(lastAdmin.UserId, false);
+
+            Assert.True(_users.FindById(lastAdmin.UserId)!.IsActive);
+            Assert.NotNull(model.ErrorMessage);
+        }
+        finally
+        {
+            Reactivate(deactivated);
+        }
     }
 }

@@ -132,6 +132,31 @@ public class ProfileModel(IUserAccountStore users, IOrderStore orders, ICartStor
         return RedirectToPage();
     }
 
+    // The GDPR right to erasure this page's own Privatliv text promises -
+    // a customer doesn't have to wait for the 2-year inactivity job or ask
+    // an admin, they can delete their own account outright. Staff accounts
+    // are managed by an admin instead (see Admin/Users), not self-service,
+    // so this is deliberately Customer-only.
+    public async Task<IActionResult> OnPostDeleteAccountAsync(string currentPassword)
+    {
+        if (!User.IsInRole("Customer")) return Forbid();
+
+        var user = users.FindById(CurrentUserId)!;
+        var hasher = new PasswordHasher<ApplicationUser>();
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword) == PasswordVerificationResult.Failed)
+        {
+            ErrorMessage = "Forkert adgangskode - kontoen blev ikke slettet.";
+            return RedirectToPage();
+        }
+
+        // Same DeleteUser as an admin uses or the inactivity job runs - cart
+        // cleared, past orders kept but orphaned, never destroyed.
+        users.DeleteUser(CurrentUserId);
+        ToastMessage = "Din konto og dine data er slettet.";
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return RedirectToPage("/Index");
+    }
+
     private async Task SignInAsync(ApplicationUser user)
     {
         var claims = new List<Claim>
