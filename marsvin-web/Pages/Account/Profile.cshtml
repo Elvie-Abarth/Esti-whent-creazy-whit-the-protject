@@ -2,6 +2,7 @@
 @model MarsvinWebExample.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "Min konto";
+    ViewData["TitleEn"] = "My account";
 }
 
 <div class="wrap section auth-page">
@@ -124,12 +125,10 @@
         <div class="wrap auth-page">
             <div class="callout callout--danger">
                 <h2 data-en="Delete your account">Slet din konto</h2>
-                <p data-en="Permanently deletes your account - the same right to erasure described on Privatliv. Your past orders are kept, just no longer linked to any account, exactly like an admin deleting your account or the 2-year inactivity policy.">
+                <p data-en="Permanently deletes your account - the same right to erasure described on Privatliv. Your past orders are kept, just no longer linked to any account.">
                     Sletter din konto permanent - den samme ret til sletning
                     som er beskrevet under Privatliv. Dine tidligere ordrer
-                    bevares, blot ikke længere knyttet til nogen konto, helt
-                    som hvis en admin slettede din konto, eller
-                    2-års-inaktivitetspolitikken gjorde det.
+                    bevares, blot ikke længere knyttet til nogen konto.
                 </p>
                 <form method="post" asp-page-handler="DeleteAccount"
                       onsubmit="return confirm('Er du sikker på, du vil slette din konto permanent? Det kan ikke fortrydes.');"
