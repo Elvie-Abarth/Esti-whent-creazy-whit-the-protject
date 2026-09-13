@@ -15,11 +15,6 @@
         <div>
             <a class="back" asp-page="/Marsvin/Index" data-en="Back to the guinea pigs">Tilbage til marsvinene</a>
 
-            @if (Model.ErrorMessage is not null)
-            {
-                <p class="form-errors">@Model.ErrorMessage</p>
-            }
-
             <h1>@a.Name</h1>
             <p data-en="@(a.DescriptionEn ?? a.Description)">@a.Description</p>
             <p data-en="@(a.PersonalityEn ?? a.Personality)">@a.Personality</p>

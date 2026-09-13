@@ -592,6 +592,17 @@ a:hover { color: var(--fleece); }
     100% { opacity: 0; visibility: hidden; transform: translate(-50%, 0.5rem); }
 }
 
+/* Same popup as .toast (see _Layout.cshtml, which renders this whenever any
+   page sets TempData ErrorMessage - the same redirect-then-flash pattern
+   ToastMessage already uses) but in the site's error colour instead of
+   success green: the solid .form-errors/.callout--danger red, not a pale
+   tint - a pale toast barely shows up against the page's own background,
+   same reasoning as the success toast's solid --meadow. */
+.toast--error {
+    background: #7A1F3D;
+    border-color: #E6A9C0;
+}
+
 /* asp-validation-summary always renders a div>ul>li, even with zero errors
    (the <li> just gets style="display:none"), so the div is never truly
    :empty - the tag helper's own "no errors" marker is this class instead. */

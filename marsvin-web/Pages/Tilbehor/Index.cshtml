@@ -13,11 +13,6 @@
         </div>
     </div>
 
-    @if (Model.ErrorMessage is not null)
-    {
-        <p class="form-errors">@Model.ErrorMessage</p>
-    }
-
     <nav class="filters" aria-label="Filtrér efter kategori" data-en-aria-label="Filter by category">
         <a class="filter" asp-page="/Tilbehor/Index"
            aria-current="@(Model.Active is null ? "true" : "false")" data-en="All">Alt</a>

@@ -66,11 +66,6 @@
                 </div>
             </div>
 
-            @if (Model.ErrorMessage is not null)
-            {
-                <p class="form-errors">@Model.ErrorMessage</p>
-            }
-
             @if (Model.Orders.Count == 0)
             {
                 <p data-en="No orders yet.">Ingen ordrer endnu.</p>

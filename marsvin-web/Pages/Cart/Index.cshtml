@@ -12,11 +12,6 @@
         </div>
     </div>
 
-    @if (Model.ErrorMessage is not null)
-    {
-        <p class="form-errors">@Model.ErrorMessage</p>
-    }
-
     @if (Model.Lines.Count == 0)
     {
         <p data-en="Your cart is empty.">Din kurv er tom.</p>

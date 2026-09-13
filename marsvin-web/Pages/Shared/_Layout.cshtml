@@ -80,6 +80,14 @@
 {
     <p class="toast" role="status" aria-live="polite">@toastMessage</p>
 }
+@* Every ErrorMessage in the app is [TempData] and set right before a redirect
+   (same shape as ToastMessage above) - rendered once, here, instead of each
+   page repeating its own "@if (Model.ErrorMessage...)" block in a different
+   spot on the page. *@
+@if (TempData["ErrorMessage"] is string errorToastMessage)
+{
+    <p class="toast toast--error" role="alert" aria-live="assertive">@errorToastMessage</p>
+}
 
 <footer class="site-footer">
     <div class="wrap">
