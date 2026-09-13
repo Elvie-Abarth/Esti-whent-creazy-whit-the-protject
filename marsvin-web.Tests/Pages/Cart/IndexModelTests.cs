@@ -89,6 +89,60 @@ public class IndexModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void OnPostUpdateQuantity_WithinStock_UpdatesTheLine()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+        model.OnPostAdd(productId: 104, quantity: 1);
+
+        model.OnPostUpdateQuantity(productId: 104, quantity: 3);
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Equal(3, line.Quantity);
+    }
+
+    [Fact]
+    public void OnPostUpdateQuantity_MoreThanAvailableStock_LeavesQuantityUnchangedAndSetsError()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+        model.OnPostAdd(productId: 109, quantity: 1);
+        var stock = _catalog.Accessories.Single(p => p.ProductId == 109).StockQuantity;
+
+        model.OnPostUpdateQuantity(productId: 109, quantity: stock + 1);
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Equal(1, line.Quantity);
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
+    public void OnPostUpdateQuantity_ZeroOrLess_RemovesTheLine()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+        model.OnPostAdd(productId: 104, quantity: 2);
+
+        model.OnPostUpdateQuantity(productId: 104, quantity: 0);
+
+        Assert.Empty(_cart.GetLines(userId));
+    }
+
+    [Fact]
+    public void OnPostUpdateQuantity_Animal_LeavesQuantityAtOneAndSetsError()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+        model.OnPostAdd(productId: 1, quantity: 1); // Pelle - seeded Available
+
+        model.OnPostUpdateQuantity(productId: 1, quantity: 2);
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Equal(1, line.Quantity);
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
     public void OnPostRemove_RemovesOnlyThatLine()
     {
         var userId = NewCustomerId();

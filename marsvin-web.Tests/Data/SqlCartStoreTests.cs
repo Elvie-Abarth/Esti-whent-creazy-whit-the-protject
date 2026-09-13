@@ -64,6 +64,29 @@ public class SqlCartStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void SetQuantity_ExistingLine_ReplacesRatherThanAdds()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 101, 1);
+
+        _cart.SetQuantity(userId, 101, 5);
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Equal(5, line.Quantity);
+    }
+
+    [Fact]
+    public void SetQuantity_ZeroOrLess_RemovesTheLine()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 101, 2);
+
+        _cart.SetQuantity(userId, 101, 0);
+
+        Assert.Empty(_cart.GetLines(userId));
+    }
+
+    [Fact]
     public void RemoveLine_DeletesOnlyThatProduct()
     {
         var userId = NewCustomerId();

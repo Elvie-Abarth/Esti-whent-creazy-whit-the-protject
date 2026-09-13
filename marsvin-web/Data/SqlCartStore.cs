@@ -55,6 +55,23 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
         command.ExecuteNonQuery();
     }
 
+    public void SetQuantity(int userId, int productId, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            RemoveLine(userId, productId);
+            return;
+        }
+
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.CartItems SET Quantity = @Quantity WHERE UserId = @UserId AND ProductId = @ProductId;", connection);
+        command.Parameters.AddWithValue("@Quantity", quantity);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.Parameters.AddWithValue("@ProductId", productId);
+        command.ExecuteNonQuery();
+    }
+
     public void RemoveLine(int userId, int productId)
     {
         using var connection = Open();

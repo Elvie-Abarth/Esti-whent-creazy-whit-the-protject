@@ -18,6 +18,14 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
     [TempData]
     public string? ErrorMessage { get; set; }
 
+    // Read by _Layout.cshtml on whatever page the redirect after OnPostAdd lands
+    // on - [TempData] (not a raw TempData["..."] write) so it still works when a
+    // PageModel is unit-tested directly, the same as ErrorMessage above; a direct
+    // dictionary write throws there because TempData isn't wired up outside a real
+    // request.
+    [TempData]
+    public string? ToastMessage { get; set; }
+
     public void OnGet() => Lines = cart.GetLines(CurrentUserId);
 
     public IActionResult OnPostAdd(int productId, int quantity = 1, string? returnUrl = null)
@@ -31,7 +39,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
                 return RedirectAfterAdd(returnUrl);
             }
             cart.AddOrIncrement(CurrentUserId, productId, 1);
-            TempData["ToastMessage"] = $"{animal.Name} er lagt i kurven.";
+            ToastMessage = $"{animal.Name} er lagt i kurven.";
             return RedirectAfterAdd(returnUrl);
         }
 
@@ -48,7 +56,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
         }
 
         cart.AddOrIncrement(CurrentUserId, productId, quantity);
-        TempData["ToastMessage"] = $"{product.Name} er lagt i kurven.";
+        ToastMessage = $"{product.Name} er lagt i kurven.";
         return RedirectAfterAdd(returnUrl);
     }
 
@@ -62,6 +70,42 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
         !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? LocalRedirect(returnUrl)
             : RedirectToPage();
+
+    public IActionResult OnPostUpdateQuantity(int productId, int quantity)
+    {
+        // A guinea pig is a unique item, not stock - there's no "quantity" for
+        // it to change, so the cart page doesn't offer this form for animal
+        // lines. Guard it here too rather than trusting that a form field
+        // wasn't tampered with.
+        var animal = catalog.FindAnimal(productId);
+        if (animal is not null)
+        {
+            ErrorMessage = $"{animal.Name} er ét dyr - antallet kan ikke ændres.";
+            return RedirectToPage();
+        }
+
+        var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == productId);
+        if (product is null)
+        {
+            ErrorMessage = "Varen findes ikke.";
+            return RedirectToPage();
+        }
+
+        if (quantity < 1)
+        {
+            cart.RemoveLine(CurrentUserId, productId);
+            return RedirectToPage();
+        }
+
+        if (!product.CanBeAddedToCart(quantity))
+        {
+            ErrorMessage = $"Der er ikke {quantity} styk tilbage af {product.Name}.";
+            return RedirectToPage();
+        }
+
+        cart.SetQuantity(CurrentUserId, productId, quantity);
+        return RedirectToPage();
+    }
 
     public IActionResult OnPostRemove(int productId)
     {

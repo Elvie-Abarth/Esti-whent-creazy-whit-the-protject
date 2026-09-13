@@ -40,7 +40,20 @@
                 {
                     <tr>
                         <td>@line.ProductName</td>
-                        <td>@line.Quantity</td>
+                        <td>
+                            @if (line.IsAnimal)
+                            {
+                                @line.Quantity
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="UpdateQuantity" class="inline-form">
+                                    <input type="hidden" name="productId" value="@line.ProductId" />
+                                    <input type="number" name="quantity" value="@line.Quantity" min="1" aria-label="Antal" />
+                                    <button type="submit" class="btn btn--quiet" data-en="Update">Opdatér</button>
+                                </form>
+                            }
+                        </td>
                         <td>@line.LineTotal.ToString("N0") kr.</td>
                         <td>
                             <form method="post" asp-page-handler="Remove">
