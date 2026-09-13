@@ -33,6 +33,16 @@ public sealed class SqlShiftStore(string connectionString) : IShiftStore
         return shifts;
     }
 
+    public Shift? GetById(int shiftId)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(SelectColumns + "WHERE s.ShiftId = @ShiftId;", connection);
+        command.Parameters.AddWithValue("@ShiftId", shiftId);
+
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? ReadShift(reader) : null;
+    }
+
     public void Create(int userId, DateTime startAt, DateTime endAt, string? note)
     {
         using var connection = Open();

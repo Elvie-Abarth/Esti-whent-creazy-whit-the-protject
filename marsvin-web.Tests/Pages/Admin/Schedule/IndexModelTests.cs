@@ -2,6 +2,7 @@ using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using MarsvinWebExample.Pages.Admin.Schedule;
 using MarsvinWebExample.Tests.Data;
+using MarsvinWebExample.Tests.Pages.Account;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MarsvinWebExample.Tests.Pages.Admin.Schedule;
@@ -13,8 +14,12 @@ public class IndexModelTests(SqlCatalogFixture fixture)
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlTimeOffRequestStore _timeOffRequests = new(fixture.ConnectionString);
 
+    // Shared across every model this test creates - a single test may sign in
+    // as more than one user in turn, and still wants to see everything sent.
+    private readonly RecordingEmailSender _email = new();
+
     private IndexModel MakeModelSignedInAs(ApplicationUser signedInUser) =>
-        new(_shifts, _users, _timeOffRequests) { PageContext = TestAuth.ContextFor(signedInUser.UserId, signedInUser.Role.ToString()) };
+        new(_shifts, _users, _timeOffRequests, _email) { PageContext = TestAuth.ContextFor(signedInUser.UserId, signedInUser.Role.ToString()) };
 
     private ApplicationUser NewStaff(UserRole role, [System.Runtime.CompilerServices.CallerMemberName] string caller = "")
     {
@@ -53,62 +58,63 @@ public class IndexModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPostCreate_Admin_AddsTheShift()
+    public async Task OnPostCreateAsync_Admin_AddsTheShiftAndEmailsTheStaffMember()
     {
         var admin = NewStaff(UserRole.Admin);
         var employee = NewStaff(UserRole.Employee);
         var model = MakeModelSignedInAs(admin);
         var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
-        model.OnPostCreate(employee.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), "Test");
+        await model.OnPostCreateAsync(employee.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), "Test");
 
         Assert.Contains(_shifts.GetForUser(employee.UserId), s => s.Note == "Test");
+        Assert.Contains(_email.Sent, e => e.ToEmail == employee.Email);
     }
 
     [Fact]
-    public void OnPostCreate_Employee_IsForbiddenAndCreatesNothing()
+    public async Task OnPostCreateAsync_Employee_IsForbiddenAndCreatesNothing()
     {
         var employee = NewStaff(UserRole.Employee);
         var other = NewStaff(UserRole.Employee);
         var model = MakeModelSignedInAs(employee);
         var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
-        var result = model.OnPostCreate(other.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), null);
+        var result = await model.OnPostCreateAsync(other.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), null);
 
         Assert.IsType<ForbidResult>(result);
         Assert.Empty(_shifts.GetForUser(other.UserId));
     }
 
     [Fact]
-    public void OnPostCreate_EndTimeNotAfterStartTime_ShowsErrorAndCreatesNothing()
+    public async Task OnPostCreateAsync_EndTimeNotAfterStartTime_ShowsErrorAndCreatesNothing()
     {
         var admin = NewStaff(UserRole.Admin);
         var employee = NewStaff(UserRole.Employee);
         var model = MakeModelSignedInAs(admin);
         var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
-        model.OnPostCreate(employee.UserId, date, new TimeOnly(18, 0), new TimeOnly(14, 0), null);
+        await model.OnPostCreateAsync(employee.UserId, date, new TimeOnly(18, 0), new TimeOnly(14, 0), null);
 
         Assert.NotNull(model.ErrorMessage);
         Assert.Empty(_shifts.GetForUser(employee.UserId));
     }
 
     [Fact]
-    public void OnPostCreate_TargetIsACustomer_ShowsErrorAndCreatesNothing()
+    public async Task OnPostCreateAsync_TargetIsACustomer_ShowsErrorAndCreatesNothing()
     {
         var admin = NewStaff(UserRole.Admin);
         var customer = NewStaff(UserRole.Customer);
         var model = MakeModelSignedInAs(admin);
         var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
-        model.OnPostCreate(customer.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), null);
+        await model.OnPostCreateAsync(customer.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), null);
 
         Assert.NotNull(model.ErrorMessage);
         Assert.Empty(_shifts.GetForUser(customer.UserId));
     }
 
     [Fact]
-    public void OnPostDelete_Admin_RemovesTheShift()
+    public async Task OnPostDeleteAsync_Admin_RemovesTheShiftAndEmailsTheStaffMember()
     {
         var admin = NewStaff(UserRole.Admin);
         var employee = NewStaff(UserRole.Employee);
@@ -116,20 +122,21 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         var shift = Assert.Single(_shifts.GetForUser(employee.UserId));
         var model = MakeModelSignedInAs(admin);
 
-        model.OnPostDelete(shift.ShiftId);
+        await model.OnPostDeleteAsync(shift.ShiftId);
 
         Assert.Empty(_shifts.GetForUser(employee.UserId));
+        Assert.Contains(_email.Sent, e => e.ToEmail == employee.Email);
     }
 
     [Fact]
-    public void OnPostDelete_Employee_IsForbiddenAndShiftRemains()
+    public async Task OnPostDeleteAsync_Employee_IsForbiddenAndShiftRemains()
     {
         var employee = NewStaff(UserRole.Employee);
         _shifts.Create(employee.UserId, DateTime.UtcNow, DateTime.UtcNow.AddHours(4), null);
         var shift = Assert.Single(_shifts.GetForUser(employee.UserId));
         var model = MakeModelSignedInAs(employee);
 
-        var result = model.OnPostDelete(shift.ShiftId);
+        var result = await model.OnPostDeleteAsync(shift.ShiftId);
 
         Assert.IsType<ForbidResult>(result);
         Assert.Single(_shifts.GetForUser(employee.UserId));

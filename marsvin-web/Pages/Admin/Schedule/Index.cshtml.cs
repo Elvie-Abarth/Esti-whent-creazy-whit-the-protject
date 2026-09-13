@@ -12,7 +12,9 @@ namespace MarsvinWebExample.Pages.Admin.Schedule;
 // remove a shift, staff or otherwise (that stays an Admin-only action, even
 // for an Employee looking at their own row).
 [Authorize(Roles = "Admin,Employee")]
-public class IndexModel(IShiftStore shifts, IUserAccountStore users, ITimeOffRequestStore timeOffRequests) : PageModel
+public class IndexModel(
+    IShiftStore shifts, IUserAccountStore users, ITimeOffRequestStore timeOffRequests, IEmailSender emailSender)
+    : PageModel
 {
     public IReadOnlyList<Shift> Shifts { get; private set; } = [];
 
@@ -39,7 +41,7 @@ public class IndexModel(IShiftStore shifts, IUserAccountStore users, ITimeOffReq
         }
     }
 
-    public IActionResult OnPostCreate(int userId, DateOnly date, TimeOnly startTime, TimeOnly endTime, string? note)
+    public async Task<IActionResult> OnPostCreateAsync(int userId, DateOnly date, TimeOnly startTime, TimeOnly endTime, string? note)
     {
         if (!User.IsInRole("Admin")) return Forbid();
 
@@ -56,17 +58,57 @@ public class IndexModel(IShiftStore shifts, IUserAccountStore users, ITimeOffReq
             return RedirectToPage();
         }
 
-        shifts.Create(userId, date.ToDateTime(startTime), date.ToDateTime(endTime),
-            string.IsNullOrWhiteSpace(note) ? null : note.Trim());
+        var trimmedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        shifts.Create(userId, date.ToDateTime(startTime), date.ToDateTime(endTime), trimmedNote);
+
+        await emailSender.SendAsync(staff.Email, "Din vagtplan er blevet opdateret",
+            $"""
+            Hej {staff.DisplayName},
+
+            Der er tilføjet en ny vagt til din vagtplan:
+
+            {date:d MMM yyyy}, {startTime:HH\:mm}–{endTime:HH\:mm}{(trimmedNote is null ? "" : $" ({trimmedNote})")}
+
+            Se hele din vagtplan under Personale.
+
+            Venlig hilsen
+            Marsvin
+            """);
+
         ToastMessage = $"Vagt tilføjet for {staff.DisplayName}.";
         return RedirectToPage();
     }
 
-    public IActionResult OnPostDelete(int shiftId)
+    public async Task<IActionResult> OnPostDeleteAsync(int shiftId)
     {
         if (!User.IsInRole("Admin")) return Forbid();
 
+        // Read the shift before it's gone - that's the only chance to know who
+        // to notify and what the removed shift actually was.
+        var shift = shifts.GetById(shiftId);
         shifts.Delete(shiftId);
+
+        if (shift is not null)
+        {
+            var staff = users.FindById(shift.UserId);
+            if (staff is not null)
+            {
+                await emailSender.SendAsync(staff.Email, "Din vagtplan er blevet opdateret",
+                    $"""
+                    Hej {staff.DisplayName},
+
+                    En vagt er blevet fjernet fra din vagtplan:
+
+                    {shift.StartAt:d MMM yyyy}, {shift.StartAt:HH\:mm}–{shift.EndAt:HH\:mm}
+
+                    Se hele din vagtplan under Personale.
+
+                    Venlig hilsen
+                    Marsvin
+                    """);
+            }
+        }
+
         ToastMessage = "Vagten er slettet.";
         return RedirectToPage();
     }

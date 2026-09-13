@@ -72,6 +72,26 @@ public class SqlShiftStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void GetById_ExistingShift_ReturnsIt()
+    {
+        var staff = NewEmployee();
+        _shifts.Create(staff.UserId, DateTime.UtcNow, DateTime.UtcNow.AddHours(4), "Note");
+        var created = Assert.Single(_shifts.GetForUser(staff.UserId));
+
+        var found = _shifts.GetById(created.ShiftId);
+
+        Assert.NotNull(found);
+        Assert.Equal(staff.UserId, found!.UserId);
+        Assert.Equal("Note", found.Note);
+    }
+
+    [Fact]
+    public void GetById_UnknownId_ReturnsNull()
+    {
+        Assert.Null(_shifts.GetById(-1));
+    }
+
+    [Fact]
     public void Delete_RemovesTheShift()
     {
         var staff = NewEmployee();
