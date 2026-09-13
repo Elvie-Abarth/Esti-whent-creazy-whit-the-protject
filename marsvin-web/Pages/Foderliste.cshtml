@@ -1,0 +1,62 @@
+@page
+@{
+    ViewData["Title"] = "Foderliste";
+}
+
+<div class="wrap section guide-intro">
+    <div class="actions no-print">
+        <a class="btn btn--quiet" asp-page="/Pasningsguide" data-en="Back to the care guide">Tilbage til pasningsguiden</a>
+        <button type="button" class="btn" onclick="window.print()" data-en="Print or save as PDF">Udskriv / gem som PDF</button>
+    </div>
+    <div class="section-head">
+        <h1 data-en="Guinea pig food list">Marsvins foderliste</h1>
+        <p data-en="What's safe every day, what's fine in small amounts, and what to never give. Print it, or save it as a PDF for your phone.">
+            Hvad der er sikkert hver dag, hvad der er fint i små mængder, og
+            hvad du aldrig skal give. Udskriv den, eller gem den som PDF til telefonen.
+        </p>
+    </div>
+</div>
+
+<section class="section">
+    <div class="wrap guide-article">
+        <div class="callout food-callout food-callout--safe">
+            <h2 data-en="Safe, every day">Sikkert, hver dag</h2>
+            <ul class="food-grid">
+                <li><strong data-en="Hay">Hø</strong><span data-en="Unlimited, always available">Ubegrænset, altid tilgængeligt</span></li>
+                <li><strong data-en="Guinea-pig-specific pellets">Marsvine-specifikt pillefoder</strong><span data-en="A measured daily portion">En afmålt daglig portion</span></li>
+                <li><strong data-en="Fresh water">Frisk vand</strong><span data-en="Checked daily, not just topped up">Tjekket dagligt, ikke bare fyldt op</span></li>
+                <li><strong data-en="Bell pepper">Peberfrugt</strong><span data-en="High in vitamin C">Højt C-vitaminindhold</span></li>
+                <li><strong data-en="Cucumber">Agurk</strong></li>
+                <li><strong data-en="Romaine lettuce / leafy greens">Romainesalat / bladgrønt</strong></li>
+                <li><strong data-en="Tomato">Tomat</strong><span data-en="Flesh only - not the stem or leaves">Kun kødet - ikke stilk eller blade</span></li>
+                <li><strong data-en="Broccoli">Broccoli</strong><span data-en="Small amounts - can cause gas">Små mængder - kan give luft i maven</span></li>
+            </ul>
+        </div>
+
+        <div class="callout food-callout food-callout--moderate">
+            <h2 data-en="Fine in small amounts, a couple of times a week">Fint i små mængder, et par gange om ugen</h2>
+            <ul class="food-grid">
+                <li><strong data-en="Carrot">Gulerod</strong><span data-en="High in sugar">Højt sukkerindhold</span></li>
+                <li><strong data-en="Apple">Æble</strong><span data-en="No seeds - they contain trace cyanide">Uden kerner - de indeholder spor af cyanid</span></li>
+                <li><strong data-en="Strawberry, banana, blueberry">Jordbær, banan, blåbær</strong><span data-en="High in sugar - treat-sized portions">Højt sukkerindhold - godbid-størrelse</span></li>
+                <li><strong data-en="Dried dandelion">Tørret mælkebøtte</strong></li>
+                <li><strong data-en="Corn">Majs</strong><span data-en="Small amounts - high in starch">Små mængder - højt stivelsesindhold</span></li>
+            </ul>
+        </div>
+
+        <div class="callout food-callout food-callout--never">
+            <h2 data-en="Never">Aldrig</h2>
+            <ul class="food-grid">
+                <li><strong data-en="Iceberg lettuce">Iceberg-salat</strong><span data-en="Almost no nutrition, can cause diarrhoea">Næsten ingen næringsværdi, kan give diarré</span></li>
+                <li><strong data-en="Avocado">Avocado</strong><span data-en="Toxic to guinea pigs">Giftig for marsvin</span></li>
+                <li><strong data-en="Onion, garlic, leek">Løg, hvidløg, porre</strong><span data-en="The whole allium family - damages red blood cells">Hele løg-familien - skader røde blodlegemer</span></li>
+                <li><strong data-en="Chocolate">Chokolade</strong><span data-en="Toxic">Giftig</span></li>
+                <li><strong data-en="Dairy products">Mejeriprodukter</strong><span data-en="Adult guinea pigs are lactose intolerant">Voksne marsvin er laktoseintolerante</span></li>
+                <li><strong data-en="Rhubarb">Rabarber</strong><span data-en="Toxic - high in oxalic acid">Giftig - højt indhold af oxalsyre</span></li>
+                <li><strong data-en="Nuts and seeds">Nødder og frø</strong><span data-en="Choking hazard, too much fat">Kvælningsfare, for meget fedt</span></li>
+                <li><strong data-en="Green potato / potato sprouts">Grønne kartofler / kartoffeltop</strong><span data-en="Contains solanine - toxic">Indeholder solanin - giftigt</span></li>
+                <li><strong data-en="Bread, pasta, meat and other human food">Brød, pasta, kød og andet menneskemad</strong><span data-en="Not built for a guinea pig's gut">Ikke bygget til et marsvins fordøjelse</span></li>
+            </ul>
+        </div>
+    </div>
+</section>

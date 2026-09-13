@@ -1,0 +1,70 @@
+@page
+@{
+    ViewData["Title"] = "Lynguide";
+}
+
+<div class="wrap section guide-intro">
+    <div class="actions no-print">
+        <a class="btn btn--quiet" asp-page="/Pasningsguide" data-en="Back to the full care guide">Tilbage til den fulde pasningsguide</a>
+        <button type="button" class="btn" onclick="window.print()" data-en="Print or save as PDF">Udskriv / gem som PDF</button>
+    </div>
+    <div class="section-head">
+        <h1 data-en="Guinea pig quick guide">Marsvins lynguide</h1>
+        <p data-en="One page. Everything worth pinning to the fridge, none of the reading. See the full care guide for the why behind each line.">
+            Én side. Alt der er værd at hænge på køleskabet, ingen af
+            forklaringerne. Se den fulde pasningsguide for hvorfor bag hver linje.
+        </p>
+    </div>
+</div>
+
+<section class="section">
+    <div class="wrap guide-article">
+        <article>
+            <h2 data-en="Every day">Hver dag</h2>
+            <ul class="facts">
+                <li><span data-en="Hay">Hø</span><span data-en="Unlimited, always">Ubegrænset, altid</span></li>
+                <li><span data-en="Pellets">Piller</span><span data-en="Measured, guinea-pig specific">Afmålt, marsvine-specifik</span></li>
+                <li><span data-en="Vegetables">Grøntsager</span><span data-en="Small amounts, high in vitamin C">Små mængder, højt C-vitamin</span></li>
+                <li><span data-en="Water">Vand</span><span data-en="Checked, not just present">Tjekket, ikke bare til stede</span></li>
+                <li><span data-en="Spot-clean">Punktrengøring</span><span data-en="Wet bedding and droppings out">Våd strøelse og efterladenskaber ud</span></li>
+            </ul>
+        </article>
+
+        <article>
+            <h2 data-en="Every week">Hver uge</h2>
+            <ul class="facts">
+                <li><span data-en="Full clean">Fuld rengøring</span><span data-en="All bedding out, cage cleaned">Al strøelse ud, bur rengjort</span></li>
+                <li><span data-en="Weigh them">Vej dem</span><span data-en="A dropping number is often the first warning sign">Faldende tal er ofte første advarsel</span></li>
+                <li><span data-en="Water bottle">Vandflaske</span><span data-en="Scrubbed - algae builds up inside">Skrubbet - alger opbygges indeni</span></li>
+            </ul>
+        </article>
+
+        <article>
+            <h2 data-en="Never">Aldrig</h2>
+            <ul class="facts">
+                <li><span data-en="Alone">Alene</span><span data-en="Herd animals - withdrawn, not calm, on their own">Flokdyr - tilbagetrukne, ikke rolige, alene</span></li>
+                <li><span data-en="A wire-bottom cage">Bur med trådbund</span><span data-en="Sore, ulcerated feet over time">Ømme, sårede poter over tid</span></li>
+                <li><span data-en="A day without eating, unaddressed">En dag uden mad, uden handling</span><span data-en="Call a vet, don't wait">Ring til dyrlæge, vent ikke</span></li>
+                <li><span data-en="Iceberg lettuce, avocado, onion, garlic, chocolate">Iceberg, avocado, løg, hvidløg, chokolade</span><span data-en="See the full food list">Se hele foderlisten</span></li>
+            </ul>
+        </article>
+
+        <article>
+            <h2 data-en="Reading a guinea pig">Læs et marsvin</h2>
+            <ul class="facts">
+                <li><span data-en="Popcorning (jumping, twisting)">Popcorner (hopper, snor sig)</span><span data-en="Pure joy">Ren glæde</span></li>
+                <li><span data-en="Wheeking (loud whistle)">Fløjter højlydt</span><span data-en="Feed me, now">Giv mig mad, nu</span></li>
+                <li><span data-en="Teeth chattering">Klaprer med tænderne</span><span data-en="Back off - a warning">Træk dig - en advarsel</span></li>
+                <li><span data-en="Freezing in place">Fryser helt stille</span><span data-en="Startled or scared">Forskrækket eller bange</span></li>
+            </ul>
+        </article>
+
+        <div class="callout">
+            <h2 data-en="Emergency">Akut</h2>
+            <p data-en="Not eating or drinking for 24 hours, laboured breathing, or sudden weight loss - same-day vet, not wait-and-see.">
+                Ikke spist eller drukket i et døgn, besværet vejrtrækning,
+                eller pludseligt vægttab - dyrlæge samme dag, ikke vente og se an.
+            </p>
+        </div>
+    </div>
+</section>

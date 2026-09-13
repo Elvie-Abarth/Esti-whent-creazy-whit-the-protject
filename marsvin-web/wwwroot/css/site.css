@@ -697,3 +697,25 @@ a:hover { color: var(--fleece); }
     body { background: var(--paper); }
 }
 .guide-article .callout li:last-child { margin-bottom: 0; }
+
+/* ------------------------------ food list ------------------------- */
+/* --safe/--moderate/--never tint the same .callout box used elsewhere on
+   this page - equal specificity to the base .callout border-left, so
+   source order (these rules come after it) is what makes the colour win. */
+.food-callout--safe { border-left-color: var(--grass); }
+.food-callout--moderate { border-left-color: var(--bark); }
+.food-callout--never { border-left-color: #7A1F3D; }
+
+/* Beats .guide-article .callout ul's bullet-list styling above (equal
+   class count, but that selector also matches on the `ul` element, which
+   otherwise outweighs an extra class here) - specific enough on purpose. */
+.guide-article .callout ul.food-grid {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.9rem 1.5rem;
+}
+.food-grid li { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0; }
+.food-grid strong { font-size: 0.95rem; font-weight: 700; }
+.food-grid span { font-size: 0.85rem; color: var(--bark); }
