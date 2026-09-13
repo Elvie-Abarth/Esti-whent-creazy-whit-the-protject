@@ -112,6 +112,45 @@ a:hover { color: var(--fleece); }
 .site-nav a { text-decoration: none; padding-bottom: 2px; }
 .site-nav a[aria-current="page"] { border-bottom: 2px solid var(--fleece); }
 
+/* <details>/<summary> instead of a JS dropdown - the browser handles open/
+   close, click-outside-summary-to-toggle and keyboard (Enter/Space, then Tab
+   into the links) for free. Trade-off: it won't auto-close on an unrelated
+   click elsewhere on the page, only on clicking the summary again or
+   navigating away - acceptable for three rarely-used info links. */
+.nav-dropdown { position: relative; }
+.nav-dropdown > summary {
+    list-style: none;
+    cursor: pointer;
+    padding-bottom: 2px;
+}
+.nav-dropdown > summary::-webkit-details-marker { display: none; }
+.nav-dropdown > summary::after { content: "\25BE"; margin-left: 0.3em; font-size: 0.8em; }
+.nav-dropdown[open] > summary::after { content: "\25B4"; }
+
+.nav-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 50;
+    margin-top: 0.7rem;
+    min-width: 12rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(44, 67, 39, 0.15);
+    padding: 0.4rem;
+}
+.nav-dropdown-menu a {
+    padding: 0.55rem 0.7rem;
+    border-radius: 4px;
+    text-decoration: none;
+    color: var(--meadow);
+}
+.nav-dropdown-menu a:hover,
+.nav-dropdown-menu a:focus-visible { background: var(--hay); }
+
 /* Small utility controls in the header (log in/out, sign up, DA/EN) -
    deliberately a size step down and in --bark (not --meadow), so the
    account/utility cluster reads as secondary to Marsvinene/Tilbehør/
