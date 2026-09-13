@@ -18,12 +18,15 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     private readonly SqlOrderStore _orders = new(fixture.ConnectionString);
     private readonly SqlCartStore _cart = new(fixture.ConnectionString);
     private readonly SqlCatalog _catalog = new(fixture.ConnectionString);
+    private readonly SqlShiftStore _shifts = new(fixture.ConnectionString);
+    private readonly SqlTimeOffRequestStore _timeOffRequests = new(fixture.ConnectionString);
     private const string OriginalPassword = "OriginalPass123!";
 
-    // Same RecordingAuthenticationService as LoginModelTests (same namespace) -
-    // lets OnPostAsync's HttpContext.SignInAsync succeed without the real auth
-    // middleware pipeline, and lets the test see what it signed in as.
-    private (ProfileModel Model, RecordingAuthenticationService Auth) MakeModel(int userId, string role = "Customer")
+    // Same RecordingAuthenticationService/RecordingEmailSender as LoginModelTests
+    // (same namespace) - lets OnPostAsync's HttpContext.SignInAsync succeed
+    // without the real auth middleware pipeline, and lets a test see what it
+    // signed in as or what it would have emailed.
+    private (ProfileModel Model, RecordingAuthenticationService Auth, RecordingEmailSender Email) MakeModel(int userId, string role = "Customer")
     {
         var services = new ServiceCollection();
         var auth = new RecordingAuthenticationService();
@@ -39,8 +42,10 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
                 authenticationType: "Test"))
         };
 
-        var model = new ProfileModel(_users, _orders, _cart, _catalog) { PageContext = new PageContext { HttpContext = httpContext } };
-        return (model, auth);
+        var email = new RecordingEmailSender();
+        var model = new ProfileModel(_users, _orders, _cart, _catalog, _shifts, _timeOffRequests, email)
+            { PageContext = new PageContext { HttpContext = httpContext } };
+        return (model, auth, email);
     }
 
     private ApplicationUser NewCustomer([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
@@ -51,11 +56,18 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         return _users.FindByEmail(email)!;
     }
 
+    private ApplicationUser NewStaff(UserRole role, [System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    {
+        var email = $"{caller}-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", caller, role);
+        return _users.FindByEmail(email)!;
+    }
+
     [Fact]
     public void OnGet_LoadsCurrentDisplayNameAndEmail()
     {
         var user = NewCustomer();
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         model.OnGet();
 
@@ -67,7 +79,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public async Task OnPostAsync_WrongCurrentPassword_DoesNotUpdateAndShowsError()
     {
         var user = NewCustomer();
-        var (model, auth) = MakeModel(user.UserId);
+        var (model, auth, _) = MakeModel(user.UserId);
         model.Input = new ProfileModel.InputModel
         {
             DisplayName = "New Name",
@@ -86,7 +98,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public async Task OnPostAsync_CorrectPassword_UpdatesNameAndEmailAndSignsInAgain()
     {
         var user = NewCustomer();
-        var (model, auth) = MakeModel(user.UserId);
+        var (model, auth, _) = MakeModel(user.UserId);
         var newEmail = $"updated-{Guid.NewGuid():N}@example.com";
         model.Input = new ProfileModel.InputModel
         {
@@ -110,7 +122,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     {
         var user = NewCustomer();
         var other = NewCustomer();
-        var (model, auth) = MakeModel(user.UserId);
+        var (model, auth, _) = MakeModel(user.UserId);
         model.Input = new ProfileModel.InputModel
         {
             DisplayName = user.DisplayName,
@@ -129,7 +141,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public async Task OnPostAsync_NewPasswordProvided_ChangesPasswordHash()
     {
         var user = NewCustomer();
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
         model.Input = new ProfileModel.InputModel
         {
             DisplayName = user.DisplayName,
@@ -152,7 +164,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     {
         var user = NewCustomer();
         var passwordHashBefore = _users.FindById(user.UserId)!.PasswordHash;
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
         model.Input = new ProfileModel.InputModel
         {
             DisplayName = user.DisplayName,
@@ -171,7 +183,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var user = NewCustomer();
         _cart.AddOrIncrement(user.UserId, 104, 1);
         _orders.Checkout(user.UserId);
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         model.OnGet();
 
@@ -182,7 +194,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public void OnGet_StaffAccount_NeverPopulatesOrderHistory()
     {
         var user = NewCustomer();
-        var (model, _) = MakeModel(user.UserId, role: "Admin");
+        var (model, _, _) = MakeModel(user.UserId, role: "Admin");
 
         model.OnGet();
 
@@ -195,7 +207,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var user = NewCustomer();
         _cart.AddOrIncrement(user.UserId, 104, 2);
         var order = _orders.Checkout(user.UserId).Order!;
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         model.OnPostReorder(order.OrderId);
 
@@ -231,7 +243,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         {
             _cart.AddOrIncrement(user.UserId, created.ProductId, 1);
             var order = _orders.Checkout(user.UserId).Order!;
-            var (model, _) = MakeModel(user.UserId);
+            var (model, _, _) = MakeModel(user.UserId);
 
             model.OnPostReorder(order.OrderId);
 
@@ -251,7 +263,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var stranger = NewCustomer();
         _cart.AddOrIncrement(owner.UserId, 104, 1);
         var order = _orders.Checkout(owner.UserId).Order!;
-        var (model, _) = MakeModel(stranger.UserId);
+        var (model, _, _) = MakeModel(stranger.UserId);
 
         model.OnPostReorder(order.OrderId);
 
@@ -265,7 +277,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var user = NewCustomer();
         _cart.AddOrIncrement(user.UserId, 104, 1);
         var order = _orders.Checkout(user.UserId).Order!;
-        var (model, _) = MakeModel(user.UserId, role: "Admin");
+        var (model, _, _) = MakeModel(user.UserId, role: "Admin");
 
         var result = model.OnPostReorder(order.OrderId);
 
@@ -282,7 +294,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var order = _orders.Checkout(user.UserId).Order!;
         // Deplete the remaining stock so the reorder can no longer be fulfilled.
         _catalog.UpdateStockQuantity(productId, 0);
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         model.OnPostReorder(order.OrderId);
 
@@ -296,7 +308,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public async Task OnPostDeleteAccountAsync_CorrectPassword_DeletesTheAccount()
     {
         var user = NewCustomer();
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         var result = await model.OnPostDeleteAccountAsync(OriginalPassword);
 
@@ -310,7 +322,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public async Task OnPostDeleteAccountAsync_WrongPassword_DoesNotDeleteAndShowsError()
     {
         var user = NewCustomer();
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         await model.OnPostDeleteAccountAsync("WrongPassword!");
 
@@ -322,7 +334,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     public async Task OnPostDeleteAccountAsync_NonCustomerAccount_IsForbiddenAndAccountRemains()
     {
         var user = NewCustomer();
-        var (model, _) = MakeModel(user.UserId, role: "Admin");
+        var (model, _, _) = MakeModel(user.UserId, role: "Admin");
 
         var result = await model.OnPostDeleteAccountAsync(OriginalPassword);
 
@@ -336,7 +348,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var user = NewCustomer();
         _cart.AddOrIncrement(user.UserId, 104, 1);
         var order = _orders.Checkout(user.UserId).Order!;
-        var (model, _) = MakeModel(user.UserId);
+        var (model, _, _) = MakeModel(user.UserId);
 
         await model.OnPostDeleteAccountAsync(OriginalPassword);
 
@@ -354,5 +366,106 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
         var value = command.ExecuteScalar();
         Assert.NotNull(value); // the row exists at all
         Assert.True(value is DBNull); // ...but UserId on it is now NULL, not just absent
+    }
+
+    [Fact]
+    public void OnGet_Employee_ComputesTotalWorkHoursFromShifts()
+    {
+        var staff = NewStaff(UserRole.Employee);
+        _shifts.Create(staff.UserId, new DateTime(2026, 3, 5, 14, 0, 0), new DateTime(2026, 3, 5, 18, 0, 0), null);
+        _shifts.Create(staff.UserId, new DateTime(2026, 3, 6, 10, 0, 0), new DateTime(2026, 3, 6, 14, 0, 0), null);
+        var (model, _, _) = MakeModel(staff.UserId, role: "Employee");
+
+        model.OnGet();
+
+        Assert.Equal(8.0, model.TotalWorkHours);
+    }
+
+    [Fact]
+    public void OnGet_Admin_AlsoComputesTotalWorkHours()
+    {
+        var staff = NewStaff(UserRole.Admin);
+        _shifts.Create(staff.UserId, new DateTime(2026, 3, 5, 14, 0, 0), new DateTime(2026, 3, 5, 18, 0, 0), null);
+        var (model, _, _) = MakeModel(staff.UserId, role: "Admin");
+
+        model.OnGet();
+
+        Assert.Equal(4.0, model.TotalWorkHours);
+    }
+
+    [Fact]
+    public void OnGet_Customer_NeverComputesWorkHours()
+    {
+        var user = NewCustomer();
+        var (model, _, _) = MakeModel(user.UserId);
+
+        model.OnGet();
+
+        Assert.Equal(0.0, model.TotalWorkHours);
+    }
+
+    [Fact]
+    public void OnGet_Employee_PopulatesTheirOwnTimeOffRequests()
+    {
+        var staff = NewStaff(UserRole.Employee);
+        _timeOffRequests.Create(staff.UserId, new DateOnly(2026, 4, 1), new DateOnly(2026, 4, 3), "Ferie");
+        var (model, _, _) = MakeModel(staff.UserId, role: "Employee");
+
+        model.OnGet();
+
+        var request = Assert.Single(model.MyTimeOffRequests);
+        Assert.Equal("Ferie", request.Reason);
+        Assert.Equal(TimeOffStatus.Pending, request.Status);
+    }
+
+    [Fact]
+    public async Task OnPostRequestTimeOffAsync_Employee_CreatesRequestAndEmailsActiveAdmins()
+    {
+        var staff = NewStaff(UserRole.Employee);
+        var admin = NewStaff(UserRole.Admin);
+        var inactiveAdmin = NewStaff(UserRole.Admin);
+        _users.SetActive(inactiveAdmin.UserId, false);
+        try
+        {
+            var (model, _, sentEmail) = MakeModel(staff.UserId, role: "Employee");
+
+            var result = await model.OnPostRequestTimeOffAsync(new DateOnly(2026, 5, 1), new DateOnly(2026, 5, 3), "Ferie");
+
+            Assert.IsType<RedirectToPageResult>(result);
+            var request = Assert.Single(_timeOffRequests.GetForUser(staff.UserId));
+            Assert.Equal("Ferie", request.Reason);
+            Assert.Contains(sentEmail.Sent, e => e.ToEmail == admin.Email);
+            Assert.DoesNotContain(sentEmail.Sent, e => e.ToEmail == inactiveAdmin.Email);
+        }
+        finally
+        {
+            _users.SetActive(inactiveAdmin.UserId, true);
+        }
+    }
+
+    [Fact]
+    public async Task OnPostRequestTimeOffAsync_NonEmployee_IsForbiddenAndCreatesNothing()
+    {
+        var admin = NewStaff(UserRole.Admin);
+        var (model, _, sentEmail) = MakeModel(admin.UserId, role: "Admin");
+
+        var result = await model.OnPostRequestTimeOffAsync(new DateOnly(2026, 5, 1), new DateOnly(2026, 5, 3), null);
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.Empty(_timeOffRequests.GetForUser(admin.UserId));
+        Assert.Empty(sentEmail.Sent);
+    }
+
+    [Fact]
+    public async Task OnPostRequestTimeOffAsync_EndBeforeStart_ShowsErrorAndCreatesNothing()
+    {
+        var staff = NewStaff(UserRole.Employee);
+        var (model, _, sentEmail) = MakeModel(staff.UserId, role: "Employee");
+
+        await model.OnPostRequestTimeOffAsync(new DateOnly(2026, 5, 3), new DateOnly(2026, 5, 1), null);
+
+        Assert.NotNull(model.ErrorMessage);
+        Assert.Empty(_timeOffRequests.GetForUser(staff.UserId));
+        Assert.Empty(sentEmail.Sent);
     }
 }

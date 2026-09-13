@@ -25,3 +25,10 @@ public enum AccessoryCategory
     Toy,
     Bedding
 }
+
+public enum TimeOffStatus
+{
+    Pending,
+    Approved,
+    Denied
+}

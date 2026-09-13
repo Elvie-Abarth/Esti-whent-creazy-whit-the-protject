@@ -341,6 +341,14 @@ a:hover { color: var(--fleece); }
 .status--reserveret  { background: var(--fleece); color: var(--paper); }
 .status--solgt       { background: var(--line);   color: var(--bark);  }
 
+/* Day-off request status (see Account/Profile, Admin/Schedule) - same badge,
+   reusing --grass for a good outcome; denied gets the site's one red
+   (#7A1F3D, see .form-errors/.callout--danger) rather than --fleece, which
+   already means "reserved/waiting" here and would read as pending, not rejected. */
+.status--pending  { background: var(--fleece); color: var(--paper); }
+.status--approved { background: var(--grass);  color: var(--paper); }
+.status--denied   { background: #7A1F3D;       color: var(--hay);   }
+
 /* ------------------------------ welfare band ------------------- */
 .welfare {
     background: var(--meadow);

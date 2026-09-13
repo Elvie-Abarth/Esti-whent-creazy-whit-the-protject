@@ -24,6 +24,54 @@
         <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
     </div>
 
+    @if (isAdmin)
+    {
+        <h3 data-en="Day-off requests awaiting a decision">Ferieanmodninger der afventer</h3>
+        @if (Model.PendingRequests.Count == 0)
+        {
+            <p data-en="No pending requests.">Ingen afventende anmodninger.</p>
+        }
+        else
+        {
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th data-en="Staff">Medarbejder</th>
+                        <th data-en="Period">Periode</th>
+                        <th data-en="Reason">Begrundelse</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var request in Model.PendingRequests)
+                    {
+                        <tr>
+                            <td>@request.StaffName</td>
+                            <td>@request.StartDate.ToString("d MMM") – @request.EndDate.ToString("d MMM yyyy")</td>
+                            <td>@request.Reason</td>
+                            <td>
+                                <form method="post" asp-page-handler="DecideRequest" class="inline-form">
+                                    <input type="hidden" name="requestId" value="@request.RequestId" />
+                                    <input type="hidden" name="approve" value="true" />
+                                    <button type="submit" class="btn btn--quiet" data-en="Approve">Godkend</button>
+                                </form>
+                                <form method="post" asp-page-handler="DecideRequest" class="inline-form">
+                                    <input type="hidden" name="requestId" value="@request.RequestId" />
+                                    <input type="hidden" name="approve" value="false" />
+                                    <button type="submit" class="btn btn--quiet" data-en="Deny">Afvis</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+
+    @if (isAdmin)
+    {
+        <h3 data-en="Shifts">Vagter</h3>
+    }
     @if (Model.Shifts.Count == 0)
     {
         <p data-en="No shifts yet.">Ingen vagter endnu.</p>

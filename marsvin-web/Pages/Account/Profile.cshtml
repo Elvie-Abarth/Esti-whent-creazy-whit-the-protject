@@ -1,8 +1,28 @@
 @page
+@using MarsvinWebExample.Models
 @model MarsvinWebExample.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "Min konto";
     ViewData["TitleEn"] = "My account";
+
+    string StatusClass(TimeOffStatus s) => s switch
+    {
+        TimeOffStatus.Approved => "status--approved",
+        TimeOffStatus.Denied => "status--denied",
+        _ => "status--pending"
+    };
+    string StatusLabel(TimeOffStatus s) => s switch
+    {
+        TimeOffStatus.Approved => "Godkendt",
+        TimeOffStatus.Denied => "Afvist",
+        _ => "Afventer"
+    };
+    string StatusLabelEn(TimeOffStatus s) => s switch
+    {
+        TimeOffStatus.Approved => "Approved",
+        TimeOffStatus.Denied => "Denied",
+        _ => "Pending"
+    };
 }
 
 <div class="wrap section auth-page">
@@ -54,6 +74,71 @@
         <button type="submit" class="btn" data-en="Save changes">Gem ændringer</button>
     </form>
 </div>
+
+@if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+{
+    <section class="section section--paper">
+        <div class="wrap">
+            <div class="section-head">
+                <div>
+                    <h2 data-en="Your work">Dit arbejde</h2>
+                    <p data-en="@($"{Model.TotalWorkHours:0.#} scheduled hours in total - see Vagtplan in the staff area for the full schedule.")">
+                        @Model.TotalWorkHours.ToString("0.#") timer i alt planlagt - se Vagtplan i personaleområdet for den fulde plan.
+                    </p>
+                </div>
+            </div>
+
+            @if (User.IsInRole("Employee"))
+            {
+                @if (Model.MyTimeOffRequests.Count == 0)
+                {
+                    <p data-en="No day-off requests yet.">Ingen ferieanmodninger endnu.</p>
+                }
+                else
+                {
+                    <table class="cart-table">
+                        <thead>
+                            <tr>
+                                <th data-en="Period">Periode</th>
+                                <th data-en="Reason">Begrundelse</th>
+                                <th data-en="Status">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in Model.MyTimeOffRequests)
+                            {
+                                <tr>
+                                    <td>@request.StartDate.ToString("d MMM") – @request.EndDate.ToString("d MMM yyyy")</td>
+                                    <td>@request.Reason</td>
+                                    <td>
+                                        <span class="status @StatusClass(request.Status)" data-en="@StatusLabelEn(request.Status)">@StatusLabel(request.Status)</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+
+                <h3 data-en="Request time off">Anmod om fri</h3>
+                <form method="post" asp-page-handler="RequestTimeOff" class="auth-form">
+                    <label>
+                        <span data-en="From">Fra</span>
+                        <input type="date" name="startDate" required />
+                    </label>
+                    <label>
+                        <span data-en="To">Til</span>
+                        <input type="date" name="endDate" required />
+                    </label>
+                    <label>
+                        <span data-en="Reason (optional)">Begrundelse (valgfrit)</span>
+                        <input type="text" name="reason" maxlength="500" />
+                    </label>
+                    <button type="submit" class="btn" data-en="Send request">Send anmodning</button>
+                </form>
+            }
+        </div>
+    </section>
+}
 
 @if (User.IsInRole("Customer"))
 {

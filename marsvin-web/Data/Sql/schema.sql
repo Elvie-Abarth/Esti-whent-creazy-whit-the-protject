@@ -202,3 +202,23 @@ BEGIN
         CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END
+
+-- An Employee's own day-off requests (see Account/Profile), approved or
+-- denied by an Admin from Admin/Schedule. DecidedByName is a snapshot, not
+-- a FK to the deciding admin - survives that admin's account later being
+-- deleted, same as OrderItems.ProductName.
+IF OBJECT_ID('dbo.TimeOffRequests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TimeOffRequests
+    (
+        RequestId     INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        UserId        INT NOT NULL REFERENCES dbo.Users (UserId),
+        StartDate     DATE NOT NULL,
+        EndDate       DATE NOT NULL,
+        Reason        NVARCHAR(500) NULL,
+        Status        TINYINT NOT NULL DEFAULT 0, -- 0 Pending, 1 Approved, 2 Denied
+        RequestedAt   DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        DecidedAt     DATETIME2 NULL,
+        DecidedByName NVARCHAR(200) NULL
+    );
+END

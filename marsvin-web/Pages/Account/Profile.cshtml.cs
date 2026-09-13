@@ -15,7 +15,9 @@ namespace MarsvinWebExample.Pages.Account;
 // the header should let you manage your own account whether you're a
 // customer, an employee, or the admin themself.
 [Authorize]
-public class ProfileModel(IUserAccountStore users, IOrderStore orders, ICartStore cart, ICatalog catalog) : PageModel
+public class ProfileModel(
+    IUserAccountStore users, IOrderStore orders, ICartStore cart, ICatalog catalog,
+    IShiftStore shifts, ITimeOffRequestStore timeOffRequests, IEmailSender emailSender) : PageModel
 {
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -33,6 +35,13 @@ public class ProfileModel(IUserAccountStore users, IOrderStore orders, ICartStor
     // this stays empty for staff accounts rather than querying for nothing.
     public IReadOnlyList<Order> Orders { get; private set; } = [];
 
+    // Employee and Admin both get scheduled shifts (see Admin/Schedule), so
+    // both see their own total here - it's the day-off *requests* below that
+    // stay Employee-only, since an Admin has no one to request from.
+    public double TotalWorkHours { get; private set; }
+
+    public IReadOnlyList<TimeOffRequest> MyTimeOffRequests { get; private set; } = [];
+
     public void OnGet()
     {
         var user = users.FindById(CurrentUserId)!;
@@ -42,6 +51,16 @@ public class ProfileModel(IUserAccountStore users, IOrderStore orders, ICartStor
         if (User.IsInRole("Customer"))
         {
             Orders = orders.GetOrdersForUser(CurrentUserId);
+        }
+
+        if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+        {
+            TotalWorkHours = shifts.GetForUser(CurrentUserId).Sum(s => (s.EndAt - s.StartAt).TotalHours);
+        }
+
+        if (User.IsInRole("Employee"))
+        {
+            MyTimeOffRequests = timeOffRequests.GetForUser(CurrentUserId);
         }
     }
 
@@ -129,6 +148,44 @@ public class ProfileModel(IUserAccountStore users, IOrderStore orders, ICartStor
         if (added.Count > 0) ToastMessage = $"{string.Join(", ", added)} lagt i kurven.";
         if (skipped.Count > 0) ErrorMessage = $"Kunne ikke tilføjes igen: {string.Join(", ", skipped)}.";
 
+        return RedirectToPage();
+    }
+
+    // Self-service day-off request - Employee only, since an Admin approves
+    // these rather than requesting from themselves. Every active Admin gets
+    // emailed so the request doesn't just sit unseen until someone happens
+    // to open Admin/Schedule.
+    public async Task<IActionResult> OnPostRequestTimeOffAsync(DateOnly startDate, DateOnly endDate, string? reason)
+    {
+        if (!User.IsInRole("Employee")) return Forbid();
+
+        if (endDate < startDate)
+        {
+            ErrorMessage = "Slutdatoen skal være efter startdatoen.";
+            return RedirectToPage();
+        }
+
+        var requester = users.FindById(CurrentUserId)!;
+        timeOffRequests.Create(CurrentUserId, startDate, endDate, string.IsNullOrWhiteSpace(reason) ? null : reason.Trim());
+
+        var admins = users.GetAll().Where(u => u.Role == UserRole.Admin && u.IsActive);
+        foreach (var admin in admins)
+        {
+            await emailSender.SendAsync(admin.Email, "Ny ferieanmodning fra " + requester.DisplayName,
+                $"""
+                Hej {admin.DisplayName},
+
+                {requester.DisplayName} har anmodet om fri fra {startDate:d MMM yyyy} til {endDate:d MMM yyyy}.
+                {(string.IsNullOrWhiteSpace(reason) ? "" : $"Begrundelse: {reason.Trim()}")}
+
+                Godkend eller afvis anmodningen under Vagtplan i personaleområdet.
+
+                Venlig hilsen
+                Marsvin
+                """);
+        }
+
+        ToastMessage = "Din anmodning om fri er sendt.";
         return RedirectToPage();
     }
 

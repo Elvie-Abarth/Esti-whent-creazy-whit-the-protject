@@ -12,11 +12,15 @@ namespace MarsvinWebExample.Pages.Admin.Schedule;
 // remove a shift, staff or otherwise (that stays an Admin-only action, even
 // for an Employee looking at their own row).
 [Authorize(Roles = "Admin,Employee")]
-public class IndexModel(IShiftStore shifts, IUserAccountStore users) : PageModel
+public class IndexModel(IShiftStore shifts, IUserAccountStore users, ITimeOffRequestStore timeOffRequests) : PageModel
 {
     public IReadOnlyList<Shift> Shifts { get; private set; } = [];
 
     public IReadOnlyList<ApplicationUser> StaffMembers { get; private set; } = [];
+
+    // Only the ones still awaiting a decision - Admin-only, this is the
+    // "needs your attention" list the day-off-request email points back to.
+    public IReadOnlyList<TimeOffRequest> PendingRequests { get; private set; } = [];
 
     [TempData]
     public string? ErrorMessage { get; set; }
@@ -31,6 +35,7 @@ public class IndexModel(IShiftStore shifts, IUserAccountStore users) : PageModel
         if (User.IsInRole("Admin"))
         {
             StaffMembers = users.GetAll().Where(u => u.Role != UserRole.Customer && u.IsActive).ToList();
+            PendingRequests = timeOffRequests.GetAll().Where(r => r.Status == TimeOffStatus.Pending).ToList();
         }
     }
 
@@ -63,6 +68,16 @@ public class IndexModel(IShiftStore shifts, IUserAccountStore users) : PageModel
 
         shifts.Delete(shiftId);
         ToastMessage = "Vagten er slettet.";
+        return RedirectToPage();
+    }
+
+    public IActionResult OnPostDecideRequest(int requestId, bool approve)
+    {
+        if (!User.IsInRole("Admin")) return Forbid();
+
+        var decidingAdmin = users.FindById(CurrentUserId)!;
+        timeOffRequests.Decide(requestId, approve ? TimeOffStatus.Approved : TimeOffStatus.Denied, decidingAdmin.DisplayName);
+        ToastMessage = approve ? "Anmodningen er godkendt." : "Anmodningen er afvist.";
         return RedirectToPage();
     }
 
