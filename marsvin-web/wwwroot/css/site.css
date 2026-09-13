@@ -410,6 +410,19 @@ a:hover { color: var(--fleece); }
 .site-footer .wrap { display: flex; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
 .site-footer p { max-width: 40ch; margin: 0; }
 
+.footer-nav { display: flex; flex-direction: column; gap: 0.5rem; }
+.footer-nav a { text-decoration: none; }
+.footer-nav a:hover { color: var(--paper); }
+
+.footer-copyright {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(251, 247, 236, 0.2);
+    font-size: 0.8rem;
+    color: #AEC29C;
+}
+.footer-copyright p { max-width: none; }
+
 /* ------------------------------ responsive --------------------- */
 @media (max-width: 860px) {
     .hero,
@@ -627,4 +640,21 @@ a:hover { color: var(--fleece); }
 .guide-article .callout h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
 .guide-article .callout ul { margin: 0; padding-left: 1.2rem; }
 .guide-article .callout li { margin-bottom: 0.6rem; font-size: 0.95rem; }
+
+/* ------------------------------ account export ------------------- */
+/* Same label/value shape as .facts (Marsvin/Details), as a <dl> instead of
+   a <ul> since this is genuinely name/value data, not a list of facts about
+   one thing on a page otherwise built around it. */
+.account-facts { margin: 1.5rem 0; }
+.account-facts > div { display: flex; gap: 1rem; border-bottom: 1px solid var(--line); padding: 0.5rem 0; }
+.account-facts dt { min-width: 10rem; color: var(--bark); margin: 0; }
+.account-facts dd { margin: 0; }
+
+/* Admin/Users/Export.cshtml is "printed" via the browser's own Ctrl+P / Save
+   as PDF, not a PDF library - .no-print hides the page chrome and the
+   print button itself, so what comes out is just the account data. */
+@media print {
+    .site-header, .site-footer, .no-print { display: none; }
+    body { background: var(--paper); }
+}
 .guide-article .callout li:last-child { margin-bottom: 0; }

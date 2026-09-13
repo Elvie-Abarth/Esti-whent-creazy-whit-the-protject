@@ -70,8 +70,6 @@
             <strong data-en="Total">I alt</strong>: @Model.Total.ToString("N0") kr.
         </p>
 
-        <form method="post" asp-page-handler="Checkout">
-            <button type="submit" class="btn" data-en="Check out">Gennemfør køb</button>
-        </form>
+        <a class="btn" asp-page="/Cart/Payment" data-en="Check out">Gennemfør køb</a>
     }
 </div>

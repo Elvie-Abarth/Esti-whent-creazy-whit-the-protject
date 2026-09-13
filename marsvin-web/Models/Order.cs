@@ -13,7 +13,10 @@ public sealed class OrderItem
 public sealed class Order
 {
     public int OrderId { get; init; }
-    public required int UserId { get; init; }
+
+    /// <summary>Null once the buyer's account has been deleted - the order itself is kept as a historical record.</summary>
+    public int? UserId { get; init; }
+
     public required decimal TotalPrice { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required IReadOnlyList<OrderItem> Items { get; init; }

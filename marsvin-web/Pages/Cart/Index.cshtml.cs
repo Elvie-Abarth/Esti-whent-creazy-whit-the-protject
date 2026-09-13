@@ -10,7 +10,7 @@ namespace MarsvinWebExample.Pages.Cart;
 // Buying is a Customer action - employees and admins have their own area
 // (/Admin) and aren't meant to be shopping through the storefront.
 [Authorize(Roles = "Customer")]
-public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) : PageModel
+public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
 {
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
     public decimal Total => Lines.Sum(l => l.LineTotal);
@@ -64,12 +64,21 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
     // from the cart itself - always bouncing back to /Cart/Index after every add made
     // it impossible to add several items without clicking back each time. Every "Læg i
     // kurv" form carries a returnUrl back to where it was submitted from, so browsing
-    // continues from there; Url.IsLocalUrl guards against it being used to redirect
+    // continues from there; IsSafeLocalUrl guards against it being used to redirect
     // off-site (an attacker-crafted returnUrl on a link/form pointing here).
     private IActionResult RedirectAfterAdd(string? returnUrl) =>
-        !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+        !string.IsNullOrEmpty(returnUrl) && IsSafeLocalUrl(returnUrl)
             ? LocalRedirect(returnUrl)
             : RedirectToPage();
+
+    // Deliberately not PageModel.Url.IsLocalUrl: that needs an IUrlHelper wired up
+    // through the full request pipeline, which a PageModel constructed directly in
+    // a unit test doesn't have (Url is null there), so it throws where this doesn't.
+    // Same local-path shape Url.IsLocalUrl checks: exactly one leading slash - not
+    // "//host/evil" or "/\host/evil", either of which a browser can treat as
+    // protocol-relative and follow off-site.
+    private static bool IsSafeLocalUrl(string url) =>
+        url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\");
 
     public IActionResult OnPostUpdateQuantity(int productId, int quantity)
     {
@@ -111,18 +120,6 @@ public class IndexModel(ICartStore cart, ICatalog catalog, IOrderStore orders) :
     {
         cart.RemoveLine(CurrentUserId, productId);
         return RedirectToPage();
-    }
-
-    public IActionResult OnPostCheckout()
-    {
-        var result = orders.Checkout(CurrentUserId);
-        if (!result.Success)
-        {
-            ErrorMessage = result.ErrorMessage;
-            return RedirectToPage();
-        }
-
-        return RedirectToPage("Confirmation", new { orderId = result.Order!.OrderId });
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

@@ -1,0 +1,53 @@
+@page
+@{
+    ViewData["Title"] = "Betaling & levering";
+}
+
+<div class="wrap section guide-intro">
+    <div class="section-head">
+        <h1 data-en="Payment &amp; delivery">Betaling &amp; levering</h1>
+        <p data-en="Short version: pickup only, and checkout is a demo payment step, not a real one.">
+            Kort fortalt: kun afhentning, og betalingstrinnet i kassen er en demo, ikke en rigtig betaling.
+        </p>
+    </div>
+</div>
+
+<section class="section">
+    <div class="wrap guide-article">
+        <article>
+            <h2 data-en="Delivery">Levering</h2>
+            <p data-en="Everything is picked up in store - guinea pigs and accessories alike. There is no shipping in this example: a guinea pig can't go in a parcel, and we've kept accessories to the same pickup-only rule rather than building two different delivery paths for one small shop.">
+                Alt hentes i butikken - marsvin såvel som tilbehør. Der er
+                ikke fragt i dette eksempel: et marsvin kan ikke sendes med
+                pakkepost, og vi har holdt tilbehør til samme
+                afhentningsregel i stedet for at bygge to forskellige
+                leveringsveje for én lille butik.
+            </p>
+            <p data-en="An order confirmation shows what to bring and where - see your order's confirmation page after checkout.">
+                En ordrebekræftelse viser hvad du skal medbringe og hvorhen —
+                se din ordres bekræftelsesside efter køb.
+            </p>
+        </article>
+
+        <article>
+            <h2 data-en="Payment">Betaling</h2>
+            <p data-en="Checkout ends on a demo payment page: it asks for card-shaped details, validates that they're the right shape, and stops there. No card is charged, nothing is sent to a payment provider, and no card details are stored - because there is no real payment integration behind it.">
+                Kassen ender på en demo-betalingsside: den beder om
+                kortlignende oplysninger, tjekker at de har den rigtige form,
+                og stopper der. Der trækkes ikke penge fra noget kort, intet
+                sendes til en betalingsudbyder, og ingen kortoplysninger
+                gemmes - fordi der ikke er en rigtig betalingsløsning bag den.
+            </p>
+        </article>
+
+        <div class="callout">
+            <h2 data-en="Why not a real payment provider?">Hvorfor ikke en rigtig betalingsudbyder?</h2>
+            <p data-en="Taking real payment for animals this shop doesn't actually sell would be fraud, not a school project - a real integration (e.g. Stripe, in test mode) is realistic future work for this project, but this demo step is what stands in for it today.">
+                At tage rigtig betaling for dyr, denne butik ikke reelt
+                sælger, ville være svindel, ikke et skoleprojekt — en rigtig
+                integration (fx Stripe, i testmode) er realistisk fremtidigt
+                arbejde for projektet, men dette demo-trin er hvad der står i stedet for det i dag.
+            </p>
+        </div>
+    </div>
+</section>

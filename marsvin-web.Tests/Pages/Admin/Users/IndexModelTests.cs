@@ -70,4 +70,28 @@ public class IndexModelTests(SqlCatalogFixture fixture)
 
         Assert.False(_users.FindById(other.UserId)!.IsActive);
     }
+
+    [Fact]
+    public void OnPostDelete_OnOwnAccount_IsBlockedAndAccountRemains()
+    {
+        var admin = NewAdmin();
+        var model = MakeModelSignedInAs(admin);
+
+        model.OnPostDelete(admin.UserId);
+
+        Assert.NotNull(_users.FindById(admin.UserId));
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
+    public void OnPostDelete_OnAnotherAccount_RemovesIt()
+    {
+        var admin = NewAdmin();
+        var other = NewAdmin();
+        var model = MakeModelSignedInAs(admin);
+
+        model.OnPostDelete(other.UserId);
+
+        Assert.Null(_users.FindById(other.UserId));
+    }
 }

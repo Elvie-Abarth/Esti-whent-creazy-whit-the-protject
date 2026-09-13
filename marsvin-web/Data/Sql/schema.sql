@@ -109,11 +109,18 @@ BEGIN
     CREATE TABLE dbo.Orders
     (
         OrderId    INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-        UserId     INT NOT NULL REFERENCES dbo.Users (UserId),
+        UserId     INT NULL REFERENCES dbo.Users (UserId), -- NULL once the buyer's account is deleted; see note below
         TotalPrice DECIMAL(10, 2) NOT NULL,
         CreatedAt  DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END
+
+-- UserId started out NOT NULL; loosened so an admin can delete a customer's
+-- account (SqlUserAccountStore.DeleteUser) while keeping their past orders as
+-- a historical record instead of being blocked by the FK or deleting the
+-- sales history along with the account. Safe to run every time - a no-op
+-- once the column is already nullable.
+ALTER TABLE dbo.Orders ALTER COLUMN UserId INT NULL;
 
 IF OBJECT_ID('dbo.OrderItems', 'U') IS NULL
 BEGIN

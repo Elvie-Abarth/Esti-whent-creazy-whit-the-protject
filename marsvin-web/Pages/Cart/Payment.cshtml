@@ -1,0 +1,73 @@
+@page
+@model MarsvinWebExample.Pages.Cart.PaymentModel
+@{
+    ViewData["Title"] = "Betaling";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Payment">Betaling</h2>
+            <p data-en="Demo only - no card is charged and no card details are stored anywhere. A real payment integration (Stripe, MobilePay, ...) is future work, not a fake one built for the look of it.">
+                Kun til demo - der trækkes ikke penge, og ingen kortoplysninger gemmes nogen steder. En rigtig betalingsløsning (Stripe, MobilePay, ...) er fremtidigt arbejde, ikke noget der efterlignes her for udseendets skyld.
+            </p>
+        </div>
+    </div>
+
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th data-en="Item">Vare</th>
+                <th data-en="Quantity">Antal</th>
+                <th data-en="Price">Pris</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Model.Lines)
+            {
+                <tr>
+                    <td>@line.ProductName</td>
+                    <td>@line.Quantity</td>
+                    <td>@line.LineTotal.ToString("N0") kr.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="cart-total">
+        <strong data-en="Total">I alt</strong>: @Model.Total.ToString("N0") kr.
+    </p>
+
+    <form method="post" class="auth-form">
+        <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+
+        <label>
+            <span data-en="Name on card">Navn på kortet</span>
+            <input asp-for="Input.CardHolder" autocomplete="cc-name" />
+            <span asp-validation-for="Input.CardHolder" class="field-error"></span>
+        </label>
+
+        <label>
+            <span data-en="Card number (demo)">Kortnummer (demo)</span>
+            <input asp-for="Input.CardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
+            <span asp-validation-for="Input.CardNumber" class="field-error"></span>
+        </label>
+
+        <label>
+            <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
+            <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
+            <span asp-validation-for="Input.Expiry" class="field-error"></span>
+        </label>
+
+        <label>
+            <span>CVC</span>
+            <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
+            <span asp-validation-for="Input.Cvc" class="field-error"></span>
+        </label>
+
+        <button type="submit" class="btn" data-en="Pay now (demo)">Betal nu (demo)</button>
+    </form>
+
+    <p class="auth-switch">
+        <a asp-page="/Cart/Index" data-en="Back to cart">Tilbage til kurven</a>
+    </p>
+</div>

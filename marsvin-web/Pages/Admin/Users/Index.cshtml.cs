@@ -44,6 +44,17 @@ public class IndexModel(IUserAccountStore users) : PageModel
         return RedirectToPage();
     }
 
+    public IActionResult OnPostDelete(int userId)
+    {
+        if (userId == CurrentUserId)
+        {
+            ErrorMessage = "Du kan ikke slette din egen konto.";
+            return RedirectToPage();
+        }
+        users.DeleteUser(userId);
+        return RedirectToPage();
+    }
+
     public IActionResult OnPostCreateStaff()
     {
         Items = users.GetAll();

@@ -84,6 +84,35 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         command.ExecuteNonQuery();
     }
 
+    public void DeleteUser(int userId)
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+
+        using (var cartCommand = new SqlCommand(
+            "DELETE FROM dbo.CartItems WHERE UserId = @UserId;", connection, transaction))
+        {
+            cartCommand.Parameters.AddWithValue("@UserId", userId);
+            cartCommand.ExecuteNonQuery();
+        }
+
+        using (var ordersCommand = new SqlCommand(
+            "UPDATE dbo.Orders SET UserId = NULL WHERE UserId = @UserId;", connection, transaction))
+        {
+            ordersCommand.Parameters.AddWithValue("@UserId", userId);
+            ordersCommand.ExecuteNonQuery();
+        }
+
+        using (var userCommand = new SqlCommand(
+            "DELETE FROM dbo.Users WHERE UserId = @UserId;", connection, transaction))
+        {
+            userCommand.Parameters.AddWithValue("@UserId", userId);
+            userCommand.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
     private SqlConnection Open()
     {
         var connection = new SqlConnection(connectionString);

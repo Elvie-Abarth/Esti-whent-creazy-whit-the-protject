@@ -1,5 +1,6 @@
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
+using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Tests.Data;
 
@@ -7,6 +8,19 @@ namespace MarsvinWebExample.Tests.Data;
 public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
 {
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
+    private readonly SqlCartStore _cart = new(fixture.ConnectionString);
+    private readonly SqlOrderStore _orders = new(fixture.ConnectionString);
+
+    private int? ReadOrderUserId(int orderId)
+    {
+        using var connection = new SqlConnection(fixture.ConnectionString);
+        connection.Open();
+        using var command = new SqlCommand(
+            "SELECT UserId FROM dbo.Orders WHERE OrderId = @OrderId;", connection);
+        command.Parameters.AddWithValue("@OrderId", orderId);
+        var value = command.ExecuteScalar();
+        return value is DBNull or null ? null : (int)value;
+    }
 
     [Fact]
     public void CreateUser_ThenFindByEmail_RoundTrips()
@@ -79,6 +93,46 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
         _users.SetActive(user.UserId, false);
 
         Assert.False(_users.FindById(user.UserId)!.IsActive);
+    }
+
+    [Fact]
+    public void DeleteUser_WithNoOrders_RemovesTheAccount()
+    {
+        var email = $"delete-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Delete Me", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+
+        _users.DeleteUser(user.UserId);
+
+        Assert.Null(_users.FindById(user.UserId));
+    }
+
+    [Fact]
+    public void DeleteUser_WithPastOrders_KeepsTheOrderButOrphansIt()
+    {
+        var email = $"delete-with-order-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Delete With Order", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        _cart.AddOrIncrement(user.UserId, 104, 1);
+        var order = _orders.Checkout(user.UserId).Order!;
+
+        _users.DeleteUser(user.UserId);
+
+        Assert.Null(_users.FindById(user.UserId));
+        Assert.Null(ReadOrderUserId(order.OrderId)); // order row itself still exists - only the link is gone
+    }
+
+    [Fact]
+    public void DeleteUser_WithAnUnfinishedCart_RemovesTheCartToo()
+    {
+        var email = $"delete-with-cart-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Delete With Cart", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        _cart.AddOrIncrement(user.UserId, 104, 1);
+
+        _users.DeleteUser(user.UserId);
+
+        Assert.Empty(_cart.GetLines(user.UserId));
     }
 
     [Fact]

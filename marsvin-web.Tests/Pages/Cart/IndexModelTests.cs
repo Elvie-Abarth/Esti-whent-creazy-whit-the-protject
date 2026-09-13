@@ -2,6 +2,7 @@ using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using MarsvinWebExample.Pages.Cart;
 using MarsvinWebExample.Tests.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MarsvinWebExample.Tests.Pages.Cart;
 
@@ -10,7 +11,6 @@ public class IndexModelTests(SqlCatalogFixture fixture)
 {
     private readonly SqlCartStore _cart = new(fixture.ConnectionString);
     private readonly SqlCatalog _catalog = new(fixture.ConnectionString);
-    private readonly SqlOrderStore _orders = new(fixture.ConnectionString);
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
 
     private int NewCustomerId([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
@@ -20,7 +20,7 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         return _users.FindByEmail(email)!.UserId;
     }
 
-    private IndexModel MakeModel(int userId) => new(_cart, _catalog, _orders)
+    private IndexModel MakeModel(int userId) => new(_cart, _catalog)
     {
         PageContext = TestAuth.ContextFor(userId, "Customer")
     };
@@ -74,6 +74,54 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         var line = Assert.Single(_cart.GetLines(userId));
         Assert.True(line.IsAnimal);
         Assert.Equal(1, line.Quantity);
+    }
+
+    [Fact]
+    public void OnPostAdd_Success_SetsToastMessageWithTheProductName()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+
+        model.OnPostAdd(productId: 104, quantity: 1);
+
+        Assert.Contains("mælkebøtte", model.ToastMessage);
+    }
+
+    [Fact]
+    public void OnPostAdd_WithLocalReturnUrl_RedirectsThereInsteadOfTheCartPage()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+
+        var result = model.OnPostAdd(productId: 104, quantity: 1, returnUrl: "/Tilbehor?kategori=Hay#product-104");
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/Tilbehor?kategori=Hay#product-104", redirect.Url);
+    }
+
+    [Fact]
+    public void OnPostAdd_WithoutReturnUrl_RedirectsToTheCartPage()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+
+        var result = model.OnPostAdd(productId: 104, quantity: 1);
+
+        Assert.IsType<RedirectToPageResult>(result);
+    }
+
+    [Fact]
+    public void OnPostAdd_WithOffSiteReturnUrl_IgnoresItAndRedirectsToTheCartPageInstead()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+
+        // Url.IsLocalUrl must reject this - a returnUrl is attacker-controlled
+        // (it's a plain form field), so honouring an absolute URL here would be
+        // an open redirect off the site straight from the add-to-cart handler.
+        var result = model.OnPostAdd(productId: 104, quantity: 1, returnUrl: "https://evil.example.com/phish");
+
+        Assert.IsType<RedirectToPageResult>(result);
     }
 
     [Fact]

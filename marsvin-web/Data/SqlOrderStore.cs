@@ -58,13 +58,14 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         orderCommand.Parameters.AddWithValue("@OrderId", orderId);
         orderCommand.Parameters.AddWithValue("@UserId", userId);
 
-        int foundUserId;
+        int? foundUserId;
         decimal totalPrice;
         DateTime createdAt;
         using (var reader = orderCommand.ExecuteReader())
         {
             if (!reader.Read()) return null;
-            foundUserId = reader.GetInt32(reader.GetOrdinal("UserId"));
+            var userIdOrdinal = reader.GetOrdinal("UserId");
+            foundUserId = reader.IsDBNull(userIdOrdinal) ? null : reader.GetInt32(userIdOrdinal);
             totalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice"));
             createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
         }

@@ -1,0 +1,28 @@
+@page "{id:int}"
+@model MarsvinWebExample.Pages.Admin.Users.ExportModel
+@{
+    ViewData["Title"] = $"Kontoudtræk – {Model.Account.DisplayName}";
+}
+
+<div class="wrap section account-export">
+    <div class="actions no-print">
+        <a class="btn btn--quiet" asp-page="/Admin/Users/Index" data-en="Back to accounts">Til konti</a>
+        <button type="button" class="btn" onclick="window.print()" data-en="Print or save as PDF">Udskriv / gem som PDF</button>
+    </div>
+
+    <div class="section-head">
+        <div>
+            <h2 data-en="Account export">Kontoudtræk</h2>
+            <p data-en="@($"Generated {DateTime.Now:d MMM yyyy HH:mm}.")">Genereret @DateTime.Now.ToString("d MMM yyyy HH:mm").</p>
+        </div>
+    </div>
+
+    <dl class="account-facts">
+        <div><dt data-en="Name">Navn</dt><dd>@Model.Account.DisplayName</dd></div>
+        <div><dt>E-mail</dt><dd>@Model.Account.Email</dd></div>
+        <div><dt data-en="Role">Rolle</dt><dd>@Model.Account.Role</dd></div>
+        <div><dt data-en="Status">Status</dt><dd data-en="@(Model.Account.IsActive ? "Active" : "Deactivated")">@(Model.Account.IsActive ? "Aktiv" : "Deaktiveret")</dd></div>
+        <div><dt data-en="Account created">Konto oprettet</dt><dd>@Model.Account.CreatedAt.ToString("d MMM yyyy HH:mm")</dd></div>
+        <div><dt data-en="Account id">Konto-id</dt><dd>#@Model.Account.UserId</dd></div>
+    </dl>
+</div>
