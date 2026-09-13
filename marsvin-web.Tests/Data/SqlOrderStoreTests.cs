@@ -161,4 +161,44 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
 
         Assert.Null(_orders.FindForUser(999999, userId));
     }
+
+    [Fact]
+    public void GetOrdersForUser_ReturnsOnlyThatUsersOrdersMostRecentFirst()
+    {
+        // Other tests (e.g. SqlCatalogTests) assert exact seeded stock counts for
+        // some products - checking out here permanently decrements stock in this
+        // shared fixture database, so read it first and restore it afterward
+        // rather than letting this test leak state into unrelated ones.
+        var owner = NewCustomerId();
+        var stranger = NewCustomerId();
+        var stockBefore = ReadStock(104);
+        try
+        {
+            _cart.AddOrIncrement(owner, 104, 1);
+            var first = _orders.Checkout(owner).Order!;
+            _cart.AddOrIncrement(owner, 104, 1);
+            var second = _orders.Checkout(owner).Order!;
+            _cart.AddOrIncrement(stranger, 104, 1);
+            _orders.Checkout(stranger);
+
+            var history = _orders.GetOrdersForUser(owner);
+
+            Assert.Equal(2, history.Count);
+            Assert.Equal(second.OrderId, history[0].OrderId);
+            Assert.Equal(first.OrderId, history[1].OrderId);
+            Assert.All(history, o => Assert.Equal(owner, o.UserId));
+        }
+        finally
+        {
+            _catalog.UpdateStockQuantity(104, stockBefore);
+        }
+    }
+
+    [Fact]
+    public void GetOrdersForUser_NoOrders_ReturnsEmpty()
+    {
+        var userId = NewCustomerId();
+
+        Assert.Empty(_orders.GetOrdersForUser(userId));
+    }
 }

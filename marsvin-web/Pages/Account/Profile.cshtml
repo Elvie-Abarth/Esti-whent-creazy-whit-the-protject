@@ -53,3 +53,70 @@
         <button type="submit" class="btn" data-en="Save changes">Gem ændringer</button>
     </form>
 </div>
+
+@if (User.IsInRole("Customer"))
+{
+    <section class="section section--paper">
+        <div class="wrap">
+            <div class="section-head">
+                <div>
+                    <h2 data-en="Order history">Ordrehistorik</h2>
+                    <p data-en="Everything you've bought, most recent first.">Alt du har købt, det seneste øverst.</p>
+                </div>
+            </div>
+
+            @if (Model.ErrorMessage is not null)
+            {
+                <p class="form-errors">@Model.ErrorMessage</p>
+            }
+
+            @if (Model.Orders.Count == 0)
+            {
+                <p data-en="No orders yet.">Ingen ordrer endnu.</p>
+            }
+            else
+            {
+                @foreach (var order in Model.Orders)
+                {
+                    <div class="callout order-history-item">
+                        <div class="section-head">
+                            <div>
+                                <h3 data-en="@($"Order #{order.OrderId}")">Ordre #@order.OrderId</h3>
+                                <p class="cavy-meta">@order.CreatedAt.ToString("d MMM yyyy HH:mm")</p>
+                            </div>
+                        </div>
+
+                        <table class="cart-table">
+                            <thead>
+                                <tr>
+                                    <th data-en="Item">Vare</th>
+                                    <th data-en="Quantity">Antal</th>
+                                    <th data-en="Price">Pris</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in order.Items)
+                                {
+                                    <tr>
+                                        <td>@item.ProductName</td>
+                                        <td>@item.Quantity</td>
+                                        <td>@item.LineTotal.ToString("N0") kr.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+
+                        <p class="cart-total">
+                            <strong data-en="Total">I alt</strong>: @order.TotalPrice.ToString("N0") kr.
+                        </p>
+
+                        <form method="post" asp-page-handler="Reorder">
+                            <input type="hidden" name="orderId" value="@order.OrderId" />
+                            <button type="submit" class="btn btn--quiet" data-en="Order these items again">Bestil disse varer igen</button>
+                        </form>
+                    </div>
+                }
+            }
+        </div>
+    </section>
+}

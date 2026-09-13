@@ -15,7 +15,7 @@ namespace MarsvinWebExample.Pages.Account;
 // the header should let you manage your own account whether you're a
 // customer, an employee, or the admin themself.
 [Authorize]
-public class ProfileModel(IUserAccountStore users) : PageModel
+public class ProfileModel(IUserAccountStore users, IOrderStore orders, ICartStore cart, ICatalog catalog) : PageModel
 {
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -23,11 +23,26 @@ public class ProfileModel(IUserAccountStore users) : PageModel
     [TempData]
     public string? SuccessMessage { get; set; }
 
+    [TempData]
+    public string? ErrorMessage { get; set; }
+
+    [TempData]
+    public string? ToastMessage { get; set; }
+
+    // Only Customers ever place orders (Cart/Checkout are Customer-only), so
+    // this stays empty for staff accounts rather than querying for nothing.
+    public IReadOnlyList<Order> Orders { get; private set; } = [];
+
     public void OnGet()
     {
         var user = users.FindById(CurrentUserId)!;
         Input.DisplayName = user.DisplayName;
         Input.Email = user.Email;
+
+        if (User.IsInRole("Customer"))
+        {
+            Orders = orders.GetOrdersForUser(CurrentUserId);
+        }
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -67,6 +82,53 @@ public class ProfileModel(IUserAccountStore users) : PageModel
         await SignInAsync(refreshed);
 
         SuccessMessage = "Dine oplysninger er opdateret.";
+        return RedirectToPage();
+    }
+
+    // Re-adds a past order's items to the current cart. FindForUser (not a raw
+    // "get order by id") is what keeps this IDOR-safe - it only returns the
+    // order if it actually belongs to the signed-in user, so an orderId for
+    // someone else's order just looks like "not found", never leaks their
+    // order contents. Guinea pigs are never actually re-orderable (the specific
+    // animal is Sold, not restocked) - CanBeAddedToCart already says so, so
+    // they always land in "couldn't add again" without needing special-casing.
+    public IActionResult OnPostReorder(int orderId)
+    {
+        if (!User.IsInRole("Customer")) return Forbid();
+
+        var order = orders.FindForUser(orderId, CurrentUserId);
+        if (order is null)
+        {
+            ErrorMessage = "Ordren blev ikke fundet.";
+            return RedirectToPage();
+        }
+
+        var added = new List<string>();
+        var skipped = new List<string>();
+
+        foreach (var item in order.Items)
+        {
+            var animal = catalog.FindAnimal(item.ProductId);
+            if (animal is not null)
+            {
+                skipped.Add(item.ProductName);
+                continue;
+            }
+
+            var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == item.ProductId);
+            if (product is null || !product.CanBeAddedToCart(item.Quantity))
+            {
+                skipped.Add(item.ProductName);
+                continue;
+            }
+
+            cart.AddOrIncrement(CurrentUserId, item.ProductId, item.Quantity);
+            added.Add(item.ProductName);
+        }
+
+        if (added.Count > 0) ToastMessage = $"{string.Join(", ", added)} lagt i kurven.";
+        if (skipped.Count > 0) ErrorMessage = $"Kunne ikke tilføjes igen: {string.Join(", ", skipped)}.";
+
         return RedirectToPage();
     }
 

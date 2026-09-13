@@ -100,6 +100,62 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         };
     }
 
+    public IReadOnlyList<Order> GetOrdersForUser(int userId)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        var orders = new List<Order>();
+        using var orderCommand = new SqlCommand(
+            // OrderId DESC as a tiebreaker: two checkouts in quick succession (easily
+            // seconds or less apart for a real customer, let alone in automated tests)
+            // can land in the same CreatedAt tick, and CreatedAt alone then sorts them
+            // in whatever order the storage engine feels like, not necessarily recency.
+            // OrderId is IDENTITY(1,1), so it's a reliable "definitely later" signal.
+            "SELECT OrderId, TotalPrice, CreatedAt FROM dbo.Orders " +
+            "WHERE UserId = @UserId ORDER BY CreatedAt DESC, OrderId DESC;", connection);
+        orderCommand.Parameters.AddWithValue("@UserId", userId);
+
+        var headers = new List<(int OrderId, decimal TotalPrice, DateTime CreatedAt)>();
+        using (var reader = orderCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                headers.Add((
+                    reader.GetInt32(reader.GetOrdinal("OrderId")),
+                    reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
+                    reader.GetDateTime(reader.GetOrdinal("CreatedAt"))));
+            }
+        }
+
+        foreach (var (orderId, totalPrice, createdAt) in headers)
+        {
+            using var itemsCommand = new SqlCommand(
+                "SELECT ProductId, ProductName, UnitPrice, Quantity FROM dbo.OrderItems " +
+                "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
+            itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
+
+            var items = new List<OrderItem>();
+            using (var reader = itemsCommand.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    items.Add(new OrderItem
+                    {
+                        ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                        UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                        Quantity = reader.GetInt32(reader.GetOrdinal("Quantity"))
+                    });
+                }
+            }
+
+            orders.Add(new Order { OrderId = orderId, UserId = userId, TotalPrice = totalPrice, CreatedAt = createdAt, Items = items });
+        }
+
+        return orders;
+    }
+
     private static List<CartLine> LoadCartLines(SqlConnection connection, SqlTransaction transaction, int userId)
     {
         using var command = new SqlCommand(

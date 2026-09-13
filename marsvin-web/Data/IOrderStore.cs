@@ -20,4 +20,7 @@ public interface IOrderStore
 
     /// <summary>Looks up an order, but only if it belongs to the given user (prevents one customer from viewing another's order by guessing an id).</summary>
     Order? FindForUser(int orderId, int userId);
+
+    /// <summary>Every order this user has placed, most recent first.</summary>
+    IReadOnlyList<Order> GetOrdersForUser(int userId);
 }
