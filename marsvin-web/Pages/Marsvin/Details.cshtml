@@ -46,6 +46,17 @@
                 </div>
             }
 
+            @if (Model.Partner is null && a.Status == AnimalStatus.Available)
+            {
+                <div class="callout">
+                    <p data-en="@($"Guinea pigs are herd animals. {a.Name} isn't paired with another guinea pig here, so we only sell {a.Name} once you confirm it's joining a guinea pig or herd you already have.")">
+                        Marsvin er flokdyr. @a.Name er ikke sat sammen med et andet
+                        marsvin her, så vi sælger kun @a.Name, når du bekræfter, det
+                        tilføjes et marsvin eller en flok, du allerede har.
+                    </p>
+                </div>
+            }
+
             @if (!a.IsOldEnoughToSell())
             {
                 <div class="callout">
@@ -73,10 +84,22 @@
                     }
                     else
                     {
-                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add">
+                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="auth-form">
                             <input type="hidden" name="productId" value="@a.ProductId" />
                             <input type="hidden" name="quantity" value="1" />
                             <input type="hidden" name="returnUrl" value="@Request.Path" />
+                            @if (Model.Partner is null)
+                            {
+                                <label>
+                                    <span data-en="Which guinea pig or herd will it join?">Hvilket marsvin eller hvilken flok tilføjes det til?</span>
+                                    <input type="text" name="companionNote" required maxlength="200"
+                                           placeholder="F.eks. 'mit marsvin Nisse' eller 'min flok på tre'" />
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="confirmNotAlone" value="true" required />
+                                    <span data-en="@($"I confirm {a.Name} will not live alone")">Jeg bekræfter at @a.Name ikke skal bo alene</span>
+                                </label>
+                            }
                             <button type="submit" class="btn" data-en="Add to cart">Læg i kurv</button>
                         </form>
                     }

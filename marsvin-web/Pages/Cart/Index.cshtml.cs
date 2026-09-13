@@ -28,7 +28,9 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
 
     public void OnGet() => Lines = cart.GetLines(CurrentUserId);
 
-    public IActionResult OnPostAdd(int productId, int quantity = 1, string? returnUrl = null)
+    public IActionResult OnPostAdd(
+        int productId, int quantity = 1, string? returnUrl = null,
+        bool confirmNotAlone = false, string? companionNote = null)
     {
         var animal = catalog.FindAnimal(productId);
         if (animal is not null)
@@ -36,6 +38,16 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             if (!animal.CanBeAddedToCart(1))
             {
                 ErrorMessage = $"{animal.Name} kan ikke lægges i kurven lige nu.";
+                return RedirectAfterAdd(returnUrl);
+            }
+            // Guinea pigs are herd animals. A bonded animal (BondedWithId set) already
+            // comes with its partner; an unbonded one is only sold once the buyer
+            // confirms it's joining a guinea pig or herd they already have - checked
+            // server-side too, since a checkbox and text field in the HTML are exactly
+            // as trustworthy as no checkbox at all.
+            if (animal.BondedWithId is null && (!confirmNotAlone || string.IsNullOrWhiteSpace(companionNote)))
+            {
+                ErrorMessage = $"{animal.Name} sælges kun enkeltvis, hvis du bekræfter det ikke skal bo alene.";
                 return RedirectAfterAdd(returnUrl);
             }
             cart.AddOrIncrement(CurrentUserId, productId, 1);

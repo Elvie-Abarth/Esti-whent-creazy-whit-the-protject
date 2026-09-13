@@ -25,6 +25,25 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         PageContext = TestAuth.ContextFor(userId, "Customer")
     };
 
+    private Animal NewUnbondedAvailableAnimal([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    {
+        var animal = new Animal
+        {
+            ProductId = 0,
+            Name = $"Solo-{caller}-{Guid.NewGuid():N}",
+            Description = "test",
+            Breed = "test",
+            Sex = Sex.Boar,
+            DateOfBirth = DateOnly.FromDateTime(DateTime.Today.AddDays(-70)), // well past 4 weeks
+            Colour = "test",
+            CoatPrimary = "#000000",
+            CoatSecondary = "#ffffff",
+            Status = AnimalStatus.Available
+        };
+        _catalog.CreateAnimal(animal);
+        return _catalog.Animals.Single(a => a.Name == animal.Name);
+    }
+
     [Fact]
     public void OnPostAdd_AvailableAccessory_AddsLineToCart()
     {
@@ -64,16 +83,79 @@ public class IndexModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPostAdd_AvailableAnimal_AddsWithQuantityOne()
+    public void OnPostAdd_BondedAnimal_AddsWithQuantityOneAndNeedsNoConfirmation()
     {
         var userId = NewCustomerId();
         var model = MakeModel(userId);
 
-        model.OnPostAdd(productId: 1, quantity: 1); // Pelle - seeded Available
+        // Pelle - seeded Available, bonded to Basse - already comes with a
+        // partner, so no confirmNotAlone/companionNote is needed here.
+        model.OnPostAdd(productId: 1, quantity: 1);
 
         var line = Assert.Single(_cart.GetLines(userId));
         Assert.True(line.IsAnimal);
         Assert.Equal(1, line.Quantity);
+    }
+
+    [Fact]
+    public void OnPostAdd_UnbondedAnimalWithoutConfirmation_DoesNotAddAndSetsError()
+    {
+        var userId = NewCustomerId();
+        var animal = NewUnbondedAvailableAnimal();
+        var model = MakeModel(userId);
+        try
+        {
+            model.OnPostAdd(productId: animal.ProductId, quantity: 1);
+
+            Assert.Empty(_cart.GetLines(userId));
+            Assert.NotNull(model.ErrorMessage);
+        }
+        finally
+        {
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public void OnPostAdd_UnbondedAnimalConfirmedButNoCompanionNote_DoesNotAdd()
+    {
+        var userId = NewCustomerId();
+        var animal = NewUnbondedAvailableAnimal();
+        var model = MakeModel(userId);
+        try
+        {
+            // A checked box with no actual description of the companion/herd
+            // isn't enough - companionNote is required too.
+            model.OnPostAdd(productId: animal.ProductId, quantity: 1, confirmNotAlone: true, companionNote: "   ");
+
+            Assert.Empty(_cart.GetLines(userId));
+            Assert.NotNull(model.ErrorMessage);
+        }
+        finally
+        {
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public void OnPostAdd_UnbondedAnimalConfirmedWithCompanionNote_Adds()
+    {
+        var userId = NewCustomerId();
+        var animal = NewUnbondedAvailableAnimal();
+        var model = MakeModel(userId);
+        try
+        {
+            model.OnPostAdd(productId: animal.ProductId, quantity: 1,
+                confirmNotAlone: true, companionNote: "Mit marsvin Nisse");
+
+            var line = Assert.Single(_cart.GetLines(userId));
+            Assert.True(line.IsAnimal);
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
     }
 
     [Fact]
