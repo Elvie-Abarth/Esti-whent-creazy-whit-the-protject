@@ -182,8 +182,16 @@ BEGIN
         ProductId   INT NOT NULL,             -- not a FK - a snapshot of what was bought, kept even if the product is later deleted
         ProductName NVARCHAR(200) NOT NULL,
         UnitPrice   DECIMAL(10, 2) NOT NULL,
-        Quantity    INT NOT NULL
+        Quantity    INT NOT NULL,
+        IsAnimal    BIT NOT NULL DEFAULT 0     -- snapshot too - drives the "still needs pickup" note on a shipped order that also has a guinea pig in it
     );
+END
+
+-- Column added after OrderItems already existed on live databases (create-once
+-- tables don't pick up new columns from the CREATE TABLE above) - safe to run every time.
+IF COL_LENGTH('dbo.OrderItems', 'IsAnimal') IS NULL
+BEGIN
+    ALTER TABLE dbo.OrderItems ADD IsAnimal BIT NOT NULL DEFAULT 0;
 END
 
 IF OBJECT_ID('dbo.Promotions', 'U') IS NULL

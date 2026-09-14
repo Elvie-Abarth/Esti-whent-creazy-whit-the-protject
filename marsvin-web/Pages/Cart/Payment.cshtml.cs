@@ -18,10 +18,14 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
     public decimal Total => Lines.Sum(l => l.LineTotal);
 
-    // Guinea pigs can't go in a parcel - shipping is only ever offered when
-    // nothing in the cart is an animal. Re-checked server-side in
-    // SqlOrderStore.Checkout too, not just hidden in the UI.
-    public bool CanShip => !Lines.Any(l => l.IsAnimal);
+    // Guinea pigs can't go in a parcel, but an order can still mix an animal
+    // with accessories - shipping is offered as long as there's at least one
+    // shippable (non-animal) line; HasAnimal then drives the "the guinea pig
+    // still needs pickup" wording on both this page and the confirmation
+    // page. Re-checked server-side in SqlOrderStore.Checkout too, not just
+    // decided here in the UI.
+    public bool CanShip => Lines.Any(l => !l.IsAnimal);
+    public bool HasAnimal => Lines.Any(l => l.IsAnimal);
 
     [BindProperty]
     public PaymentInputModel Input { get; set; } = new();
@@ -44,7 +48,7 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
         {
             if (!CanShip)
             {
-                ModelState.AddModelError(string.Empty, "Marsvin kan ikke sendes med fragt - vælg afhentning.");
+                ModelState.AddModelError(string.Empty, "Der er intet at sende med fragt i denne ordre - vælg afhentning.");
             }
             else if (string.IsNullOrWhiteSpace(Input.ShippingAddress))
             {

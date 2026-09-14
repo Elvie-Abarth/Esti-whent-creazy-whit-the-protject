@@ -48,12 +48,34 @@
             {
                 <label class="checkbox-label">
                     <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" checked="checked" />
-                    <span data-en="Pick up in store">Afhent i butikken</span>
+                    @if (Model.HasAnimal)
+                    {
+                        <span data-en="Pick up everything in store">Afhent det hele i butikken</span>
+                    }
+                    else
+                    {
+                        <span data-en="Pick up in store">Afhent i butikken</span>
+                    }
                 </label>
                 <label class="checkbox-label">
                     <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Shipping" />
-                    <span data-en="Ship to my address">Send til min adresse</span>
+                    @if (Model.HasAnimal)
+                    {
+                        <span data-en="Ship the accessories - pick up the guinea pig in store">Send tilbehøret - afhent marsvinet i butikken</span>
+                    }
+                    else
+                    {
+                        <span data-en="Ship to my address">Send til min adresse</span>
+                    }
                 </label>
+                @if (Model.HasAnimal)
+                {
+                    <p class="cavy-meta" data-en="The guinea pig always needs picking up in store, whichever you choose above - only the accessories in this order can be shipped.">
+                        Marsvinet skal under alle omstændigheder afhentes i
+                        butikken, uanset hvad du vælger ovenfor - det er kun
+                        tilbehøret i ordren, der kan sendes.
+                    </p>
+                }
                 <label>
                     <span data-en="Delivery address (only needed if you choose shipping above)">Leveringsadresse (kun nødvendig hvis du vælger forsendelse ovenfor)</span>
                     <input asp-for="Input.ShippingAddress" autocomplete="street-address" />
@@ -63,8 +85,9 @@
             else
             {
                 <input type="hidden" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" />
-                <p data-en="This order includes a guinea pig, so it's always picked up in store - a guinea pig can't be shipped.">
-                    Denne ordre indeholder et marsvin, og afhentes derfor altid i butikken - et marsvin kan ikke sendes med fragt.
+                <p data-en="This order is only guinea pigs, so it's always picked up in store - a guinea pig can't be shipped.">
+                    Denne ordre består kun af marsvin, og afhentes derfor
+                    altid i butikken - et marsvin kan ikke sendes med fragt.
                 </p>
             }
         </fieldset>

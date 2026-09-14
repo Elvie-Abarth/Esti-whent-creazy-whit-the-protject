@@ -7,6 +7,14 @@ public sealed class OrderItem
     public required decimal UnitPrice { get; init; }
     public required int Quantity { get; init; }
 
+    /// <summary>
+    /// A snapshot, same as ProductName/UnitPrice - whether this line was a
+    /// guinea pig at the moment of purchase. Drives the "still needs pickup"
+    /// half of a shipped order's confirmation, and survives the animal's own
+    /// product listing later being edited or removed.
+    /// </summary>
+    public bool IsAnimal { get; init; }
+
     public decimal LineTotal => UnitPrice * Quantity;
 }
 

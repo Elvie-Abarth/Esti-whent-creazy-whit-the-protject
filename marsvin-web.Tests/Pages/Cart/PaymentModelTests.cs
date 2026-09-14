@@ -132,7 +132,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnGet_CartWithAnAnimal_CanShipIsFalse()
+    public void OnGet_CartIsOnlyAnAnimal_CanShipIsFalse()
     {
         var userId = NewCustomerId();
         var animal = NewThrowawayAnimal();
@@ -144,6 +144,34 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
             model.OnGet();
 
             Assert.False(model.CanShip);
+            Assert.True(model.HasAnimal);
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public void OnGet_MixedCartWithAnimalAndAccessory_CanShipIsTrue()
+    {
+        // An animal in the cart no longer blocks shipping outright - it just
+        // means the shippable half is the accessories, and the animal itself
+        // always needs a separate in-store pickup (HasAnimal drives that
+        // wording on the page).
+        var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+            _cart.AddOrIncrement(userId, 104, 1);
+            var model = MakeModel(userId);
+
+            model.OnGet();
+
+            Assert.True(model.CanShip);
+            Assert.True(model.HasAnimal);
         }
         finally
         {
@@ -189,10 +217,11 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ShippingWithAnAnimalInCart_IsRejectedEvenThoughTheFormClaimsShipping()
+    public void OnPost_ShippingWithCartThatIsOnlyAnAnimal_IsRejectedEvenThoughTheFormClaimsShipping()
     {
-        // Defense in depth: the UI never offers Shipping once an animal is in
-        // the cart, but nothing stops a tampered POST from claiming it anyway.
+        // Defense in depth: the UI never offers Shipping when there's nothing
+        // shippable in the cart, but nothing stops a tampered POST from
+        // claiming it anyway.
         var userId = NewCustomerId();
         var animal = NewThrowawayAnimal();
         try
@@ -212,6 +241,34 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         finally
         {
             _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public void OnPost_ShippingWithMixedCart_ChecksOutAndStillSellsTheAnimal()
+    {
+        var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+            _cart.AddOrIncrement(userId, 104, 1);
+            var model = MakeModel(userId);
+            var input = ValidInput();
+            input.DeliveryMethod = DeliveryMethod.Shipping;
+            input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
+            model.Input = input;
+
+            var result = model.OnPost();
+
+            Assert.IsType<RedirectToPageResult>(result);
+            var order = _orders.GetOrdersForUser(userId).Single();
+            Assert.Equal(DeliveryMethod.Shipping, order.DeliveryMethod);
+            Assert.Contains(order.Items, i => i.ProductId == animal.ProductId && i.IsAnimal);
+        }
+        finally
+        {
             _catalog.DeleteAnimal(animal.ProductId);
         }
     }

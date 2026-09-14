@@ -40,16 +40,27 @@
         <strong data-en="Total">I alt</strong>: @Model.Order.TotalPrice.ToString("N0") kr.
     </p>
 
+    @{
+        var animalNames = Model.Order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName).ToList();
+    }
     @if (Model.Order.DeliveryMethod == DeliveryMethod.Shipping)
     {
-        <p data-en="@($"This order will be shipped to: {Model.Order.ShippingAddress}")">
-            Denne ordre sendes til: @Model.Order.ShippingAddress
+        <p data-en="@($"The accessories in this order will be shipped to: {Model.Order.ShippingAddress}")">
+            Tilbehøret i denne ordre sendes til: @Model.Order.ShippingAddress
         </p>
+        @if (animalNames.Count > 0)
+        {
+            <p class="cavy-meta" data-en="@($"{string.Join(" and ", animalNames)} still needs to be picked up in store - a guinea pig can't be shipped, regardless of the rest of the order.")">
+                @string.Join(" og ", animalNames) skal stadig afhentes i
+                butikken - et marsvin kan ikke sendes med fragt, uanset resten
+                af ordren.
+            </p>
+        }
     }
     else
     {
-        <p data-en="This order is picked up in store - guinea pigs always are, and that's what you chose for this one.">
-            Denne ordre afhentes i butikken - det gælder altid for marsvin, og det er hvad du valgte til denne ordre.
+        <p data-en="This order is picked up in store.">
+            Denne ordre afhentes i butikken.
         </p>
     }
 

@@ -229,13 +229,61 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void Checkout_Shipping_WithAnimalInCart_FailsWithoutSellingTheAnimal()
+    public void Checkout_Shipping_CartIsOnlyAnAnimal_FailsBecauseThereIsNothingToShip()
     {
         var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+
+            var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1");
+
+            Assert.False(result.Success);
+            Assert.Equal(AnimalStatus.Available, _catalog.FindAnimal(animal.ProductId)!.Status);
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public void Checkout_Shipping_MixedCartWithAnimalAndAccessory_SucceedsAndSellsTheAnimalToo()
+    {
+        // Shipping only ever covers the accessory half of a mixed order - the
+        // animal is still bought as part of the same order (and marked Sold,
+        // same as a pickup order would), it just always needs a separate
+        // in-store pickup regardless of the DeliveryMethod chosen.
+        var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+            _cart.AddOrIncrement(userId, 104, 1);
+
+            var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1, 6700 Esbjerg");
+
+            Assert.True(result.Success);
+            Assert.Equal(DeliveryMethod.Shipping, result.Order!.DeliveryMethod);
+            Assert.Equal("Testvej 1, 6700 Esbjerg", result.Order.ShippingAddress);
+            Assert.Equal(AnimalStatus.Sold, _catalog.FindAnimal(animal.ProductId)!.Status);
+            Assert.Contains(result.Order.Items, i => i.ProductId == animal.ProductId && i.IsAnimal);
+            Assert.Contains(result.Order.Items, i => i.ProductId == 104 && !i.IsAnimal);
+        }
+        finally
+        {
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    private Animal NewThrowawayAnimal([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    {
         var animal = new Animal
         {
             ProductId = 0,
-            Name = $"ShipTest-{Guid.NewGuid():N}",
+            Name = $"{caller}-{Guid.NewGuid():N}",
             Description = "test",
             Breed = "test",
             Sex = Sex.Boar,
@@ -246,21 +294,7 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
             Status = AnimalStatus.Available
         };
         _catalog.CreateAnimal(animal);
-        var created = _catalog.Animals.Single(a => a.Name == animal.Name);
-        try
-        {
-            _cart.AddOrIncrement(userId, created.ProductId, 1);
-
-            var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1");
-
-            Assert.False(result.Success);
-            Assert.Equal(AnimalStatus.Available, _catalog.FindAnimal(created.ProductId)!.Status);
-        }
-        finally
-        {
-            _cart.RemoveLine(userId, created.ProductId);
-            _catalog.DeleteAnimal(created.ProductId);
-        }
+        return _catalog.Animals.Single(a => a.Name == animal.Name);
     }
 
     [Fact]

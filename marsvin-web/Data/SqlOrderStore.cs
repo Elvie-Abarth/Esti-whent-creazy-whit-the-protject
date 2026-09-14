@@ -17,14 +17,17 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             if (lines.Count == 0)
                 return CheckoutResult.Fail("Din kurv er tom.");
 
-            // A guinea pig can't go in a parcel - shipping is only ever valid
-            // for an all-accessories order, checked here rather than trusted
-            // from the form, the same way stock/availability is re-checked
-            // below instead of trusted from the cart.
-            if (deliveryMethod == DeliveryMethod.Shipping && lines.Any(l => l.IsAnimal))
+            // A guinea pig can't go in a parcel, but an order can still mix an
+            // animal with accessories - Shipping then means "ship whatever's
+            // shippable, the animal still gets picked up in store regardless"
+            // (see the confirmation page). Only reject Shipping outright when
+            // there's nothing shippable in the order at all. Checked here
+            // rather than trusted from the form, the same way stock/
+            // availability is re-checked below instead of trusted from the cart.
+            if (deliveryMethod == DeliveryMethod.Shipping && lines.All(l => l.IsAnimal))
             {
                 transaction.Rollback();
-                return CheckoutResult.Fail("Marsvin kan ikke sendes med fragt - vælg afhentning.");
+                return CheckoutResult.Fail("Der er intet at sende med fragt i denne ordre - vælg afhentning.");
             }
             if (deliveryMethod == DeliveryMethod.Shipping && string.IsNullOrWhiteSpace(shippingAddress))
             {
@@ -92,7 +95,7 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         }
 
         using var itemsCommand = new SqlCommand(
-            "SELECT ProductId, ProductName, UnitPrice, Quantity FROM dbo.OrderItems " +
+            "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
             "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
         itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
 
@@ -106,7 +109,8 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
                     ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
                     ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                     UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                    Quantity = reader.GetInt32(reader.GetOrdinal("Quantity"))
+                    Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
+                    IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
                 });
             }
         }
@@ -157,7 +161,7 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         foreach (var (orderId, totalPrice, createdAt, deliveryMethod, shippingAddress) in headers)
         {
             using var itemsCommand = new SqlCommand(
-                "SELECT ProductId, ProductName, UnitPrice, Quantity FROM dbo.OrderItems " +
+                "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
                 "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
             itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
 
@@ -171,7 +175,8 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
                         ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
                         ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                         UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                        Quantity = reader.GetInt32(reader.GetOrdinal("Quantity"))
+                        Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
+                        IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
                     });
                 }
             }
@@ -284,14 +289,15 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         {
             using var itemCommand = new SqlCommand(
                 """
-                INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity)
-                VALUES (@OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity);
+                INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity, IsAnimal)
+                VALUES (@OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity, @IsAnimal);
                 """, connection, transaction);
             itemCommand.Parameters.AddWithValue("@OrderId", orderId);
             itemCommand.Parameters.AddWithValue("@ProductId", line.ProductId);
             itemCommand.Parameters.AddWithValue("@ProductName", line.ProductName);
             itemCommand.Parameters.AddWithValue("@UnitPrice", line.UnitPrice);
             itemCommand.Parameters.AddWithValue("@Quantity", line.Quantity);
+            itemCommand.Parameters.AddWithValue("@IsAnimal", line.IsAnimal);
             itemCommand.ExecuteNonQuery();
         }
 
