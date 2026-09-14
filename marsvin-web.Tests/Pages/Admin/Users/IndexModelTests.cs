@@ -9,10 +9,11 @@ namespace MarsvinWebExample.Tests.Pages.Admin.Users;
 public class IndexModelTests(SqlCatalogFixture fixture)
 {
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
+    private readonly SqlAuditLogStore _audit = new(fixture.ConnectionString);
 
     private IndexModel MakeModelSignedInAs(ApplicationUser signedInUser)
     {
-        var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(signedInUser.UserId, signedInUser.Role.ToString()) };
+        var model = new IndexModel(_users, _audit) { PageContext = TestAuth.ContextFor(signedInUser.UserId, signedInUser.Role.ToString()) };
         return model;
     }
 
@@ -122,7 +123,7 @@ public class IndexModelTests(SqlCatalogFixture fixture)
             // doesn't fire instead - only IsLastActiveAdmin's own logic is
             // under test here ([Authorize(Roles="Admin")] on the real page
             // is enforced by the framework, not this method call).
-            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+            var model = new IndexModel(_users, _audit) { PageContext = TestAuth.ContextFor(0, "Admin") };
 
             model.OnPostDelete(lastAdmin.UserId);
 
@@ -142,7 +143,7 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
         try
         {
-            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+            var model = new IndexModel(_users, _audit) { PageContext = TestAuth.ContextFor(0, "Admin") };
 
             model.OnPostUpdateRole(lastAdmin.UserId, UserRole.Employee);
 
@@ -164,7 +165,7 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
         try
         {
-            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+            var model = new IndexModel(_users, _audit) { PageContext = TestAuth.ContextFor(0, "Admin") };
 
             model.OnPostUpdateRole(lastAdmin.UserId, UserRole.Admin);
 
@@ -183,7 +184,7 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         var deactivated = IsolateAsOnlyActiveAdmin(lastAdmin.UserId);
         try
         {
-            var model = new IndexModel(_users) { PageContext = TestAuth.ContextFor(0, "Admin") };
+            var model = new IndexModel(_users, _audit) { PageContext = TestAuth.ContextFor(0, "Admin") };
 
             model.OnPostToggleActive(lastAdmin.UserId, false);
 

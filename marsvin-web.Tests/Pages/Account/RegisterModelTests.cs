@@ -14,23 +14,34 @@ namespace MarsvinWebExample.Tests.Pages.Account;
 public class RegisterModelTests(SqlCatalogFixture fixture)
 {
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
+    private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
 
-    private (RegisterModel Model, RecordingAuthenticationService Auth) MakeModel()
+    private (RegisterModel Model, RecordingAuthenticationService Auth, RecordingEmailSender Email) MakeModel()
     {
         var services = new ServiceCollection();
         var auth = new RecordingAuthenticationService();
         services.AddSingleton<IAuthenticationService>(auth);
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
+        httpContext.Request.Scheme = "http";
+        httpContext.Request.Host = new HostString("localhost");
 
-        var model = new RegisterModel(_users) { PageContext = new PageContext { HttpContext = httpContext } };
-        return (model, auth);
+        var email = new RecordingEmailSender();
+        var model = new RegisterModel(_users, _pendingLogins, email)
+        {
+            PageContext = new PageContext { HttpContext = httpContext }
+        };
+        return (model, auth, email);
     }
 
     [Fact]
-    public async Task OnPostAsync_NewEmail_CreatesCustomerAccountAndSignsIn()
+    public async Task OnPostAsync_NewEmail_CreatesCustomerAccountButDoesNotSignInYet()
     {
+        // Registering no longer signs the visitor in immediately - it never
+        // actually proved they own the address. A confirmation link goes out
+        // instead, the same as Login, and ConfirmLoginModel finishes the
+        // sign-in once it's opened (see ConfirmLoginModelTests).
         var email = $"new-{Guid.NewGuid():N}@example.com";
-        var (model, auth) = MakeModel();
+        var (model, auth, emailSender) = MakeModel();
         model.Input = new RegisterModel.InputModel
         {
             Email = email,
@@ -41,11 +52,15 @@ public class RegisterModelTests(SqlCatalogFixture fixture)
 
         var result = await model.OnPostAsync(returnUrl: null);
 
-        Assert.IsType<LocalRedirectResult>(result);
-        Assert.NotNull(auth.SignedInAs);
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("CheckEmail", redirect.PageName);
+        Assert.Null(auth.SignedInAs);
         var created = _users.FindByEmail(email);
         Assert.NotNull(created);
         Assert.Equal(UserRole.Customer, created!.Role);
+        Assert.Single(emailSender.Sent);
+        Assert.Equal(email, emailSender.Sent[0].ToEmail);
+        Assert.Contains("/Account/ConfirmLogin?token=", emailSender.Sent[0].Body);
     }
 
     [Fact]
@@ -53,7 +68,7 @@ public class RegisterModelTests(SqlCatalogFixture fixture)
     {
         var email = $"dup-{Guid.NewGuid():N}@example.com";
         _users.CreateUser(email, "existing-hash", "Existing", UserRole.Customer);
-        var (model, auth) = MakeModel();
+        var (model, auth, emailSender) = MakeModel();
         model.Input = new RegisterModel.InputModel
         {
             Email = email,
@@ -68,6 +83,7 @@ public class RegisterModelTests(SqlCatalogFixture fixture)
         Assert.Null(auth.SignedInAs);
         Assert.False(model.ModelState.IsValid);
         Assert.Equal("Existing", _users.FindByEmail(email)!.DisplayName);
+        Assert.Empty(emailSender.Sent);
     }
 
     [Fact]
@@ -77,7 +93,7 @@ public class RegisterModelTests(SqlCatalogFixture fixture)
         // can only ever create Customer accounts, regardless of what a
         // malicious client might try to smuggle into the POST body.
         var email = $"self-signup-{Guid.NewGuid():N}@example.com";
-        var (model, _) = MakeModel();
+        var (model, _, _) = MakeModel();
         model.Input = new RegisterModel.InputModel
         {
             Email = email,

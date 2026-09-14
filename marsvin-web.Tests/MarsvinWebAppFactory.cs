@@ -19,7 +19,7 @@ namespace MarsvinWebExample.Tests;
 /// </summary>
 public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
 {
-    private const string ConnectionString =
+    public const string ConnectionString =
         "Server=(localdb)\\MSSQLLocalDB;Database=MarsvinDb_WebTest;Trusted_Connection=True;TrustServerCertificate=True;";
 
     public MarsvinWebAppFactory()

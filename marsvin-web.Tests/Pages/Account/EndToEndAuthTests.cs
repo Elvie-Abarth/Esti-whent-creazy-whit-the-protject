@@ -86,7 +86,8 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
         var jar = new CookieJar();
         var email = $"fullflow-{Guid.NewGuid():N}@example.com";
 
-        // 1. Register - a fresh Customer account, signed in immediately.
+        // 1. Register - creates a fresh Customer account, but doesn't sign in
+        // yet (see RegisterModelTests) - it redirects to CheckEmail instead.
         var (_, _, registerToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
         var registerResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
         {
@@ -97,7 +98,12 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
             ["Input.ConfirmPassword"] = "SomePass123!"
         });
         Assert.Equal(HttpStatusCode.Found, registerResponse.StatusCode);
-        Assert.True(registerResponse.Headers.TryGetValues("Set-Cookie", out var authCookies));
+        Assert.Equal("/Account/CheckEmail?purpose=register", registerResponse.Headers.Location!.ToString());
+
+        // 1b. Open the confirmation link (see HttpTestHelpers.CompleteEmailConfirmation)
+        // - this is the step that actually signs the session in.
+        var confirmResponse = await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
+        Assert.True(confirmResponse.Headers.TryGetValues("Set-Cookie", out var authCookies));
         var authCookieHeader = Assert.Single(authCookies!, c => c.StartsWith(".AspNetCore.Cookies", StringComparison.Ordinal));
         Assert.Contains("httponly", authCookieHeader, StringComparison.OrdinalIgnoreCase);
 
@@ -143,6 +149,7 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
             ["Input.Password"] = "SomePass123!",
             ["Input.ConfirmPassword"] = "SomePass123!"
         });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
 
         var logoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Logout", new());
         Assert.Equal(HttpStatusCode.BadRequest, logoutResponse.StatusCode);

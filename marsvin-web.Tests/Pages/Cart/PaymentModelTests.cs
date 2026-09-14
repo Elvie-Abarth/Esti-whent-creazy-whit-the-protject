@@ -2,6 +2,7 @@ using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using MarsvinWebExample.Pages.Cart;
 using MarsvinWebExample.Tests.Data;
+using MarsvinWebExample.Tests.Pages.Account;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -14,6 +15,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     private readonly SqlOrderStore _orders = new(fixture.ConnectionString);
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlCatalog _catalog = new(fixture.ConnectionString);
+    private readonly RecordingEmailSender _email = new();
 
     private int NewCustomerId([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
     {
@@ -22,7 +24,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         return _users.FindByEmail(email)!.UserId;
     }
 
-    private PaymentModel MakeModel(int userId) => new(_cart, _orders)
+    private PaymentModel MakeModel(int userId) => new(_cart, _orders, _users, _email)
     {
         PageContext = TestAuth.ContextFor(userId, "Customer")
     };
@@ -61,14 +63,14 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ValidDemoCardAndAvailableStock_CompletesCheckoutAndRedirectsToConfirmation()
+    public async Task OnPost_ValidDemoCardAndAvailableStock_CompletesCheckoutAndRedirectsToConfirmation()
     {
         var userId = NewCustomerId();
         _cart.AddOrIncrement(userId, 104, 1);
         var model = MakeModel(userId);
         model.Input = ValidInput();
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
         Assert.Equal("Confirmation", redirect.PageName);
@@ -76,7 +78,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_MissingCardFields_DoesNotCheckOutAndReturnsPage()
+    public async Task OnPost_MissingCardFields_DoesNotCheckOutAndReturnsPage()
     {
         var userId = NewCustomerId();
         _cart.AddOrIncrement(userId, 104, 1);
@@ -84,14 +86,14 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         model.Input = new PaymentModel.PaymentInputModel(); // all fields blank
         model.ModelState.AddModelError("Input.CardNumber", "Udfyld kortnummeret.");
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         Assert.IsType<PageResult>(result);
         Assert.Single(_cart.GetLines(userId)); // still in the cart - nothing was charged or checked out
     }
 
     [Fact]
-    public void OnPost_ItemNoLongerInStock_LeavesErrorForTheCartPageAndRedirectsThere()
+    public async Task OnPost_ItemNoLongerInStock_LeavesErrorForTheCartPageAndRedirectsThere()
     {
         var userId = NewCustomerId();
         var stock = new SqlCatalog(fixture.ConnectionString).Accessories.Single(p => p.ProductId == 109).StockQuantity;
@@ -99,7 +101,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         var model = MakeModel(userId);
         model.Input = ValidInput();
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
         Assert.Equal("Index", redirect.PageName);
@@ -107,13 +109,13 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_CartEmptiedInAnotherTabMeanwhile_RedirectsToIndexWithoutError()
+    public async Task OnPost_CartEmptiedInAnotherTabMeanwhile_RedirectsToIndexWithoutError()
     {
         var userId = NewCustomerId();
         var model = MakeModel(userId);
         model.Input = ValidInput();
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
         Assert.Equal("Index", redirect.PageName);
@@ -181,7 +183,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ShippingWithAnAddress_ChecksOutAsShippingToThatAddress()
+    public async Task OnPost_ShippingWithAnAddress_ChecksOutAsShippingToThatAddress()
     {
         var userId = NewCustomerId();
         _cart.AddOrIncrement(userId, 104, 1);
@@ -191,7 +193,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
         model.Input = input;
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         Assert.IsType<RedirectToPageResult>(result);
         var order = _orders.GetOrdersForUser(userId).Single();
@@ -200,7 +202,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ShippingWithoutAnAddress_ShowsFieldErrorAndDoesNotCheckOut()
+    public async Task OnPost_ShippingWithoutAnAddress_ShowsFieldErrorAndDoesNotCheckOut()
     {
         var userId = NewCustomerId();
         _cart.AddOrIncrement(userId, 104, 1);
@@ -209,7 +211,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         input.DeliveryMethod = DeliveryMethod.Shipping;
         model.Input = input;
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         Assert.IsType<PageResult>(result);
         Assert.False(model.ModelState.IsValid);
@@ -217,7 +219,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ShippingWithCartThatIsOnlyAnAnimal_IsRejectedEvenThoughTheFormClaimsShipping()
+    public async Task OnPost_ShippingWithCartThatIsOnlyAnAnimal_IsRejectedEvenThoughTheFormClaimsShipping()
     {
         // Defense in depth: the UI never offers Shipping when there's nothing
         // shippable in the cart, but nothing stops a tampered POST from
@@ -233,7 +235,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
             input.ShippingAddress = "Testvej 1";
             model.Input = input;
 
-            var result = model.OnPost();
+            var result = await model.OnPostAsync();
 
             Assert.False(model.ModelState.IsValid);
             Assert.Single(_cart.GetLines(userId));
@@ -246,7 +248,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ShippingWithMixedCart_ChecksOutAndStillSellsTheAnimal()
+    public async Task OnPost_ShippingWithMixedCart_ChecksOutAndStillSellsTheAnimal()
     {
         var userId = NewCustomerId();
         var animal = NewThrowawayAnimal();
@@ -260,7 +262,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
             input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
             model.Input = input;
 
-            var result = model.OnPost();
+            var result = await model.OnPostAsync();
 
             Assert.IsType<RedirectToPageResult>(result);
             var order = _orders.GetOrdersForUser(userId).Single();

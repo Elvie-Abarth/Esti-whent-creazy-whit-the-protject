@@ -65,6 +65,10 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
         Assert.Equal("/Cart/Index?handler=Add", returnUrl);
 
         // Register through that exact return URL, the way a real login would.
+        // Registering no longer signs in immediately - it redirects to
+        // CheckEmail, and the returnUrl travels along inside the emailed
+        // confirmation link instead (the same as Login already does), landing
+        // back on returnUrl only once that link is opened.
         var (_, _, token) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register?returnUrl=" + Uri.EscapeDataString(returnUrl));
         var email = $"anon-cart-{Guid.NewGuid():N}@example.com";
         var registerResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
@@ -76,11 +80,14 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
             ["Input.Password"] = "SomePass123!",
             ["Input.ConfirmPassword"] = "SomePass123!"
         });
-        Assert.Equal(returnUrl, registerResponse.Headers.Location!.ToString());
+        Assert.Equal("/Account/CheckEmail?purpose=register", registerResponse.Headers.Location!.ToString());
 
-        // Following that redirect is a GET, per HTTP - it cannot carry the
-        // original POST body, and the cart ends up empty.
-        var landingPage = await HttpTestHelpers.Get(client, jar, returnUrl);
+        // Opening the confirmation link is what actually signs the session in
+        // and lands on returnUrl - a GET, per HTTP, which cannot carry the
+        // original POST body, so the cart ends up empty.
+        var landingPage = await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
+        Assert.Equal(returnUrl, landingPage.Headers.Location!.ToString());
+
         var cartPage = await HttpTestHelpers.Get(client, jar, "/Cart/Index");
         var cartHtml = await cartPage.Content.ReadAsStringAsync();
         Assert.Contains("kurv er tom", cartHtml, StringComparison.OrdinalIgnoreCase);
@@ -104,6 +111,7 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
             ["Input.Password"] = "SomePass123!",
             ["Input.ConfirmPassword"] = "SomePass123!"
         });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
 
         var cartPage = await HttpTestHelpers.Get(client, jar, "/Cart/Index");
         var addToken = CookieJar.ExtractAntiforgeryToken(await cartPage.Content.ReadAsStringAsync());
