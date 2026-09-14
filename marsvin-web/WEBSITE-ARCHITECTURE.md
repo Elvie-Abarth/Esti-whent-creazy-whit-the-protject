@@ -31,9 +31,11 @@ see `DATABASE-NOTES.txt`.
 ```
 marsvin-web/
   Pages/            - every route in the site: one .cshtml (+ .cshtml.cs) per page
+                      PageModelExtensions.cs - CurrentUserId/CurrentDisplayName/SignInAsync/
+                      IsSafeLocalUrl, shared across every page model that needs them
   Data/             - IXxxStore interfaces, SqlXxxStore implementations, DbInitializer, email
   Models/           - plain C# classes/enums the stores read and write (Animal, Order, Shift, ...)
-  wwwroot/          - site.css, lang-toggle.js, favicon.svg - static files served as-is
+  wwwroot/          - site.css, lang-toggle.js, confirm-delete.js, favicon.svg - static files served as-is
   Program.cs        - composition root: DI registrations, middleware pipeline, startup
   appsettings.json  - connection string, SMTP host/port (not credentials - see below), base URL
   DATABASE-NOTES.txt / DATABASE-ARCHITECTURE.md / WEBSITE-ARCHITECTURE.md - project docs
@@ -54,21 +56,39 @@ routing turns `Pages/Marsvin/Details.cshtml` into the route
 
 In order, on every request:
 
-1. **`app.UseHttpsRedirection()`** - redirect plain HTTP to HTTPS (in
+1. **`app.UseDeveloperExceptionPage()`** (Development only) **/
+   `app.UseExceptionHandler("/ServerError")` + `app.UseHsts()`** (everywhere
+   else) - an unhandled exception outside Development lands on `ServerError`,
+   an honest "something went wrong" page. Kept deliberately separate from
+   `Error` (see below), whose copy is 404-flavoured and would otherwise tell
+   a confused user their crash was a broken link.
+2. **`app.UseStatusCodePagesWithReExecute("/Error")`** - re-executes the
+   pipeline against `Error` for any response that reaches here with an
+   error status and no body yet - an unmatched route, or an explicit
+   `NotFound()`/`Forbid()` result from a page handler - instead of leaving
+   the visitor looking at a blank page.
+3. **A small inline `app.Use(...)` middleware** sets security headers on
+   every response - `X-Content-Type-Options`, `X-Frame-Options`,
+   `Referrer-Policy`, and a `Content-Security-Policy` locked to `'self'`
+   for scripts and styles (there is no inline `<script>`/`<style>`/`style=`
+   anywhere in the project, so neither needs `'unsafe-inline'`).
+4. **`app.UseHttpsRedirection()`** - redirect plain HTTP to HTTPS (in
    production; LocalDB/dev runs over plain HTTP on `localhost:5080`, which
    is why `appsettings.json`'s `App:BaseUrl` defaults to `http://...`).
-2. **`app.UseStaticFiles()`** - serves `wwwroot/*` directly, no page code
+5. **`app.UseStaticFiles()`** - serves `wwwroot/*` directly, no page code
    involved.
-3. **`app.UseRouting()`** - matches the request path to a Razor Page.
-4. **`app.UseAuthentication()`** - reads the auth cookie (if any) and builds
+6. **`app.UseRouting()`** - matches the request path to a Razor Page.
+7. **`app.UseRateLimiter()`** - enforces the `"auth"` policy (see §4) on
+   Login/Register/ForgotPassword; everything else is unthrottled.
+8. **`app.UseAuthentication()`** - reads the auth cookie (if any) and builds
    the `ClaimsPrincipal` that every page sees as `User`.
-5. **`app.UseAuthorization()`** - enforces `[Authorize]`/
+9. **`app.UseAuthorization()`** - enforces `[Authorize]`/
    `[Authorize(Roles = "...")]` attributes on the matched page; an
    unauthenticated request to a protected page redirects to
    `/Account/Login`, an authenticated-but-wrong-role request redirects to
    `/Account/AccessDenied`.
-6. **`app.MapRazorPages()`** - hands off to the matched `PageModel`'s
-   `OnGet`/`OnPost` handler.
+10. **`app.MapRazorPages()`** - hands off to the matched `PageModel`'s
+    `OnGet`/`OnPost` handler.
 
 Before any of that, at the very top of `Program.cs`,
 **`DbInitializer.EnsureCreatedAndSeeded(connectionString)`** runs
@@ -97,7 +117,16 @@ edits and customer-facing reads within the same request share one
 connection rather than each interface getting its own). `IEmailSender` is
 the other exception - registered `Singleton`, because it's stateless
 (just wraps an SMTP client per send) and there's no reason to spin up a new
-one per request.
+one per request. Which concrete type it maps to depends on configuration:
+`SmtpEmailSender` if `Email:Username` is set, otherwise `LoggingEmailSender`
+(see `DATABASE-ARCHITECTURE.md` §7) - so the app works out of the box with
+no SMTP setup.
+
+Also registered: `AddRateLimiter` with an `"auth"` `SlidingWindowLimiter`
+policy (50 requests/minute, partitioned by client IP) applied via
+`[EnableRateLimiting("auth")]` on `LoginModel`, `RegisterModel`, and
+`ForgotPasswordModel` - generous enough not to throttle normal use or a
+shared-IP test run, while still capping scripted abuse.
 
 ## 4. Authentication & authorization
 
@@ -106,9 +135,9 @@ one per request.
 Three roles, stored as a `TINYINT` on `Users.Role`: **Customer** (`0`),
 **Employee** (`1`), **Admin** (`2`). Customers always self-register at
 `/Account/Register` - there's no way to create a Customer account any other
-way. Employee/Admin accounts are provisioned either by seeding
-(`admin@marsvin.dk`/`employee@marsvin.dk`, see `DATABASE-NOTES.txt`) or by
-an existing Admin from `/Admin/Users`.
+way. Employee/Admin accounts are provisioned either by seeding (several
+demo accounts - see `DATABASE-NOTES.txt` for the full list) or by an
+existing Admin from `/Admin/Users`.
 
 Pages restrict access with `[Authorize]` (any signed-in role) or
 `[Authorize(Roles = "Admin")]` / `[Authorize(Roles = "Admin,Employee")]` on
@@ -144,24 +173,51 @@ This means a correct password is necessary but not sufficient - proof of
 access to the account's own inbox is also required, every single time,
 regardless of role. Five wrong password attempts within a short window
 locks that email out for 5 minutes (`LoginModel`'s in-memory
-`FailedAttempts` dictionary - a demo-scale rate limiter, not something that
+`FailedAttempts` dictionary - a demo-scale lockout, not something that
 would survive an app restart or work across multiple instances in a real
-deployment).
+deployment; entries older than an hour are pruned on access so the
+dictionary can't grow unbounded). `Login`/`Register`/`ForgotPassword` are
+additionally rate-limited per client IP (see §3) - a second, coarser layer
+that also stops one attacker from re-locking a victim's account on demand,
+which the per-email lockout alone can't.
 
-**`RegisterModel`** is the one exception to all of this: registration signs
-the new account in immediately, no email-confirmation step - you just
-proved you control that password by choosing it a second ago.
+**`RegisterModel` goes through the exact same confirmation step**, reusing
+`ConfirmLoginModel` unchanged: it creates the account, then - instead of
+signing in immediately, which never actually proved the registrant owns
+that address - sends its own confirmation link the same way `LoginModel`
+does, and redirects to `/Account/CheckEmail?purpose=register` (same page,
+a `purpose` query param just swaps the copy). Opening that link is what
+signs the new account in for the first time.
+
+### Forgotten passwords: `ForgotPassword` / `ResetPassword`
+
+The same `PendingLogins` mechanism, repurposed: `ForgotPasswordModel`
+looks up the email, and - only if it matches an *active* account - creates
+a token and emails a link to `/Account/ResetPassword?token=...`. Either way
+(match or not) it redirects to the same `CheckEmail?purpose=reset` page
+with identical wording, so the form can't be used to test which addresses
+are registered. `ResetPasswordModel.OnGet` calls the read-only
+`IPendingLoginStore.IsValid` to tell a visitor up front that a dead link is
+dead, without spending it; `OnPost` calls `IPendingLoginStore.Consume` (the
+same single-use consumption `ConfirmLoginModel` uses) and, if it's still
+valid, hashes the new password and calls `IUserAccountStore.UpdatePassword`
+- no sign-in happens here, the visitor is sent to `/Account/Login` to sign
+in with the new password through the normal confirmed flow.
 
 ### The session itself
 
 `HttpContext.SignInAsync` builds a `ClaimsPrincipal` with four claims
 (`NameIdentifier` = UserId, `Email`, `Name` = DisplayName, `Role`), backed
-by an `HttpOnly`, `SameSite=Lax` cookie that expires after 8 hours of
-inactivity (sliding). Every page that needs "who is this" reads
-`User.FindFirstValue(ClaimTypes.NameIdentifier)` - there's a small private
-`CurrentUserId` property repeated in most PageModels for this rather than a
-shared base class, matching the project's general preference for small,
-explicit, repeated code over an extra abstraction layer.
+by an `HttpOnly`, `SameSite=Lax` cookie (`Secure` too, outside Development -
+see §8) that expires after 8 hours of inactivity (sliding). Every page that
+needs "who is this" calls the `PageModel.CurrentUserId()`/
+`CurrentDisplayName()` extension methods in `Pages/PageModelExtensions.cs`,
+which read those same two claims - collapsed there instead of being
+repeated in each PageModel (which is how it used to work; six near-identical
+private `CurrentUserId` properties were the concrete instance of duplication
+that motivated pulling it out). `SignInAsync` itself (the claims-building)
+lives there too, for the same reason - it used to be copied into
+`RegisterModel`, `ConfirmLoginModel`, and `ProfileModel` independently.
 
 Changing your name/email/password on `/Account/Profile` re-issues the
 session (`SignInAsync` again) so the header immediately reflects the new
@@ -176,7 +232,7 @@ name instead of waiting for the next login.
 | `/` (`Index`) | Home page - available guinea pigs, hero content |
 | `/Marsvin` | Full guinea pig listing |
 | `/Marsvin/Details/{id}` | One guinea pig's profile, add-to-cart |
-| `/Tilbehor` | Accessories listing, filterable by category |
+| `/Tilbehor` | Accessories listing, searchable and filterable by category |
 | `/Pasningsguide`, `/PasningsguideHurtig` | Full and "quick" care guides (printable) |
 | `/Foderliste` | Food safety list (printable) |
 | `/OmOs`, `/Kontakt`, `/BetalingOgLevering` | About/contact/payment&delivery info pages |
@@ -186,10 +242,12 @@ name instead of waiting for the next login.
 
 | Route | What it is |
 |---|---|
-| `/Account/Register` | Customer self-registration (auto-signs in) |
+| `/Account/Register` | Customer self-registration -> sends confirmation email |
 | `/Account/Login` | Password check -> sends confirmation email |
-| `/Account/CheckEmail` | "We sent you a link" interstitial |
-| `/Account/ConfirmLogin` | Consumes the emailed token, creates the session |
+| `/Account/ForgotPassword` | Request a password-reset email (same response whether or not the address is registered) |
+| `/Account/ResetPassword` | Consumes the reset token, sets a new password |
+| `/Account/CheckEmail` | "We sent you a link" interstitial - copy varies by `?purpose=` (login/register/reset) |
+| `/Account/ConfirmLogin` | Consumes the emailed token, creates the session (shared by Login, Register, and no one else) |
 | `/Account/Profile` | Name/email/password, order history (Customer), work hours + day-off requests (Employee/Admin), self-delete account (Customer) |
 | `/Account/Logout` | Signs out |
 | `/Account/AccessDenied` | Shown on a role mismatch |
@@ -210,7 +268,8 @@ concerns:
 | Route | What it is |
 |---|---|
 | `/Admin/Users` | Account management - all roles, create staff, change role/active, delete (Admin only) |
-| `/Admin/Schedule` ("Vagtplan") | Shift assignment (Admin) / own shifts (Employee); day-off requests and their approval |
+| `/Admin/Schedule` ("Vagtplan") | Shift assignment (Admin) / own shifts (Employee); day-off requests and their approval; rejects an overlapping shift or one falling on approved time off |
+| `/Admin/AuditLog` ("Logbog") | Who changed what, and when - every admin/employee write action (Admin only) |
 
 ### Shop management - `/Admin/Shop` ("Butiksstyring")
 
@@ -221,6 +280,7 @@ different concerns (see the commit history for why):
 | Route | What it is |
 |---|---|
 | `/Admin/Stock` | Stock levels, animal availability - Admin + Employee |
+| `/Admin/Orders` | Every order placed in the shop, who placed it, how it's being delivered - Admin + Employee |
 | `/Admin/Products`, `/Admin/Products/Edit` | Accessory catalog CRUD - Admin only |
 | `/Admin/Animals`, `/Admin/Animals/Edit` | Guinea pig catalog CRUD - Admin only |
 | `/Admin/Promotions`, `/Admin/Promotions/Edit` | Time-boxed discounts - Admin only |
@@ -240,8 +300,9 @@ localisation resource file. The mechanism, end to end:
    every `[data-en]` element on `DOMContentLoaded`, remembers the original
    Danish text, and swaps `textContent` between the two based on a
    `localStorage` preference - toggled by the `EN`/`DA` button in the
-   header. `data-en-aria-label` and `data-en-alt` do the same for
-   `aria-label`/`alt` attributes that aren't visible text.
+   header. `data-en-aria-label`, `data-en-alt`, and `data-en-placeholder`
+   do the same for `aria-label`/`alt`/`placeholder` attributes that aren't
+   visible text.
 3. The `<title>` tag participates in the exact same generic `[data-en]`
    mechanism: every page sets both `ViewData["Title"]` (Danish) and
    `ViewData["TitleEn"]` (English) in its `@{ }` block, and
@@ -255,18 +316,21 @@ substitution, remembered per browser via `localStorage`.
 
 ## 7. Email notifications
 
-Four distinct things trigger a real email (`IEmailSender` ->
-`SmtpEmailSender`, MailKit, Gmail SMTP - see `DATABASE-ARCHITECTURE.md`
-§7 for how credentials are kept out of the repo):
+These trigger a real email (`IEmailSender` -> `SmtpEmailSender`, MailKit,
+Gmail SMTP, or `LoggingEmailSender` if no credentials are configured - see
+`DATABASE-ARCHITECTURE.md` §7):
 
 | Trigger | Sent to | Where in the code |
 |---|---|---|
 | Login attempt with a correct password | The account itself | `LoginModel.OnPostAsync` |
+| A new account registers | The address just registered | `RegisterModel.OnPostAsync` |
+| A password-reset is requested (only if the email matches an active account) | The account itself | `ForgotPasswordModel.OnPostAsync` |
+| A checkout completes | The buyer | `Cart/PaymentModel.OnPostAsync` |
 | Account approaching the 2-year inactivity cutoff (2 months out, then 1 month out) | The customer | `InactiveAccountCleanupService` |
 | An Employee submits a day-off request | Every active Admin | `ProfileModel.OnPostRequestTimeOffAsync` |
 | An Admin adds or removes a shift | That specific staff member | `Admin/Schedule/IndexModel.OnPostCreateAsync` / `OnPostDeleteAsync` |
 
-All four share the same `IEmailSender.SendAsync(toEmail, subject, body)`
+All of these share the same `IEmailSender.SendAsync(toEmail, subject, body)`
 shape - plain-text email, no HTML templates, no queue (sent synchronously,
 inline in the request/background-job that triggered it).
 
@@ -289,12 +353,12 @@ inline in the request/background-job that triggered it).
   - a stranger's order ID just looks like "not found," never leaks its
   contents.
 - **Open-redirect prevention**: anywhere a `returnUrl` comes back from a
-  form/query string, it's checked against `IsSafeLocalUrl` (exactly one
-  leading slash, not `//host/evil` or `/\host/evil`) before ever being used
-  in a redirect - repeated locally in each PageModel that needs it rather
-  than `PageModel.Url.IsLocalUrl`, because the latter needs framework
-  services that aren't available when a PageModel is constructed directly
-  in a unit test (see §9).
+  form/query string, it's checked against `PageModelExtensions.IsSafeLocalUrl`
+  (exactly one leading slash, not `//host/evil` or `/\host/evil`) before
+  ever being used in a redirect - a plain `static` method rather than
+  `PageModel.Url.IsLocalUrl`, because the latter needs framework services
+  that aren't available when a PageModel is constructed directly in a unit
+  test (see §9).
 - **Self-protection on staff management**: an Admin can't change their own
   role, deactivate, or delete themselves from `/Admin/Users`; the *last*
   active Admin account can't be demoted, deactivated, or deleted by anyone,
@@ -305,6 +369,30 @@ inline in the request/background-job that triggered it).
   warning emails first (see `DATABASE-ARCHITECTURE.md` §7); past orders
   survive account deletion but are orphaned, never personally identifiable
   again.
+- **Security headers + CSP**: set on every response by a small inline
+  middleware in `Program.cs` (see §3) - `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy`, and a `Content-Security-Policy`
+  with no `'unsafe-inline'`.
+- **Rate limiting**: `Login`/`Register`/`ForgotPassword` are throttled per
+  client IP (see §3/§4), on top of (not instead of) the per-email lockout.
+- **No inline event handlers with interpolated data**: a destructive
+  action's confirmation dialog reads its message from a `data-confirm`
+  attribute (HTML-encoded by Razor) via `wwwroot/js/confirm-delete.js`,
+  rather than building a JavaScript string directly inside
+  `onsubmit="confirm('...')"`. The latter is unsafe even though Razor
+  encodes the value: the browser decodes an attribute back to raw
+  characters *before* parsing it as JS, so an admin- or customer-supplied
+  name could still close the string and run script in whoever clicks the
+  button's session. Reading the same value from a data attribute instead
+  never has it parsed as code.
+- **Checkout row locking**: `SqlOrderStore.Checkout` uses
+  `WITH (UPDLOCK, HOLDLOCK)` on its stock/availability read, closing a race
+  where two concurrent checkouts could otherwise both pass validation for
+  the same last unit (see `DATABASE-ARCHITECTURE.md` §5).
+- **Audit log**: every admin/employee write action (a price/stock/role
+  change, a deletion, a staff account being created) is recorded with who
+  did it and when (`/Admin/AuditLog`, `IAuditLogStore`) - the
+  accountability half of the role-based access control described above.
 
 ## 9. Testing - two layers
 
@@ -342,6 +430,19 @@ expires on logout) and sometimes deliberately send a *mismatched* or
 missing antiforgery token to prove a forged request gets rejected - both
 need manual control that an automatic cookie container would hide.
 
+Since Register/Login no longer sign a session in directly (see §4),
+these tests complete the confirmation step with
+`HttpTestHelpers.CompleteEmailConfirmation` - it inserts a self-generated
+token directly into `PendingLogins` (the same trick used throughout this
+project for manual verification, since only a token's *hash* is ever
+stored) and then GETs `ConfirmLogin` with it, rather than trying to
+intercept a real email. This layer is also where an authenticated-but-
+wrong-role POST is proven to get redirected to `AccessDenied` by the real
+middleware (`SignedInEmployee_PostingToAnAdminOnlyHandler_...`) - layer 1's
+equivalent tests only prove the PageModel method itself returns
+`Forbid()`, not that the framework actually turns that into the right
+HTTP response.
+
 Together, the two layers cover both ends: layer 1 checks the *logic* is
 right in isolation and cheaply, layer 2 checks the *whole request actually
 behaves correctly* when nothing is mocked or bypassed.
@@ -362,11 +463,18 @@ A few reusable patterns worth knowing before touching a page's markup:
   day-off-request status (`pending`/`approved`/`denied`) with the same base
   class and new colour modifiers.
 - **`.admin-table`** - the shared table style for every admin/staff list
-  page (Accounts, Schedule, Products, Animals, Promotions).
+  page (Accounts, Schedule, Products, Animals, Promotions, Orders, AuditLog).
 - **`.callout` / `.callout--danger`** - a bordered info box; the `--danger`
   variant (the site's one red, `#7A1F3D`) is reserved for irreversible or
   negative actions (delete account, day-off denied).
-- **`[data-en]` / `[data-en-aria-label]` / `[data-en-alt]`** - see §6.
+- **`.search-box`** - the search input + button pairing (currently just
+  `/Tilbehor`), styled to match `.auth-form input`.
+- **`[data-en]` / `[data-en-aria-label]` / `[data-en-alt]` /
+  `[data-en-placeholder]`** - see §6.
+- **`data-confirm`** - not a styling hook, but worth knowing alongside the
+  above: read by `confirm-delete.js` (see §8) to show a `confirm()` dialog
+  before a destructive form submits, without ever building that dialog's
+  text as an interpolated JavaScript string.
 
 There is no CSS framework (no Bootstrap/Tailwind) - `site.css` is one
 hand-written file, organised by page/section with a comment above each

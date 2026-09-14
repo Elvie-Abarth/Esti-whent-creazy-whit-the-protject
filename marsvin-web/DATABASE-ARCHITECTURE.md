@@ -61,6 +61,13 @@ been applied:
   naturally idempotent SQL on their own - re-running `ALTER TABLE ... ALTER
   COLUMN ... NULL` on an already-nullable column is harmless, so those don't
   need an `IF` guard at all.
+- **`CHECK` constraints and indexes added to an existing table** follow the
+  same guard shape as a new column, just checking `sys.check_constraints` /
+  `sys.indexes` instead of `COL_LENGTH`: `IF NOT EXISTS (SELECT 1 FROM
+  sys.check_constraints WHERE name = '...') BEGIN ALTER TABLE ... WITH CHECK
+  ADD CONSTRAINT ... END`. `WITH CHECK` matters here - it validates the
+  constraint against whatever rows already exist at the moment it's added,
+  rather than only enforcing it going forward.
 
 **Nothing in this script ever drops or recreates a table.** That used to be
 true only for the accounts/orders tables; once admin/employee pages got the
@@ -212,6 +219,18 @@ reason `OrderItems.ProductName` is a snapshot: the record of *who approved
 this* should survive even if that admin's own account is deleted later.
 `UserId` (the requester) is a real FK, same reasoning as `Shifts`.
 
+### `AuditLog` - who changed what, and when
+
+Every admin/employee write action worth being able to answer "who did this"
+about later - a price or stock change, a role change, a deletion, a staff
+account being created - writes one row here: `ActorUserId` (not a FK, for
+the same reason as `OrderItems.ProductName` - the entry has to survive that
+admin's own account later being deleted), a snapshot `ActorName`, a short
+machine-readable `Action` (e.g. `"Product.StockChanged"`), a human-readable
+`Details` string, and `CreatedAt`. Nothing in the application ever updates
+or deletes a row here once written - it's the accountability record, read
+from `/Admin/AuditLog` and never edited.
+
 ## 4. How the tables relate to each other
 
 ```
@@ -224,6 +243,9 @@ Users ──┬──< CartItems
 
 Products ──┬──< Animals (ProductId is both PK and FK)
            └──< StockProducts (ProductId is both PK and FK)
+
+AuditLog - standalone (ActorUserId not a FK - a snapshot record, like
+           OrderItems.ProductName, that outlives the acting account)
 
 (CartItems.ProductId, OrderItems.ProductId, Promotions.ProductId,
  Animals.BondedWithId - all plain INT columns pointing at Products.ProductId,
@@ -248,6 +270,7 @@ and one SQL implementation in `Data/`:
 | `IPromotionStore` | `SqlPromotionStore` | Promotions |
 | `IShiftStore` | `SqlShiftStore` | Shifts |
 | `ITimeOffRequestStore` | `SqlTimeOffRequestStore` | TimeOffRequests |
+| `IAuditLogStore` | `SqlAuditLogStore` | AuditLog |
 
 Pages depend on the **interface**, never the concrete `SqlXxx` class
 directly - that's what lets tests substitute the real SQL implementation
@@ -288,7 +311,19 @@ and use `connection.BeginTransaction()` so they succeed or fail together:
 - **`SqlPendingLoginStore.Create`/`Consume`** - `Create` deletes any earlier
   pending token for that user and inserts the new one atomically; `Consume`
   reads the matching row and deletes it (single-use) in one transaction, so
-  two near-simultaneous confirmation attempts can't both succeed.
+  two near-simultaneous confirmation attempts can't both succeed. (There's
+  also `IsValid`, a non-transactional read-only peek used by
+  `Account/ResetPassword`'s `OnGet` to tell a visitor a link is dead up
+  front, without spending the token before they've even filled in the form -
+  the actual redemption still only ever happens through `Consume`.)
+- **`SqlOrderStore.Checkout`** - re-validates stock/availability *inside* the
+  same transaction that inserts the order and decrements stock, using
+  `SELECT ... WITH (UPDLOCK, HOLDLOCK)` on the row being checked rather than
+  a plain `SELECT`. A plain read releases its lock immediately, so two
+  checkouts racing for the last unit of something (or the same guinea pig)
+  could both read "still available" under READ COMMITTED and both succeed -
+  the row lock makes the second checkout block until the first commits or
+  rolls back, then re-read the now-updated row instead of the stale one.
 
 ## 6. Startup: how the database comes into existence
 
@@ -306,10 +341,11 @@ the top of `Program.cs`, before the web server starts accepting requests:
    or removed products - this is skipped entirely, so admin edits are never
    overwritten by a restart.
 4. **`SeedAccountsIfEmpty`** - same idea for `Users`: only on a genuinely
-   empty table does it create the demo `admin@marsvin.dk` / `Admin123!` and
-   `employee@marsvin.dk` / `Employee123!` accounts (see
-   `DATABASE-NOTES.txt` for the full credentials list). Customers always
-   self-register; there's no seeded customer account.
+   empty table does it create the demo Admin and Employee accounts (see
+   `DATABASE-NOTES.txt` for the full credentials list - several Employee
+   accounts are seeded, not just one, so the "assign a shift" staff picker
+   on `/Admin/Schedule` has more than one real choice to demonstrate).
+   Customers always self-register; there's no seeded customer account.
 
 Because every step here is either idempotent SQL or guarded by a row-count
 check, `dotnet run` is safe to run any number of times against the same
@@ -317,15 +353,19 @@ database - it never resets anything that already has real data in it.
 
 ## 7. Email is not part of the SQL Server story, but it's wired through it
 
-Two features (the login-confirmation link, and the inactivity-warning /
-day-off-request notifications) read data out of these tables and then send
-real email via SMTP (`SmtpEmailSender`, using MailKit and Gmail). The SMTP
-credentials themselves are **not** stored anywhere in this database or in
-any file that gets committed - `Email:Username`/`Email:Password` are set
-locally with `dotnet user-secrets`, kept entirely outside both the repo and
-`MarsvinDb`. `IEmailSender` is registered `Singleton` (unlike the per-request
-`Scoped` stores) because it holds no per-request state - it's just a mail
-client wrapper, safe to share across the whole app's lifetime.
+Several features (the login/register/reset-password confirmation links, the
+inactivity-warning / day-off-request / order-confirmation notifications) read
+data out of these tables and then send real email via SMTP (`SmtpEmailSender`,
+using MailKit and Gmail). The SMTP credentials themselves are **not** stored
+anywhere in this database or in any file that gets committed -
+`Email:Username`/`Email:Password` are set locally with `dotnet user-secrets`,
+kept entirely outside both the repo and `MarsvinDb`. If `Email:Username`
+isn't set, `Program.cs` registers `LoggingEmailSender` instead - it just logs
+the message rather than sending it, so the app (including the
+email-confirmation login flow) is still fully usable without any SMTP setup.
+`IEmailSender` is registered `Singleton` (unlike the per-request `Scoped`
+stores) because it holds no per-request state - it's just a mail client
+wrapper, safe to share across the whole app's lifetime.
 
 The one background piece that ties directly back into this schema is
 **`InactiveAccountCleanupService`** (`Data/InactiveAccountCleanupService.cs`),

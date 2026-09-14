@@ -29,7 +29,7 @@ Using SQL Server Management Studio (SSMS):
   3. Authentication: Windows Authentication
   4. Expand Databases -> MarsvinDb -> Tables to see Products, Animals,
      StockProducts, Users, PendingLogins, CartItems, Orders, OrderItems,
-     Promotions, Shifts, TimeOffRequests.
+     Promotions, Shifts, TimeOffRequests, AuditLog.
      Right-click a table -> "Select Top 1000 Rows" to view its data.
 
 From the command line:
@@ -121,17 +121,24 @@ strategy) - this is just the quick pointer list:
 
 Data\Sql\schema.sql          - table definitions (Products/Animals/StockProducts,
                                Users/PendingLogins/CartItems/Orders/OrderItems/
-                               Promotions/Shifts/TimeOffRequests)
+                               Promotions/Shifts/TimeOffRequests/AuditLog), plus
+                               CHECK constraints and a couple of supporting indexes
 Data\DbInitializer.cs        - creates the DB, runs the schema, seeds demo data + accounts
 Data\SqlCatalog.cs           - reads AND writes the product/animal catalog (ICatalog + ICatalogAdmin)
 Data\SqlUserAccountStore.cs  - user accounts (used by /Account and /Admin/Users)
-Data\SqlPendingLoginStore.cs - single-use email login-confirmation tokens
+Data\SqlPendingLoginStore.cs - single-use email login/register/reset-password confirmation tokens
 Data\SqlCartStore.cs         - shopping cart
 Data\SqlOrderStore.cs        - checkout: validates availability, decrements stock, records the order
+                               (row-locked so two concurrent checkouts can't both win the same
+                               last unit - see DATABASE-ARCHITECTURE.md §5)
 Data\SqlPromotionStore.cs    - promotions (Admin/Promotions)
 Data\SqlShiftStore.cs        - staff work schedule (Admin/Schedule)
 Data\SqlTimeOffRequestStore.cs - employee day-off requests (Account/Profile, Admin/Schedule)
+Data\SqlAuditLogStore.cs     - who changed what and when (Admin/AuditLog), written from every
+                               admin/employee write action
 Data\SmtpEmailSender.cs      - real SMTP email (login confirmation, inactivity warnings, notifications)
+Data\LoggingEmailSender.cs   - stands in for SmtpEmailSender when no SMTP credentials are
+                               configured, so the app (including email-only login) still works
 Data\DemoCatalog.cs          - the in-memory demo data used to seed the database
 appsettings.json             - connection string (ConnectionStrings:MarsvinDb), SMTP host/port
-Program.cs                   - cookie authentication + authorization setup, DI wiring
+Program.cs                   - cookie authentication + authorization + rate limiting setup, DI wiring
