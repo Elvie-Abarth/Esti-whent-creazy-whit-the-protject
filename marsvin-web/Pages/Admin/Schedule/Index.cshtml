@@ -23,134 +23,155 @@
     <div class="actions">
         <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
     </div>
+</div>
 
-    @if (isAdmin)
-    {
-        <h3 data-en="Day-off requests awaiting a decision">Ferieanmodninger der afventer</h3>
-        @if (Model.PendingRequests.Count == 0)
+@if (isAdmin)
+{
+    <section class="section section--paper">
+        <div class="wrap">
+            <div class="section-head">
+                <div>
+                    <h2 data-en="Day-off requests awaiting a decision">Ferieanmodninger der afventer</h2>
+                </div>
+            </div>
+            @if (Model.PendingRequests.Count == 0)
+            {
+                <p data-en="No pending requests.">Ingen afventende anmodninger.</p>
+            }
+            else
+            {
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th data-en="Staff">Medarbejder</th>
+                            <th data-en="Period">Periode</th>
+                            <th data-en="Reason">Begrundelse</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var request in Model.PendingRequests)
+                        {
+                            <tr>
+                                <td>@request.StaffName</td>
+                                <td>@request.StartDate.ToString("d MMM") – @request.EndDate.ToString("d MMM yyyy")</td>
+                                <td>@request.Reason</td>
+                                <td>
+                                    <form method="post" asp-page-handler="DecideRequest" class="inline-form">
+                                        <input type="hidden" name="requestId" value="@request.RequestId" />
+                                        <input type="hidden" name="approve" value="true" />
+                                        <button type="submit" class="btn btn--quiet" data-en="Approve">Godkend</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="DecideRequest" class="inline-form">
+                                        <input type="hidden" name="requestId" value="@request.RequestId" />
+                                        <input type="hidden" name="approve" value="false" />
+                                        <button type="submit" class="btn btn--quiet" data-en="Deny">Afvis</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </section>
+}
+
+<section class="section">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <h2 data-en="Shifts">Vagter</h2>
+            </div>
+        </div>
+        @if (Model.Shifts.Count == 0)
         {
-            <p data-en="No pending requests.">Ingen afventende anmodninger.</p>
+            <p data-en="No shifts yet.">Ingen vagter endnu.</p>
         }
         else
         {
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th data-en="Staff">Medarbejder</th>
-                        <th data-en="Period">Periode</th>
-                        <th data-en="Reason">Begrundelse</th>
-                        <th></th>
+                        @if (isAdmin)
+                        {
+                            <th data-en="Staff">Medarbejder</th>
+                        }
+                        <th data-en="Date">Dato</th>
+                        <th data-en="Time">Tidspunkt</th>
+                        <th data-en="Note">Note</th>
+                        @if (isAdmin)
+                        {
+                            <th></th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var request in Model.PendingRequests)
+                    @foreach (var shift in Model.Shifts)
                     {
                         <tr>
-                            <td>@request.StaffName</td>
-                            <td>@request.StartDate.ToString("d MMM") – @request.EndDate.ToString("d MMM yyyy")</td>
-                            <td>@request.Reason</td>
-                            <td>
-                                <form method="post" asp-page-handler="DecideRequest" class="inline-form">
-                                    <input type="hidden" name="requestId" value="@request.RequestId" />
-                                    <input type="hidden" name="approve" value="true" />
-                                    <button type="submit" class="btn btn--quiet" data-en="Approve">Godkend</button>
-                                </form>
-                                <form method="post" asp-page-handler="DecideRequest" class="inline-form">
-                                    <input type="hidden" name="requestId" value="@request.RequestId" />
-                                    <input type="hidden" name="approve" value="false" />
-                                    <button type="submit" class="btn btn--quiet" data-en="Deny">Afvis</button>
-                                </form>
-                            </td>
+                            @if (isAdmin)
+                            {
+                                <td>@shift.StaffName</td>
+                            }
+                            <td>@shift.StartAt.ToString("d MMM yyyy")</td>
+                            <td>@shift.StartAt.ToString("HH:mm")–@shift.EndAt.ToString("HH:mm")</td>
+                            <td>@shift.Note</td>
+                            @if (isAdmin)
+                            {
+                                <td>
+                                    <form method="post" asp-page-handler="Delete" class="inline-form"
+                                          onsubmit="return confirm('Slet denne vagt?');">
+                                        <input type="hidden" name="shiftId" value="@shift.ShiftId" />
+                                        <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
+                                    </form>
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
             </table>
         }
-    }
+    </div>
+</section>
 
-    @if (isAdmin)
-    {
-        <h3 data-en="Shifts">Vagter</h3>
-    }
-    @if (Model.Shifts.Count == 0)
-    {
-        <p data-en="No shifts yet.">Ingen vagter endnu.</p>
-    }
-    else
-    {
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    @if (isAdmin)
-                    {
-                        <th data-en="Staff">Medarbejder</th>
-                    }
-                    <th data-en="Date">Dato</th>
-                    <th data-en="Time">Tidspunkt</th>
-                    <th data-en="Note">Note</th>
-                    @if (isAdmin)
-                    {
-                        <th></th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var shift in Model.Shifts)
-                {
-                    <tr>
-                        @if (isAdmin)
+@if (isAdmin)
+{
+    <section class="section section--paper">
+        <div class="wrap auth-page">
+            <div class="section-head">
+                <div>
+                    <h2 data-en="Assign a shift">Tilføj en vagt</h2>
+                </div>
+            </div>
+            <form method="post" asp-page-handler="Create" class="auth-form">
+                <label>
+                    <span data-en="Staff member">Medarbejder</span>
+                    <select name="userId">
+                        @foreach (var staff in Model.StaffMembers)
                         {
-                            <td>@shift.StaffName</td>
+                            <option value="@staff.UserId">@staff.DisplayName (@staff.Role)</option>
                         }
-                        <td>@shift.StartAt.ToString("d MMM yyyy")</td>
-                        <td>@shift.StartAt.ToString("HH:mm")–@shift.EndAt.ToString("HH:mm")</td>
-                        <td>@shift.Note</td>
-                        @if (isAdmin)
-                        {
-                            <td>
-                                <form method="post" asp-page-handler="Delete" class="inline-form"
-                                      onsubmit="return confirm('Slet denne vagt?');">
-                                    <input type="hidden" name="shiftId" value="@shift.ShiftId" />
-                                    <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
-                                </form>
-                            </td>
-                        }
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-
-    @if (isAdmin)
-    {
-        <h3 data-en="Assign a shift">Tilføj en vagt</h3>
-        <form method="post" asp-page-handler="Create" class="auth-form">
-            <label>
-                <span data-en="Staff member">Medarbejder</span>
-                <select name="userId">
-                    @foreach (var staff in Model.StaffMembers)
-                    {
-                        <option value="@staff.UserId">@staff.DisplayName (@staff.Role)</option>
-                    }
-                </select>
-            </label>
-            <label>
-                <span data-en="Date">Dato</span>
-                <input type="date" name="date" required />
-            </label>
-            <label>
-                <span data-en="Start time">Starttidspunkt</span>
-                <input type="time" name="startTime" required />
-            </label>
-            <label>
-                <span data-en="End time">Sluttidspunkt</span>
-                <input type="time" name="endTime" required />
-            </label>
-            <label>
-                <span data-en="Note (optional)">Note (valgfrit)</span>
-                <input type="text" name="note" maxlength="200" />
-            </label>
-            <button type="submit" class="btn" data-en="Add shift">Tilføj vagt</button>
-        </form>
-    }
-</div>
+                    </select>
+                </label>
+                <label>
+                    <span data-en="Date">Dato</span>
+                    <input type="date" name="date" required />
+                </label>
+                <label>
+                    <span data-en="Start time">Starttidspunkt</span>
+                    <input type="time" name="startTime" required />
+                </label>
+                <label>
+                    <span data-en="End time">Sluttidspunkt</span>
+                    <input type="time" name="endTime" required />
+                </label>
+                <label>
+                    <span data-en="Note (optional)">Note (valgfrit)</span>
+                    <input type="text" name="note" maxlength="200" />
+                </label>
+                <button type="submit" class="btn" data-en="Add shift">Tilføj vagt</button>
+            </form>
+        </div>
+    </section>
+}
