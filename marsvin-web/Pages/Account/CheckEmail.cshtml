@@ -1,23 +1,26 @@
 @page
+@model MarsvinWebExample.Pages.Account.CheckEmailModel
 @{
     ViewData["Title"] = "Tjek din mail";
     ViewData["TitleEn"] = "Check your email";
-    var purpose = Request.Query["purpose"].ToString();
 }
 
-<div class="wrap section auth-page">
+<div class="wrap section auth-page" data-check-email data-return-url="@Model.ReturnUrl">
     <div class="section-head">
         <div>
             <h2 data-en="Check your email">Tjek din mail</h2>
-            @if (purpose == "register")
+            @if (Model.Purpose == "register")
             {
                 <p data-en="We've sent a confirmation link to the email address you signed up with. Open it to finish creating your account - it's valid for 15 minutes and only works once.">
                     Vi har sendt et bekræftelseslink til e-mailadressen du oprettede kontoen med.
                     Åbn det for at fuldføre oprettelsen - det er gyldigt i 15 minutter, og
                     virker kun én gang.
                 </p>
+                <p class="cavy-meta" data-en="This page will move on by itself once the link has been opened - no need to come back and refresh it.">
+                    Denne side fortsætter selv, når linket er åbnet - du behøver ikke komme tilbage og genindlæse den.
+                </p>
             }
-            else if (purpose == "reset")
+            else if (Model.Purpose == "reset")
             {
                 <p data-en="If that email matches an account, we've sent a link to choose a new password. Open it within 15 minutes - it only works once.">
                     Hvis den e-mail matcher en konto, har vi sendt et link til at vælge en ny adgangskode.
@@ -31,7 +34,15 @@
                     Åbn det for at fuldføre login - det er gyldigt i 15 minutter, og
                     virker kun én gang.
                 </p>
+                <p class="cavy-meta" data-en="This page will move on by itself once the link has been opened - no need to come back and refresh it.">
+                    Denne side fortsætter selv, når linket er åbnet - du behøver ikke komme tilbage og genindlæse den.
+                </p>
             }
         </div>
     </div>
 </div>
+
+@if (Model.Purpose != "reset")
+{
+    <script src="~/js/check-email.js" asp-append-version="true"></script>
+}

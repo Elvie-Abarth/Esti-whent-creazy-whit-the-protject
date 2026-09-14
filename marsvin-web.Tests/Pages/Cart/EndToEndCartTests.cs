@@ -80,7 +80,9 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
             ["Input.Password"] = "SomePass123!",
             ["Input.ConfirmPassword"] = "SomePass123!"
         });
-        Assert.Equal("/Account/CheckEmail?purpose=register", registerResponse.Headers.Location!.ToString());
+        Assert.Equal(
+            "/Account/CheckEmail?purpose=register&returnUrl=" + Uri.EscapeDataString(returnUrl),
+            registerResponse.Headers.Location!.ToString());
 
         // Opening the confirmation link is what actually signs the session in
         // and lands on returnUrl - a GET, per HTTP, which cannot carry the

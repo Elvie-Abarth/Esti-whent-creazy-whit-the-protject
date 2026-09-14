@@ -92,7 +92,7 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
             Marsvin
             """);
 
-        return RedirectToPage("CheckEmail");
+        return RedirectToPage("CheckEmail", new { returnUrl = safeReturnUrl });
     }
 
     private static bool IsLockedOut(string email)

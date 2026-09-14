@@ -68,7 +68,7 @@ public class RegisterModel(IUserAccountStore users, IPendingLoginStore pendingLo
             Marsvin
             """);
 
-        return RedirectToPage("CheckEmail", new { purpose = "register" });
+        return RedirectToPage("CheckEmail", new { purpose = "register", returnUrl = safeReturnUrl });
     }
 
     public sealed class InputModel
