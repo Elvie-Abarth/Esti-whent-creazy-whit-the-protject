@@ -13,6 +13,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     private readonly SqlCartStore _cart = new(fixture.ConnectionString);
     private readonly SqlOrderStore _orders = new(fixture.ConnectionString);
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
+    private readonly SqlCatalog _catalog = new(fixture.ConnectionString);
 
     private int NewCustomerId([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
     {
@@ -116,5 +117,121 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
         Assert.Equal("Index", redirect.PageName);
+    }
+
+    [Fact]
+    public void OnGet_AccessoriesOnlyCart_CanShipIsTrue()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+
+        model.OnGet();
+
+        Assert.True(model.CanShip);
+    }
+
+    [Fact]
+    public void OnGet_CartWithAnAnimal_CanShipIsFalse()
+    {
+        var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+            var model = MakeModel(userId);
+
+            model.OnGet();
+
+            Assert.False(model.CanShip);
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public void OnPost_ShippingWithAnAddress_ChecksOutAsShippingToThatAddress()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+        var input = ValidInput();
+        input.DeliveryMethod = DeliveryMethod.Shipping;
+        input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
+        model.Input = input;
+
+        var result = model.OnPost();
+
+        Assert.IsType<RedirectToPageResult>(result);
+        var order = _orders.GetOrdersForUser(userId).Single();
+        Assert.Equal(DeliveryMethod.Shipping, order.DeliveryMethod);
+        Assert.Equal("Testvej 1, 6700 Esbjerg", order.ShippingAddress);
+    }
+
+    [Fact]
+    public void OnPost_ShippingWithoutAnAddress_ShowsFieldErrorAndDoesNotCheckOut()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+        var input = ValidInput();
+        input.DeliveryMethod = DeliveryMethod.Shipping;
+        model.Input = input;
+
+        var result = model.OnPost();
+
+        Assert.IsType<PageResult>(result);
+        Assert.False(model.ModelState.IsValid);
+        Assert.Single(_cart.GetLines(userId));
+    }
+
+    [Fact]
+    public void OnPost_ShippingWithAnAnimalInCart_IsRejectedEvenThoughTheFormClaimsShipping()
+    {
+        // Defense in depth: the UI never offers Shipping once an animal is in
+        // the cart, but nothing stops a tampered POST from claiming it anyway.
+        var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+            var model = MakeModel(userId);
+            var input = ValidInput();
+            input.DeliveryMethod = DeliveryMethod.Shipping;
+            input.ShippingAddress = "Testvej 1";
+            model.Input = input;
+
+            var result = model.OnPost();
+
+            Assert.False(model.ModelState.IsValid);
+            Assert.Single(_cart.GetLines(userId));
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    private Animal NewThrowawayAnimal([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    {
+        var animal = new Animal
+        {
+            ProductId = 0,
+            Name = $"{caller}-{Guid.NewGuid():N}",
+            Description = "test",
+            Breed = "test",
+            Sex = Sex.Boar,
+            DateOfBirth = DateOnly.FromDateTime(DateTime.Today.AddDays(-70)),
+            Colour = "test",
+            CoatPrimary = "#000000",
+            CoatSecondary = "#ffffff",
+            Status = AnimalStatus.Available
+        };
+        _catalog.CreateAnimal(animal);
+        return _catalog.Animals.Single(a => a.Name == animal.Name);
     }
 }

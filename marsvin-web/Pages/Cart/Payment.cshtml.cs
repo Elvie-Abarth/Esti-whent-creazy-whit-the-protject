@@ -18,6 +18,11 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
     public decimal Total => Lines.Sum(l => l.LineTotal);
 
+    // Guinea pigs can't go in a parcel - shipping is only ever offered when
+    // nothing in the cart is an animal. Re-checked server-side in
+    // SqlOrderStore.Checkout too, not just hidden in the UI.
+    public bool CanShip => !Lines.Any(l => l.IsAnimal);
+
     [BindProperty]
     public PaymentInputModel Input { get; set; } = new();
 
@@ -34,13 +39,25 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
     {
         Lines = cart.GetLines(CurrentUserId);
         if (Lines.Count == 0) return RedirectToPage("Index");
+
+        if (Input.DeliveryMethod == DeliveryMethod.Shipping)
+        {
+            if (!CanShip)
+            {
+                ModelState.AddModelError(string.Empty, "Marsvin kan ikke sendes med fragt - vælg afhentning.");
+            }
+            else if (string.IsNullOrWhiteSpace(Input.ShippingAddress))
+            {
+                ModelState.AddModelError(nameof(Input.ShippingAddress), "Angiv en leveringsadresse.");
+            }
+        }
         if (!ModelState.IsValid) return Page();
 
         // The "payment" above is never actually processed - the demo card details
-        // aren't read past validating their shape. Checkout re-validates stock and
-        // animal availability itself (see SqlOrderStore.Checkout), same as it did
-        // before this page existed.
-        var result = orders.Checkout(CurrentUserId);
+        // aren't read past validating their shape. Checkout re-validates stock,
+        // animal availability, and the shipping/animal rule itself (see
+        // SqlOrderStore.Checkout), same as it did before this page existed.
+        var result = orders.Checkout(CurrentUserId, Input.DeliveryMethod, Input.ShippingAddress);
         if (!result.Success)
         {
             ErrorMessage = result.ErrorMessage;
@@ -54,6 +71,11 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
 
     public sealed class PaymentInputModel
     {
+        public DeliveryMethod DeliveryMethod { get; set; } = DeliveryMethod.Pickup;
+
+        [StringLength(500)]
+        public string? ShippingAddress { get; set; }
+
         [Required(ErrorMessage = "Udfyld navnet på kortet.")]
         [StringLength(200)]
         public string CardHolder { get; set; } = "";

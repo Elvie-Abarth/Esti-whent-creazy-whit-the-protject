@@ -1,4 +1,5 @@
 @page "{orderId:int}"
+@using MarsvinWebExample.Models
 @model MarsvinWebExample.Pages.Cart.ConfirmationModel
 @{
     ViewData["Title"] = "Tak for din bestilling";
@@ -39,9 +40,18 @@
         <strong data-en="Total">I alt</strong>: @Model.Order.TotalPrice.ToString("N0") kr.
     </p>
 
-    <p data-en="Guinea pigs are picked up in store. Accessories too - there is no shipping in this example.">
-        Marsvin hentes i butikken. Det samme gælder tilbehør - der er ikke fragt i dette eksempel.
-    </p>
+    @if (Model.Order.DeliveryMethod == DeliveryMethod.Shipping)
+    {
+        <p data-en="@($"This order will be shipped to: {Model.Order.ShippingAddress}")">
+            Denne ordre sendes til: @Model.Order.ShippingAddress
+        </p>
+    }
+    else
+    {
+        <p data-en="This order is picked up in store - guinea pigs always are, and that's what you chose for this one.">
+            Denne ordre afhentes i butikken - det gælder altid for marsvin, og det er hvad du valgte til denne ordre.
+        </p>
+    }
 
     <div class="actions">
         <a class="btn btn--quiet" asp-page="/Index" data-en="Back to the front page">Til forsiden</a>

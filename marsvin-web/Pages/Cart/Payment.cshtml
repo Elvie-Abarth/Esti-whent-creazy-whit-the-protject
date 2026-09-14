@@ -1,4 +1,5 @@
 @page
+@using MarsvinWebExample.Models
 @model MarsvinWebExample.Pages.Cart.PaymentModel
 @{
     ViewData["Title"] = "Betaling";
@@ -40,6 +41,33 @@
 
     <form method="post" class="auth-form">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+
+        <fieldset>
+            <legend data-en="Delivery">Levering</legend>
+            @if (Model.CanShip)
+            {
+                <label class="checkbox-label">
+                    <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" checked="checked" />
+                    <span data-en="Pick up in store">Afhent i butikken</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Shipping" />
+                    <span data-en="Ship to my address">Send til min adresse</span>
+                </label>
+                <label>
+                    <span data-en="Delivery address (only needed if you choose shipping above)">Leveringsadresse (kun nødvendig hvis du vælger forsendelse ovenfor)</span>
+                    <input asp-for="Input.ShippingAddress" autocomplete="street-address" />
+                    <span asp-validation-for="Input.ShippingAddress" class="field-error"></span>
+                </label>
+            }
+            else
+            {
+                <input type="hidden" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" />
+                <p data-en="This order includes a guinea pig, so it's always picked up in store - a guinea pig can't be shipped.">
+                    Denne ordre indeholder et marsvin, og afhentes derfor altid i butikken - et marsvin kan ikke sendes med fragt.
+                </p>
+            }
+        </fieldset>
 
         <label>
             <span data-en="Name on card">Navn på kortet</span>

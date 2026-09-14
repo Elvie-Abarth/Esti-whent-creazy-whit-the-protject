@@ -32,3 +32,9 @@ public enum TimeOffStatus
     Approved,
     Denied
 }
+
+public enum DeliveryMethod
+{
+    Pickup,
+    Shipping
+}

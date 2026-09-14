@@ -201,4 +201,77 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
 
         Assert.Empty(_orders.GetOrdersForUser(userId));
     }
+
+    [Fact]
+    public void Checkout_Shipping_AccessoryOnly_StoresDeliveryMethodAndAddress()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1, 6700 Esbjerg");
+
+        Assert.True(result.Success);
+        Assert.Equal(DeliveryMethod.Shipping, result.Order!.DeliveryMethod);
+        Assert.Equal("Testvej 1, 6700 Esbjerg", result.Order.ShippingAddress);
+    }
+
+    [Fact]
+    public void Checkout_Pickup_IgnoresAnyAddressPassedIn()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, DeliveryMethod.Pickup, "Should be ignored");
+
+        Assert.True(result.Success);
+        Assert.Equal(DeliveryMethod.Pickup, result.Order!.DeliveryMethod);
+        Assert.Null(result.Order.ShippingAddress);
+    }
+
+    [Fact]
+    public void Checkout_Shipping_WithAnimalInCart_FailsWithoutSellingTheAnimal()
+    {
+        var userId = NewCustomerId();
+        var animal = new Animal
+        {
+            ProductId = 0,
+            Name = $"ShipTest-{Guid.NewGuid():N}",
+            Description = "test",
+            Breed = "test",
+            Sex = Sex.Boar,
+            DateOfBirth = DateOnly.FromDateTime(DateTime.Today.AddDays(-70)),
+            Colour = "test",
+            CoatPrimary = "#000000",
+            CoatSecondary = "#ffffff",
+            Status = AnimalStatus.Available
+        };
+        _catalog.CreateAnimal(animal);
+        var created = _catalog.Animals.Single(a => a.Name == animal.Name);
+        try
+        {
+            _cart.AddOrIncrement(userId, created.ProductId, 1);
+
+            var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1");
+
+            Assert.False(result.Success);
+            Assert.Equal(AnimalStatus.Available, _catalog.FindAnimal(created.ProductId)!.Status);
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, created.ProductId);
+            _catalog.DeleteAnimal(created.ProductId);
+        }
+    }
+
+    [Fact]
+    public void Checkout_Shipping_BlankAddress_FailsAndLeavesCartIntact()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "   ");
+
+        Assert.False(result.Success);
+        Assert.Single(_cart.GetLines(userId));
+    }
 }

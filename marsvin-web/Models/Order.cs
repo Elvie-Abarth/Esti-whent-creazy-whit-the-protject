@@ -20,4 +20,9 @@ public sealed class Order
     public required decimal TotalPrice { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required IReadOnlyList<OrderItem> Items { get; init; }
+
+    public DeliveryMethod DeliveryMethod { get; init; } = DeliveryMethod.Pickup;
+
+    /// <summary>Only set when <see cref="DeliveryMethod"/> is Shipping.</summary>
+    public string? ShippingAddress { get; init; }
 }

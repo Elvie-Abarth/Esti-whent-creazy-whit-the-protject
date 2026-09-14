@@ -548,6 +548,23 @@ a:hover { color: var(--fleece); }
 .auth-form .btn { align-self: flex-start; }
 .auth-form .checkbox-label { flex-direction: row; align-items: center; }
 
+/* Delivery method choice on Cart/Payment - the browser default <fieldset>
+   border/padding and bold <legend> don't match this form's border-less
+   style, so both are reset to look like a plain grouped section instead. */
+.auth-form fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+.auth-form legend {
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0;
+}
+
 .auth-switch { font-size: 0.9rem; color: var(--bark); }
 
 .form-errors {

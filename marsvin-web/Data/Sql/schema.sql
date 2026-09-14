@@ -142,10 +142,12 @@ IF OBJECT_ID('dbo.Orders', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Orders
     (
-        OrderId    INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-        UserId     INT NULL REFERENCES dbo.Users (UserId), -- NULL once the buyer's account is deleted; see note below
-        TotalPrice DECIMAL(10, 2) NOT NULL,
-        CreatedAt  DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+        OrderId         INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        UserId          INT NULL REFERENCES dbo.Users (UserId), -- NULL once the buyer's account is deleted; see note below
+        TotalPrice      DECIMAL(10, 2) NOT NULL,
+        CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        DeliveryMethod  TINYINT NOT NULL DEFAULT 0,   -- 0 Pickup, 1 Shipping
+        ShippingAddress NVARCHAR(500) NULL            -- only set when DeliveryMethod = Shipping; never collected for an order containing an animal
     );
 END
 
@@ -155,6 +157,21 @@ END
 -- sales history along with the account. Safe to run every time - a no-op
 -- once the column is already nullable.
 ALTER TABLE dbo.Orders ALTER COLUMN UserId INT NULL;
+
+-- Columns added after Orders already existed on live databases (create-once
+-- tables don't pick up new columns from the CREATE TABLE above) - safe to
+-- run every time. Guinea pigs can't be shipped (see Betaling & levering) -
+-- only an order with no animal in it is ever allowed to choose Shipping,
+-- enforced in SqlOrderStore.Checkout, not just in the UI.
+IF COL_LENGTH('dbo.Orders', 'DeliveryMethod') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD DeliveryMethod TINYINT NOT NULL DEFAULT 0;
+END
+
+IF COL_LENGTH('dbo.Orders', 'ShippingAddress') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD ShippingAddress NVARCHAR(500) NULL;
+END
 
 IF OBJECT_ID('dbo.OrderItems', 'U') IS NULL
 BEGIN

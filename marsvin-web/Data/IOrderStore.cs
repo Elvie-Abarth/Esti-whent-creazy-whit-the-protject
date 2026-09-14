@@ -14,9 +14,13 @@ public interface IOrderStore
     /// Turns the user's current cart into an order. Re-checks stock/animal
     /// availability inside the transaction - the cart can go stale between
     /// "add to cart" and checkout - and fails the whole checkout rather than
-    /// partially fulfilling it if anything no longer qualifies.
+    /// partially fulfilling it if anything no longer qualifies. Shipping is
+    /// rejected (not just ignored) if the cart contains an animal - guinea
+    /// pigs are always picked up in store, checked here rather than trusted
+    /// from whatever the submitted form claims. Defaults to Pickup with no
+    /// address so every pre-existing call site keeps working unchanged.
     /// </summary>
-    CheckoutResult Checkout(int userId);
+    CheckoutResult Checkout(int userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null);
 
     /// <summary>Looks up an order, but only if it belongs to the given user (prevents one customer from viewing another's order by guessing an id).</summary>
     Order? FindForUser(int orderId, int userId);
