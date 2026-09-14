@@ -114,6 +114,55 @@ public class IndexModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPostCreateAsync_OverlapsAnExistingShiftForThatStaffMember_ShowsErrorAndCreatesNothing()
+    {
+        var admin = NewStaff(UserRole.Admin);
+        var employee = NewStaff(UserRole.Employee);
+        var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
+        _shifts.Create(employee.UserId, date.ToDateTime(new TimeOnly(14, 0)), date.ToDateTime(new TimeOnly(18, 0)), null);
+        var model = MakeModelSignedInAs(admin);
+
+        // 16:00-20:00 overlaps the existing 14:00-18:00 shift (16:00 < 18:00 and 14:00 < 20:00).
+        await model.OnPostCreateAsync(employee.UserId, date, new TimeOnly(16, 0), new TimeOnly(20, 0), null);
+
+        Assert.NotNull(model.ErrorMessage);
+        Assert.Single(_shifts.GetForUser(employee.UserId));
+    }
+
+    [Fact]
+    public async Task OnPostCreateAsync_BackToBackShiftsDoNotOverlap_BothAreCreated()
+    {
+        var admin = NewStaff(UserRole.Admin);
+        var employee = NewStaff(UserRole.Employee);
+        var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
+        _shifts.Create(employee.UserId, date.ToDateTime(new TimeOnly(10, 0)), date.ToDateTime(new TimeOnly(14, 0)), null);
+        var model = MakeModelSignedInAs(admin);
+
+        // 14:00-18:00 starts exactly when the first shift ends - not an overlap.
+        await model.OnPostCreateAsync(employee.UserId, date, new TimeOnly(14, 0), new TimeOnly(18, 0), null);
+
+        Assert.Null(model.ErrorMessage);
+        Assert.Equal(2, _shifts.GetForUser(employee.UserId).Count);
+    }
+
+    [Fact]
+    public async Task OnPostCreateAsync_FallsOnADayWithApprovedTimeOff_ShowsErrorAndCreatesNothing()
+    {
+        var admin = NewStaff(UserRole.Admin);
+        var employee = NewStaff(UserRole.Employee);
+        var timeOffDate = new DateOnly(2026, 8, 10);
+        _timeOffRequests.Create(employee.UserId, timeOffDate, timeOffDate.AddDays(2), null);
+        var request = Assert.Single(_timeOffRequests.GetForUser(employee.UserId));
+        _timeOffRequests.Decide(request.RequestId, TimeOffStatus.Approved, admin.DisplayName);
+        var model = MakeModelSignedInAs(admin);
+
+        await model.OnPostCreateAsync(employee.UserId, timeOffDate.AddDays(1), new TimeOnly(14, 0), new TimeOnly(18, 0), null);
+
+        Assert.NotNull(model.ErrorMessage);
+        Assert.Empty(_shifts.GetForUser(employee.UserId));
+    }
+
+    [Fact]
     public async Task OnPostDeleteAsync_Admin_RemovesTheShiftAndEmailsTheStaffMember()
     {
         var admin = NewStaff(UserRole.Admin);

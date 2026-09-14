@@ -298,6 +298,43 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task Checkout_TwoConcurrentCheckoutsForTheSameAnimal_OnlyOneSucceeds()
+    {
+        // Regression test for the checkout race UPDLOCK/HOLDLOCK
+        // (ValidateLine) closes: two customers racing to buy the same last
+        // unit - here, one specific guinea pig - must not both pass
+        // validation. Before the fix, a lock-free read let both checkouts
+        // see "still Available" and both succeed, selling the same animal
+        // twice. Each checkout uses its own SqlOrderStore/connection, the
+        // same as two real concurrent requests would.
+        var buyerA = NewCustomerId();
+        var buyerB = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(buyerA, animal.ProductId, 1);
+            _cart.AddOrIncrement(buyerB, animal.ProductId, 1);
+
+            var ordersA = new SqlOrderStore(fixture.ConnectionString);
+            var ordersB = new SqlOrderStore(fixture.ConnectionString);
+
+            var results = await Task.WhenAll(
+                Task.Run(() => ordersA.Checkout(buyerA)),
+                Task.Run(() => ordersB.Checkout(buyerB)));
+
+            Assert.Single(results, r => r.Success);
+            Assert.Single(results, r => !r.Success);
+            Assert.Equal(AnimalStatus.Sold, _catalog.FindAnimal(animal.ProductId)!.Status);
+        }
+        finally
+        {
+            _cart.RemoveLine(buyerA, animal.ProductId);
+            _cart.RemoveLine(buyerB, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
     public void Checkout_Shipping_BlankAddress_FailsAndLeavesCartIntact()
     {
         var userId = NewCustomerId();

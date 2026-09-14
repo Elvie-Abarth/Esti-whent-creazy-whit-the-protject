@@ -171,4 +171,44 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
         Assert.Equal(HttpStatusCode.Found, response.StatusCode);
         Assert.Contains("/Account/Login", response.Headers.Location!.ToString());
     }
+
+    [Fact]
+    public async Task SignedInEmployee_PostingToAnAdminOnlyHandler_IsRedirectedToAccessDenied()
+    {
+        // Admin/Schedule/Index is shared by both roles at the page level
+        // ([Authorize(Roles = "Admin,Employee")]), but DecideRequest is
+        // Admin-only, checked (and Forbid()-returned) inside the handler
+        // itself. Unlike Admin/Index (Admin-only at the page level, covered
+        // by UnauthenticatedRequest_ToProtectedPage_RedirectsToLogin above,
+        // just for an anonymous visitor instead), this is the one place an
+        // authenticated-but-wrong-role POST needs the framework's own
+        // Forbid()-handling over the real HTTP pipeline verified, not just a
+        // direct PageModel method call (see IndexModelTests in
+        // Admin/Schedule, which cover the same rule at that lower level).
+        var client = MakeClient();
+        var jar = new CookieJar();
+
+        var (_, _, loginToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Login");
+        await HttpTestHelpers.PostForm(client, jar, "/Account/Login", new()
+        {
+            ["__RequestVerificationToken"] = loginToken,
+            ["Input.Email"] = "employee@marsvin.dk",
+            ["Input.Password"] = "Employee123!"
+        });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, jar, "employee@marsvin.dk");
+
+        var (_, _, scheduleToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Admin/Schedule/Index");
+        var response = await HttpTestHelpers.PostForm(client, jar, "/Admin/Schedule/Index?handler=DecideRequest", new()
+        {
+            ["__RequestVerificationToken"] = scheduleToken,
+            ["requestId"] = "1",
+            ["approve"] = "true"
+        });
+
+        // Cookie authentication's AccessDeniedPath turns a Forbid() result
+        // into a redirect, the same as LoginPath does for an unauthenticated
+        // request - a raw 403 is never what the browser actually sees here.
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("/Account/AccessDenied", response.Headers.Location!.ToString());
+    }
 }

@@ -71,6 +71,24 @@ public class IndexModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void OnPostAdd_CombinedWithWhatsAlreadyInTheCart_ExceedsStock_DoesNotAddAndSetsError()
+    {
+        // Regression test: OnPostAdd used to validate only the newly-added
+        // quantity against stock, not the quantity already in the cart plus
+        // the new add - so adding 5 more of something with 6 in stock when 5
+        // are already in the cart passed (5 <= 6) and left 10 in the cart.
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+        var stock = _catalog.Accessories.Single(p => p.ProductId == 109).StockQuantity;
+        model.OnPostAdd(productId: 109, quantity: stock); // fills the cart to exactly the stock limit
+
+        model.OnPostAdd(productId: 109, quantity: 1); // one more should now be rejected
+
+        Assert.Equal(stock, Assert.Single(_cart.GetLines(userId)).Quantity);
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
     public void OnPostAdd_UnavailableAnimal_DoesNotAddAndSetsError()
     {
         var userId = NewCustomerId();
