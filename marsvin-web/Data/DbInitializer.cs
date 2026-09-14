@@ -83,15 +83,21 @@ public static class DbInitializer
     }
 
     /// <summary>
-    /// Seeds one Admin and one Employee account, but only the very first time
-    /// (Users is never dropped, so this never overwrites a real password once
-    /// someone has logged in and possibly changed it - not that a change-
-    /// password feature exists here, but the guard is what would matter if
-    /// one gets added). Customers always self-register through /Account/Register.
+    /// Seeds one Admin and a handful of Employee accounts, but only the very
+    /// first time (Users is never dropped, so this never overwrites a real
+    /// password once someone has logged in and possibly changed it - not
+    /// that a change-password feature exists here, but the guard is what
+    /// would matter if one gets added). Customers always self-register
+    /// through /Account/Register. Several employees, rather than just one,
+    /// so the "assign a shift" staff picker on Admin/Schedule has more than
+    /// one real choice to demonstrate.
     ///
     /// DEMO CREDENTIALS - not fit for anything but a local demo:
-    ///   admin@marsvin.dk    / Admin123!
-    ///   employee@marsvin.dk / Employee123!
+    ///   admin@marsvin.dk     / Admin123!
+    ///   employee@marsvin.dk  / Employee123!
+    ///   employee2@marsvin.dk / Employee123!
+    ///   employee3@marsvin.dk / Employee123!
+    ///   employee4@marsvin.dk / Employee123!
     /// </summary>
     private static void SeedAccountsIfEmpty(SqlConnection connection)
     {
@@ -107,6 +113,12 @@ public static class DbInitializer
             hasher.HashPassword(null!, "Admin123!"), "Butiksejer", UserRole.Admin);
         InsertUser(connection, "employee@marsvin.dk",
             hasher.HashPassword(null!, "Employee123!"), "Medarbejder", UserRole.Employee);
+        InsertUser(connection, "employee2@marsvin.dk",
+            hasher.HashPassword(null!, "Employee123!"), "Sofie", UserRole.Employee);
+        InsertUser(connection, "employee3@marsvin.dk",
+            hasher.HashPassword(null!, "Employee123!"), "Mikkel", UserRole.Employee);
+        InsertUser(connection, "employee4@marsvin.dk",
+            hasher.HashPassword(null!, "Employee123!"), "Freja", UserRole.Employee);
     }
 
     private static void InsertUser(

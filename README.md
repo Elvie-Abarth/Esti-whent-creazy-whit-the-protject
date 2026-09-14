@@ -77,8 +77,11 @@ Demo login credentials (seeded once, on a fresh database — see
 `marsvin-web/DATABASE-NOTES.txt`):
 
 ```
-Admin:    admin@marsvin.dk    / Admin123!
-Employee: employee@marsvin.dk / Employee123!
+Admin:    admin@marsvin.dk     / Admin123!
+Employee: employee@marsvin.dk  / Employee123!
+Employee: employee2@marsvin.dk / Employee123!
+Employee: employee3@marsvin.dk / Employee123!
+Employee: employee4@marsvin.dk / Employee123!
 ```
 
 Customers always self-register; there's no seeded customer account.

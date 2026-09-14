@@ -40,8 +40,11 @@ DEMO LOGIN CREDENTIALS
 Seeded automatically the first time the database is created (see
 DbInitializer.SeedAccountsIfEmpty). Demo-only - not fit for anything else:
 
-  Admin:    admin@marsvin.dk    / Admin123!
-  Employee: employee@marsvin.dk / Employee123!
+  Admin:    admin@marsvin.dk     / Admin123!
+  Employee: employee@marsvin.dk  / Employee123!
+  Employee: employee2@marsvin.dk / Employee123!
+  Employee: employee3@marsvin.dk / Employee123!
+  Employee: employee4@marsvin.dk / Employee123!
 
 Customers always register themselves at /Account/Register - there is no
 seeded customer account. Admins can create additional Employee/Admin
