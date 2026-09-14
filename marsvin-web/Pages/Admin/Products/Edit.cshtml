@@ -8,7 +8,7 @@
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>
-            <h2>@(Model.IsNew ? "Nyt tilbehør" : "Redigér tilbehør")</h2>
+            <h2 data-en="@(Model.IsNew ? "New accessory" : "Edit accessory")">@(Model.IsNew ? "Nyt tilbehør" : "Redigér tilbehør")</h2>
         </div>
     </div>
 
@@ -16,7 +16,7 @@
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
         <label>
-            <span>Navn (dansk)</span>
+            <span data-en="Name (Danish)">Navn (dansk)</span>
             <input asp-for="Input.Name" />
         </label>
         <label>
@@ -24,7 +24,7 @@
             <input asp-for="Input.NameEn" />
         </label>
         <label>
-            <span>Beskrivelse (dansk)</span>
+            <span data-en="Description (Danish)">Beskrivelse (dansk)</span>
             <input asp-for="Input.Description" />
         </label>
         <label>
@@ -36,27 +36,27 @@
             <input asp-for="Input.Sku" />
         </label>
         <label>
-            <span>Kategori</span>
+            <span data-en="Category">Kategori</span>
             <select asp-for="Input.Category" asp-items="Html.GetEnumSelectList<AccessoryCategory>()"></select>
         </label>
         <label>
-            <span>Pris (kr.)</span>
+            <span data-en="Price (kr.)">Pris (kr.)</span>
             <input asp-for="Input.Price" type="number" step="1" />
         </label>
         <label>
-            <span>Lagerantal</span>
+            <span data-en="Stock quantity">Lagerantal</span>
             <input asp-for="Input.StockQuantity" type="number" />
         </label>
         <label>
-            <span>Enhed (fx pose, stk)</span>
+            <span data-en="Unit (e.g. bag, pcs)">Enhed (fx pose, stk)</span>
             <input asp-for="Input.Unit" />
         </label>
         <label>
-            <span>Foto-URL (valgfri - viser et kategori-ikon hvis tom)</span>
+            <span data-en="Photo URL (optional - shows a category icon if empty)">Foto-URL (valgfri - viser et kategori-ikon hvis tom)</span>
             <input asp-for="Input.PhotoUrl" />
         </label>
 
-        <button type="submit" class="btn">Gem</button>
-        <a class="btn btn--quiet" asp-page="/Admin/Products/Index">Annullér</a>
+        <button type="submit" class="btn" data-en="Save">Gem</button>
+        <a class="btn btn--quiet" asp-page="/Admin/Products/Index" data-en="Cancel">Annullér</a>
     </form>
 </div>

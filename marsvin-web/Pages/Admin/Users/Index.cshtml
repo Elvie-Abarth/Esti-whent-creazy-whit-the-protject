@@ -69,11 +69,11 @@
     <h3 data-en="Create employee or admin account">Opret medarbejder- eller admin-konto</h3>
     <form method="post" asp-page-handler="CreateStaff" class="auth-form">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
-        <label><span>Navn</span><input asp-for="NewStaff.DisplayName" /></label>
-        <label><span>E-mail</span><input asp-for="NewStaff.Email" /></label>
-        <label><span>Adgangskode</span><input asp-for="NewStaff.Password" /></label>
+        <label><span data-en="Name">Navn</span><input asp-for="NewStaff.DisplayName" /></label>
+        <label><span data-en="Email">E-mail</span><input asp-for="NewStaff.Email" /></label>
+        <label><span data-en="Password">Adgangskode</span><input asp-for="NewStaff.Password" /></label>
         <label>
-            <span>Rolle</span>
+            <span data-en="Role">Rolle</span>
             <select asp-for="NewStaff.Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
         </label>
         <button type="submit" class="btn" data-en="Create account">Opret konto</button>

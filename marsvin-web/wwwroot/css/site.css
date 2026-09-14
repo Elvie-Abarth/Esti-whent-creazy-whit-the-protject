@@ -210,7 +210,11 @@ a:hover { color: var(--fleece); }
 }
 
 .hero-art svg { width: 100%; height: auto; }
-.hero-art img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border-radius: 6px; }
+
+/* Shared base for every guinea pig photo (hero grid and .cavy cards alike) -
+   .cavy img.cavy-photo below layers its own max-width/margin-bottom on top,
+   safe regardless of source order since its selector is higher specificity. */
+img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border-radius: 6px; }
 
 .hero-note {
     grid-column: 1 / -1;
@@ -305,10 +309,7 @@ a:hover { color: var(--fleece); }
 .cavy:hover h3 { color: var(--fleece); }
 
 .cavy svg { width: 100%; max-width: 210px; height: auto; margin-bottom: 0.5rem; }
-.cavy img.cavy-photo {
-    width: 100%; max-width: 210px; aspect-ratio: 240 / 160;
-    object-fit: cover; border-radius: 6px; margin-bottom: 0.5rem;
-}
+.cavy img.cavy-photo { max-width: 210px; margin-bottom: 0.5rem; }
 .cavy h3 { margin-bottom: 0.2rem; }
 
 .cavy-meta {
@@ -730,6 +731,7 @@ a:hover { color: var(--fleece); }
 .guide-article .callout h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
 .guide-article .callout ul { margin: 0; padding-left: 1.2rem; }
 .guide-article .callout li { margin-bottom: 0.6rem; font-size: 0.95rem; }
+.guide-article .callout li:last-child { margin-bottom: 0; }
 
 /* ------------------------------ account export ------------------- */
 /* Same label/value shape as .facts (Marsvin/Details), as a <dl> instead of
@@ -747,7 +749,6 @@ a:hover { color: var(--fleece); }
     .site-header, .site-footer, .no-print { display: none; }
     body { background: var(--paper); }
 }
-.guide-article .callout li:last-child { margin-bottom: 0; }
 
 /* ------------------------------ food list ------------------------- */
 /* --safe/--moderate/--never tint the same .callout box used elsewhere on

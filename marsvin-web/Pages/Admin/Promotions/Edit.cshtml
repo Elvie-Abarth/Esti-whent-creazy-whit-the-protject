@@ -8,18 +8,18 @@
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>
-            <h2>@(Model.IsNew ? "Ny kampagne" : "Redigér kampagne")</h2>
+            <h2 data-en="@(Model.IsNew ? "New promotion" : "Edit promotion")">@(Model.IsNew ? "Ny kampagne" : "Redigér kampagne")</h2>
         </div>
     </div>
 
     <form method="post" class="auth-form">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
-        <label><span>Titel</span><input asp-for="Input.Title" /></label>
-        <label><span>Beskrivelse</span><input asp-for="Input.Description" /></label>
-        <label><span>Rabat (%)</span><input asp-for="Input.DiscountPercent" type="number" min="1" max="100" /></label>
+        <label><span data-en="Title">Titel</span><input asp-for="Input.Title" /></label>
+        <label><span data-en="Description">Beskrivelse</span><input asp-for="Input.Description" /></label>
+        <label><span data-en="Discount (%)">Rabat (%)</span><input asp-for="Input.DiscountPercent" type="number" min="1" max="100" /></label>
         <label>
-            <span>Gælder for produkt (valgfri - tom = hele butikken)</span>
+            <span data-en="Applies to product (optional - empty = whole shop)">Gælder for produkt (valgfri - tom = hele butikken)</span>
             <select asp-for="Input.ProductId">
                 <option value="">—</option>
                 @foreach (var product in Model.Products)
@@ -28,14 +28,14 @@
                 }
             </select>
         </label>
-        <label><span>Startdato</span><input asp-for="Input.StartDate" type="date" /></label>
-        <label><span>Slutdato</span><input asp-for="Input.EndDate" type="date" /></label>
+        <label><span data-en="Start date">Startdato</span><input asp-for="Input.StartDate" type="date" /></label>
+        <label><span data-en="End date">Slutdato</span><input asp-for="Input.EndDate" type="date" /></label>
         <label class="checkbox-label">
             <input asp-for="Input.IsActive" type="checkbox" />
-            <span>Aktiv</span>
+            <span data-en="Active">Aktiv</span>
         </label>
 
-        <button type="submit" class="btn">Gem</button>
-        <a class="btn btn--quiet" asp-page="/Admin/Promotions/Index">Annullér</a>
+        <button type="submit" class="btn" data-en="Save">Gem</button>
+        <a class="btn btn--quiet" asp-page="/Admin/Promotions/Index" data-en="Cancel">Annullér</a>
     </form>
 </div>

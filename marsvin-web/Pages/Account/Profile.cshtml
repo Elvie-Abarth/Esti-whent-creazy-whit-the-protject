@@ -1,5 +1,4 @@
 @page
-@using MarsvinWebExample.Models
 @model MarsvinWebExample.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "Min konto";
@@ -32,11 +31,6 @@
             <p data-en="Update your name, email, or password.">Opdatér dit navn, din e-mail, eller din adgangskode.</p>
         </div>
     </div>
-
-    @if (Model.SuccessMessage is not null)
-    {
-        <p class="form-success">@Model.SuccessMessage</p>
-    }
 
     <form method="post" class="auth-form">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
@@ -190,6 +184,26 @@
                         <p class="cart-total">
                             <strong data-en="Total">I alt</strong>: @order.TotalPrice.ToString("N0") kr.
                         </p>
+
+                        @{
+                            var animalNamesInOrder = order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName).ToList();
+                        }
+                        @if (order.DeliveryMethod == DeliveryMethod.Shipping)
+                        {
+                            <p class="cavy-meta" data-en="@($"Shipped to: {order.ShippingAddress}")">
+                                Sendt til: @order.ShippingAddress
+                            </p>
+                            @if (animalNamesInOrder.Count > 0)
+                            {
+                                <p class="cavy-meta" data-en="@($"{string.Join(" and ", animalNamesInOrder)} picked up in store separately.")">
+                                    @string.Join(" og ", animalNamesInOrder) afhentet i butikken separat.
+                                </p>
+                            }
+                        }
+                        else
+                        {
+                            <p class="cavy-meta" data-en="Picked up in store.">Afhentet i butikken.</p>
+                        }
 
                         <form method="post" asp-page-handler="Reorder">
                             <input type="hidden" name="orderId" value="@order.OrderId" />

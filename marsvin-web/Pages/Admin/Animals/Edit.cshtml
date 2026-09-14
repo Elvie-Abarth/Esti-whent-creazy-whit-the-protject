@@ -8,33 +8,33 @@
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>
-            <h2>@(Model.IsNew ? "Nyt marsvin" : "Redigér marsvin")</h2>
+            <h2 data-en="@(Model.IsNew ? "New guinea pig" : "Edit guinea pig")">@(Model.IsNew ? "Nyt marsvin" : "Redigér marsvin")</h2>
         </div>
     </div>
 
     <form method="post" class="auth-form">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
-        <label><span>Navn</span><input asp-for="Input.Name" /></label>
-        <label><span>Beskrivelse (dansk)</span><input asp-for="Input.Description" /></label>
+        <label><span data-en="Name">Navn</span><input asp-for="Input.Name" /></label>
+        <label><span data-en="Description (Danish)">Beskrivelse (dansk)</span><input asp-for="Input.Description" /></label>
         <label><span>Description (English)</span><input asp-for="Input.DescriptionEn" /></label>
-        <label><span>Race (dansk)</span><input asp-for="Input.Breed" /></label>
+        <label><span data-en="Breed (Danish)">Race (dansk)</span><input asp-for="Input.Breed" /></label>
         <label><span>Breed (English)</span><input asp-for="Input.BreedEn" /></label>
         <label>
-            <span>Køn</span>
+            <span data-en="Sex">Køn</span>
             <select asp-for="Input.Sex" asp-items="Html.GetEnumSelectList<Sex>()"></select>
         </label>
-        <label><span>Fødselsdato</span><input asp-for="Input.DateOfBirth" type="date" /></label>
-        <label><span>Farve (dansk)</span><input asp-for="Input.Colour" /></label>
+        <label><span data-en="Date of birth">Fødselsdato</span><input asp-for="Input.DateOfBirth" type="date" /></label>
+        <label><span data-en="Colour (Danish)">Farve (dansk)</span><input asp-for="Input.Colour" /></label>
         <label><span>Colour (English)</span><input asp-for="Input.ColourEn" /></label>
-        <label><span>Pelsfarve 1 (hex)</span><input asp-for="Input.CoatPrimary" type="color" /></label>
-        <label><span>Pelsfarve 2 (hex)</span><input asp-for="Input.CoatSecondary" type="color" /></label>
+        <label><span data-en="Coat colour 1 (hex)">Pelsfarve 1 (hex)</span><input asp-for="Input.CoatPrimary" type="color" /></label>
+        <label><span data-en="Coat colour 2 (hex)">Pelsfarve 2 (hex)</span><input asp-for="Input.CoatSecondary" type="color" /></label>
         <label>
-            <span>Status</span>
+            <span data-en="Status">Status</span>
             <select asp-for="Input.Status" asp-items="Html.GetEnumSelectList<AnimalStatus>()"></select>
         </label>
         <label>
-            <span>Bor sammen med (valgfri)</span>
+            <span data-en="Lives with (optional)">Bor sammen med (valgfri)</span>
             <select asp-for="Input.BondedWithId">
                 <option value="">—</option>
                 @foreach (var other in Model.OtherAnimals)
@@ -43,12 +43,12 @@
                 }
             </select>
         </label>
-        <label><span>Personlighed (dansk)</span><input asp-for="Input.Personality" /></label>
+        <label><span data-en="Personality (Danish)">Personlighed (dansk)</span><input asp-for="Input.Personality" /></label>
         <label><span>Personality (English)</span><input asp-for="Input.PersonalityEn" /></label>
-        <label><span>Foto-URL (valgfri - viser tegning hvis tom)</span><input asp-for="Input.PhotoUrl" /></label>
-        <label><span>Pris (kr.)</span><input asp-for="Input.Price" type="number" step="1" /></label>
+        <label><span data-en="Photo URL (optional - shows a drawing if empty)">Foto-URL (valgfri - viser tegning hvis tom)</span><input asp-for="Input.PhotoUrl" /></label>
+        <label><span data-en="Price (kr.)">Pris (kr.)</span><input asp-for="Input.Price" type="number" step="1" /></label>
 
-        <button type="submit" class="btn">Gem</button>
-        <a class="btn btn--quiet" asp-page="/Admin/Animals/Index">Annullér</a>
+        <button type="submit" class="btn" data-en="Save">Gem</button>
+        <a class="btn btn--quiet" asp-page="/Admin/Animals/Index" data-en="Cancel">Annullér</a>
     </form>
 </div>
