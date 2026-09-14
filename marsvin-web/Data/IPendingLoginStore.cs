@@ -15,4 +15,13 @@ public interface IPendingLoginStore
 
     /// <summary>Looks up and consumes (deletes) a still-valid token. Null if it's missing, already used, or expired.</summary>
     PendingLoginTicket? Consume(string rawToken);
+
+    /// <summary>
+    /// True if the token is still valid, without consuming it - lets a GET
+    /// (see Account/ResetPassword) tell the visitor up front that a link is
+    /// dead, rather than only after they've filled in a form and posted it.
+    /// The actual use still goes through Consume, so this never becomes a
+    /// second way to redeem the same token.
+    /// </summary>
+    bool IsValid(string rawToken);
 }

@@ -4,9 +4,18 @@ using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Account;
 
+// Rate-limited (see the "auth" policy in Program.cs) on top of the per-email
+// lockout below - the policy caps how many login attempts one IP can make
+// per minute regardless of which email(s) it tries, which the per-email
+// lockout alone doesn't: without it, an attacker who already knows a
+// victim's email could re-lock their account indefinitely, and nothing
+// stopped one client from trying thousands of different emails per minute.
+[EnableRateLimiting("auth")]
 public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender) : PageModel
 {
     // Long enough that "check your email" doesn't feel like a race against the
@@ -18,8 +27,12 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
 
     // Demo-scale, in-memory login throttling keyed by email. A real
     // deployment would persist this (or use a proper rate limiter) so it
-    // survives app restarts and works across multiple instances.
-    private static readonly Dictionary<string, (int Attempts, DateTime? LockedUntil)> FailedAttempts = new();
+    // survives app restarts and works across multiple instances. Entries
+    // older than EntryTtl are swept out on every access below, so a flood of
+    // distinct throwaway emails can't grow this dictionary forever the way
+    // it could when entries never expired.
+    private static readonly TimeSpan EntryTtl = TimeSpan.FromHours(1);
+    private static readonly Dictionary<string, (int Attempts, DateTime? LockedUntil, DateTime LastSeenAt)> FailedAttempts = new();
     private static readonly object FailedAttemptsLock = new();
 
     [BindProperty]
@@ -86,6 +99,7 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
     {
         lock (FailedAttemptsLock)
         {
+            PruneStaleEntries();
             return FailedAttempts.TryGetValue(email, out var entry) &&
                    entry.LockedUntil is DateTime until && until > DateTime.UtcNow;
         }
@@ -95,10 +109,11 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
     {
         lock (FailedAttemptsLock)
         {
-            var (attempts, _) = FailedAttempts.GetValueOrDefault(email);
+            PruneStaleEntries();
+            var (attempts, _, _) = FailedAttempts.GetValueOrDefault(email);
             attempts++;
             var lockedUntil = attempts >= MaxFailedAttempts ? DateTime.UtcNow.Add(LockoutDuration) : (DateTime?)null;
-            FailedAttempts[email] = (attempts, lockedUntil);
+            FailedAttempts[email] = (attempts, lockedUntil, DateTime.UtcNow);
         }
     }
 
@@ -110,12 +125,16 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
         }
     }
 
-    // Deliberately not PageModel.Url.IsLocalUrl: that needs an IUrlHelper wired up
-    // through the full request pipeline, which a PageModel constructed directly in
-    // a unit test doesn't have (Url is null there), so it throws where this doesn't.
-    // Same local-path shape Url.IsLocalUrl checks - see Cart/Index.cshtml.cs.
-    private static bool IsSafeLocalUrl(string url) =>
-        url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\");
+    // Called with FailedAttemptsLock already held. A stale entry (nothing
+    // seen from that email in over EntryTtl) is long past being locked out -
+    // removing it here, a little at a time on every real request, means the
+    // dictionary never needs its own background sweep.
+    private static void PruneStaleEntries()
+    {
+        var cutoff = DateTime.UtcNow - EntryTtl;
+        foreach (var key in FailedAttempts.Where(kv => kv.Value.LastSeenAt < cutoff).Select(kv => kv.Key).ToList())
+            FailedAttempts.Remove(key);
+    }
 
     public sealed class InputModel
     {

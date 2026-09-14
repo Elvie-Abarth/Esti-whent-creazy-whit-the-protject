@@ -84,6 +84,18 @@ public sealed class SqlPendingLoginStore(string connectionString) : IPendingLogi
         return new PendingLoginTicket(userId.Value, returnUrl);
     }
 
+    public bool IsValid(string rawToken)
+    {
+        var tokenHash = Hash(rawToken);
+
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "SELECT COUNT(*) FROM dbo.PendingLogins WHERE TokenHash = @TokenHash AND ExpiresAt > SYSUTCDATETIME();",
+            connection);
+        command.Parameters.AddWithValue("@TokenHash", tokenHash);
+        return (int)command.ExecuteScalar()! > 0;
+    }
+
     private SqlConnection Open()
     {
         var connection = new SqlConnection(connectionString);

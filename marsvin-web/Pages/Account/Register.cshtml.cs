@@ -1,17 +1,23 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Account;
 
-public class RegisterModel(IUserAccountStore users) : PageModel
+// Rate-limited the same way as Login (see the "auth" policy in Program.cs) -
+// registration is exactly the kind of endpoint a script could otherwise
+// hammer to probe which emails already have an account, or to spam an inbox
+// with confirmation links.
+[EnableRateLimiting("auth")]
+public class RegisterModel(IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender) : PageModel
 {
+    private static readonly TimeSpan ConfirmationValidFor = TimeSpan.FromMinutes(15);
+
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
@@ -38,22 +44,31 @@ public class RegisterModel(IUserAccountStore users) : PageModel
         }
 
         var user = users.FindByEmail(Input.Email)!;
-        await SignInAsync(user);
 
-        return LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
-    }
+        // The account exists, but signing in immediately - as this used to -
+        // never actually proved the address belongs to whoever submitted the
+        // form. Sending a confirmation link instead and finishing the sign-in
+        // in ConfirmLoginModel once it's opened closes that gap, and reuses
+        // exactly the same proof-of-inbox-access step Login already requires.
+        var safeReturnUrl = IsSafeLocalUrl(returnUrl) ? returnUrl : null;
+        var token = pendingLogins.Create(user.UserId, safeReturnUrl, ConfirmationValidFor);
+        var confirmUrl = $"{Request.Scheme}://{Request.Host}/Account/ConfirmLogin?token={Uri.EscapeDataString(token)}";
 
-    private async Task SignInAsync(ApplicationUser user)
-    {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Name, user.DisplayName),
-            new(ClaimTypes.Role, user.Role.ToString())
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        await emailSender.SendAsync(user.Email, "Bekræft din konto hos Marsvin",
+            $"""
+            Hej {user.DisplayName},
+
+            Velkommen til Marsvin! Bekræft din nye konto ved at åbne linket herunder - det udløber om 15 minutter:
+
+            {confirmUrl}
+
+            Var det ikke dig, der oprettede kontoen? Så kan du roligt ignorere denne mail.
+
+            Venlig hilsen
+            Marsvin
+            """);
+
+        return RedirectToPage("CheckEmail", new { purpose = "register" });
     }
 
     public sealed class InputModel
