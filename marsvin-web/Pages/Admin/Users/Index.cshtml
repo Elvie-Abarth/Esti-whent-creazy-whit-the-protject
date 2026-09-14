@@ -56,7 +56,7 @@
                     <td>
                         <a class="btn btn--quiet" asp-page="/Admin/Users/Export" asp-route-id="@user.UserId" data-en="Export as PDF">Eksportér</a>
                         <form method="post" asp-page-handler="Delete" class="inline-form"
-                              onsubmit="return confirm('Slet kontoen for @user.DisplayName permanent? Tidligere ordrer beholdes, men kan ikke længere knyttes til kontoen. Dette kan ikke fortrydes.');">
+                              data-confirm="Slet kontoen for @user.DisplayName permanent? Tidligere ordrer beholdes, men kan ikke længere knyttes til kontoen. Dette kan ikke fortrydes.">
                             <input type="hidden" name="userId" value="@user.UserId" />
                             <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
                         </form>

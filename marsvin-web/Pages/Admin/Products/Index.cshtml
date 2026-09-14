@@ -36,7 +36,7 @@
                     <td>@item.StockQuantity</td>
                     <td>
                         <a class="btn btn--quiet" asp-page="/Admin/Products/Edit" asp-route-id="@item.ProductId" data-en="Edit">Redigér</a>
-                        <form method="post" asp-page-handler="Delete" class="inline-form" onsubmit="return confirm('Slet @item.Name?');">
+                        <form method="post" asp-page-handler="Delete" class="inline-form" data-confirm="Slet @item.Name?">
                             <input type="hidden" name="productId" value="@item.ProductId" />
                             <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
                         </form>

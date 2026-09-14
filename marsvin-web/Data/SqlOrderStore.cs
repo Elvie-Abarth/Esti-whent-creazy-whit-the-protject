@@ -200,6 +200,83 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         return orders;
     }
 
+    public IReadOnlyList<Order> GetAllOrders()
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        var orders = new List<Order>();
+        using var orderCommand = new SqlCommand(
+            // LEFT JOIN, not JOIN: UserId is nullable (see Order.UserId) once
+            // the buyer's account has been deleted, and the order itself is
+            // still kept - BuyerDisplayName/BuyerEmail just come back null then.
+            "SELECT o.OrderId, o.UserId, o.TotalPrice, o.CreatedAt, o.DeliveryMethod, o.ShippingAddress, " +
+            "       u.DisplayName AS BuyerDisplayName, u.Email AS BuyerEmail " +
+            "FROM dbo.Orders o LEFT JOIN dbo.Users u ON u.UserId = o.UserId " +
+            "ORDER BY o.CreatedAt DESC, o.OrderId DESC;", connection);
+
+        var headers = new List<(int OrderId, int? UserId, decimal TotalPrice, DateTime CreatedAt,
+            DeliveryMethod DeliveryMethod, string? ShippingAddress, string? BuyerDisplayName, string? BuyerEmail)>();
+        using (var reader = orderCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                var userIdOrdinal = reader.GetOrdinal("UserId");
+                var shippingAddressOrdinal = reader.GetOrdinal("ShippingAddress");
+                var buyerNameOrdinal = reader.GetOrdinal("BuyerDisplayName");
+                var buyerEmailOrdinal = reader.GetOrdinal("BuyerEmail");
+                headers.Add((
+                    reader.GetInt32(reader.GetOrdinal("OrderId")),
+                    reader.IsDBNull(userIdOrdinal) ? null : reader.GetInt32(userIdOrdinal),
+                    reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
+                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                    (DeliveryMethod)reader.GetByte(reader.GetOrdinal("DeliveryMethod")),
+                    reader.IsDBNull(shippingAddressOrdinal) ? null : reader.GetString(shippingAddressOrdinal),
+                    reader.IsDBNull(buyerNameOrdinal) ? null : reader.GetString(buyerNameOrdinal),
+                    reader.IsDBNull(buyerEmailOrdinal) ? null : reader.GetString(buyerEmailOrdinal)));
+            }
+        }
+
+        foreach (var header in headers)
+        {
+            using var itemsCommand = new SqlCommand(
+                "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
+                "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
+            itemsCommand.Parameters.AddWithValue("@OrderId", header.OrderId);
+
+            var items = new List<OrderItem>();
+            using (var reader = itemsCommand.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    items.Add(new OrderItem
+                    {
+                        ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                        UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                        Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
+                        IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
+                    });
+                }
+            }
+
+            orders.Add(new Order
+            {
+                OrderId = header.OrderId,
+                UserId = header.UserId,
+                TotalPrice = header.TotalPrice,
+                CreatedAt = header.CreatedAt,
+                Items = items,
+                DeliveryMethod = header.DeliveryMethod,
+                ShippingAddress = header.ShippingAddress,
+                BuyerDisplayName = header.BuyerDisplayName,
+                BuyerEmail = header.BuyerEmail
+            });
+        }
+
+        return orders;
+    }
+
     private static List<CartLine> LoadCartLines(SqlConnection connection, SqlTransaction transaction, int userId)
     {
         using var command = new SqlCommand(
@@ -230,12 +307,20 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
     }
 
     /// <summary>Returns an error message if the line can no longer be fulfilled, otherwise null.</summary>
+    // UPDLOCK, HOLDLOCK on both reads below: without them, two checkouts
+    // racing for the last unit of stock (or the same guinea pig) can both
+    // read "available" under READ COMMITTED, since a plain read releases its
+    // lock immediately - both then pass validation, both write, and stock
+    // goes negative or the same animal sells twice. The hint takes an update
+    // lock at read time and holds it until the transaction commits or rolls
+    // back, so the second checkout blocks here until the first is done, then
+    // re-reads the now-updated row instead of the stale one.
     private static string? ValidateLine(SqlConnection connection, SqlTransaction transaction, CartLine line)
     {
         if (line.IsAnimal)
         {
             using var command = new SqlCommand(
-                "SELECT Status, DateOfBirth FROM dbo.Animals WHERE ProductId = @ProductId;",
+                "SELECT Status, DateOfBirth FROM dbo.Animals WITH (UPDLOCK, HOLDLOCK) WHERE ProductId = @ProductId;",
                 connection, transaction);
             command.Parameters.AddWithValue("@ProductId", line.ProductId);
 
@@ -261,7 +346,7 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         else
         {
             using var command = new SqlCommand(
-                "SELECT StockQuantity FROM dbo.StockProducts WHERE ProductId = @ProductId;",
+                "SELECT StockQuantity FROM dbo.StockProducts WITH (UPDLOCK, HOLDLOCK) WHERE ProductId = @ProductId;",
                 connection, transaction);
             command.Parameters.AddWithValue("@ProductId", line.ProductId);
 

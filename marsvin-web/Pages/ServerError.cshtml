@@ -1,0 +1,16 @@
+@page
+@model ServerErrorModel
+@{
+    ViewData["Title"] = "Der gik noget galt";
+    ViewData["TitleEn"] = "Something went wrong";
+}
+
+<div class="wrap section">
+    <h1 data-en="Something went wrong on our end">Der gik noget galt hos os</h1>
+    <p data-en="That's not your fault - try again in a moment, or head back to the front page.">
+        Det er ikke din skyld - prøv igen om et øjeblik, eller gå tilbage til forsiden.
+    </p>
+    <div class="actions">
+        <a class="btn" asp-page="/Index" data-en="Back to the front page">Til forsiden</a>
+    </div>
+</div>

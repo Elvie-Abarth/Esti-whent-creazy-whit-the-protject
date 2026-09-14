@@ -73,6 +73,16 @@ BEGIN
     ALTER TABLE dbo.StockProducts ADD PhotoUrl NVARCHAR(300) NULL;
 END
 
+-- Added after StockProducts already existed on live databases - guards what
+-- was previously only enforced in C# (UpdateStockQuantity, the checkout
+-- decrement). Negative stock was reachable in theory via the checkout race
+-- the UPDLOCK/HOLDLOCK hint in SqlOrderStore.ValidateLine now closes - this
+-- is the second, database-level layer against the same class of bug.
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_StockProducts_StockQuantity')
+BEGIN
+    ALTER TABLE dbo.StockProducts WITH CHECK ADD CONSTRAINT CK_StockProducts_StockQuantity CHECK (StockQuantity >= 0);
+END
+
 -- ---------------------------------------------------------------------------
 -- Accounts, carts, orders and promotions.
 -- ---------------------------------------------------------------------------
@@ -138,6 +148,11 @@ BEGIN
     );
 END
 
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_CartItems_Quantity')
+BEGIN
+    ALTER TABLE dbo.CartItems WITH CHECK ADD CONSTRAINT CK_CartItems_Quantity CHECK (Quantity > 0);
+END
+
 IF OBJECT_ID('dbo.Orders', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Orders
@@ -173,6 +188,14 @@ BEGIN
     ALTER TABLE dbo.Orders ADD ShippingAddress NVARCHAR(500) NULL;
 END
 
+-- Orders has no index covering UserId (only the OrderId primary key) -
+-- GetOrdersForUser and the admin order list's per-customer lookups would
+-- otherwise scan the whole table as it grows.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Orders_UserId' AND object_id = OBJECT_ID('dbo.Orders'))
+BEGIN
+    CREATE INDEX IX_Orders_UserId ON dbo.Orders (UserId);
+END
+
 IF OBJECT_ID('dbo.OrderItems', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.OrderItems
@@ -194,6 +217,11 @@ BEGIN
     ALTER TABLE dbo.OrderItems ADD IsAnimal BIT NOT NULL DEFAULT 0;
 END
 
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_OrderItems_Quantity')
+BEGIN
+    ALTER TABLE dbo.OrderItems WITH CHECK ADD CONSTRAINT CK_OrderItems_Quantity CHECK (Quantity > 0);
+END
+
 IF OBJECT_ID('dbo.Promotions', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Promotions
@@ -207,6 +235,16 @@ BEGIN
         EndDate         DATE NOT NULL,
         IsActive        BIT NOT NULL DEFAULT 1
     );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Promotions_DiscountPercent')
+BEGIN
+    ALTER TABLE dbo.Promotions WITH CHECK ADD CONSTRAINT CK_Promotions_DiscountPercent CHECK (DiscountPercent BETWEEN 1 AND 100);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Promotions_DateRange')
+BEGIN
+    ALTER TABLE dbo.Promotions WITH CHECK ADD CONSTRAINT CK_Promotions_DateRange CHECK (EndDate >= StartDate);
 END
 
 -- Staff work schedule (see Admin/Schedule): an Admin assigns shifts to any
@@ -228,6 +266,11 @@ BEGIN
     );
 END
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Shifts_UserId' AND object_id = OBJECT_ID('dbo.Shifts'))
+BEGIN
+    CREATE INDEX IX_Shifts_UserId ON dbo.Shifts (UserId);
+END
+
 -- An Employee's own day-off requests (see Account/Profile), approved or
 -- denied by an Admin from Admin/Schedule. DecidedByName is a snapshot, not
 -- a FK to the deciding admin - survives that admin's account later being
@@ -245,5 +288,24 @@ BEGIN
         RequestedAt   DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
         DecidedAt     DATETIME2 NULL,
         DecidedByName NVARCHAR(200) NULL
+    );
+END
+
+-- Who changed what, admin-side (see Admin/AuditLog): a price, stock level or
+-- role change, a delete - anything an Admin/Employee does that isn't itself
+-- part of another record's own history (an order's items, a shift). Not a
+-- FK on ActorUserId - the entry has to survive that account later being
+-- deleted, the same reasoning as OrderItems.ProductName - so ActorName is a
+-- snapshot instead. Never edited or deleted by the application itself.
+IF OBJECT_ID('dbo.AuditLog', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AuditLog
+    (
+        AuditLogId  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        ActorUserId INT NULL,               -- not a FK (see note above)
+        ActorName   NVARCHAR(200) NOT NULL,
+        Action      NVARCHAR(100) NOT NULL, -- short machine-readable verb, e.g. "Product.Deleted"
+        Details     NVARCHAR(1000) NOT NULL,
+        CreatedAt   DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END

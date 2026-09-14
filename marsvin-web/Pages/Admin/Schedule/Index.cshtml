@@ -121,7 +121,7 @@
                             {
                                 <td>
                                     <form method="post" asp-page-handler="Delete" class="inline-form"
-                                          onsubmit="return confirm('Slet denne vagt?');">
+                                          data-confirm="Slet denne vagt?">
                                         <input type="hidden" name="shiftId" value="@shift.ShiftId" />
                                         <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
                                     </form>

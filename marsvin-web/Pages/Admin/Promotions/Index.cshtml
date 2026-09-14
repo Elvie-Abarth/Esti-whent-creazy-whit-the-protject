@@ -37,7 +37,7 @@
                     <td>@(promo.IsCurrentlyRunning(today) ? "Ja" : "Nej")</td>
                     <td>
                         <a class="btn btn--quiet" asp-page="/Admin/Promotions/Edit" asp-route-id="@promo.PromotionId" data-en="Edit">Redigér</a>
-                        <form method="post" asp-page-handler="Delete" class="inline-form" onsubmit="return confirm('Slet @promo.Title?');">
+                        <form method="post" asp-page-handler="Delete" class="inline-form" data-confirm="Slet @promo.Title?">
                             <input type="hidden" name="promotionId" value="@promo.PromotionId" />
                             <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
                         </form>

@@ -36,7 +36,7 @@
                     <td>@animal.StatusText</td>
                     <td>
                         <a class="btn btn--quiet" asp-page="/Admin/Animals/Edit" asp-route-id="@animal.ProductId" data-en="Edit">Redigér</a>
-                        <form method="post" asp-page-handler="Delete" class="inline-form" onsubmit="return confirm('Slet @animal.Name?');">
+                        <form method="post" asp-page-handler="Delete" class="inline-form" data-confirm="Slet @animal.Name?">
                             <input type="hidden" name="productId" value="@animal.ProductId" />
                             <button type="submit" class="btn btn--quiet" data-en="Delete">Slet</button>
                         </form>
