@@ -199,7 +199,7 @@ name instead of waiting for the next login.
 | Route | What it is |
 |---|---|
 | `/Cart` | Cart contents, quantity updates |
-| `/Cart/Payment` | Demo payment form (no real card processing) |
+| `/Cart/Payment` | Delivery choice (pickup, or ship whatever's shippable) + demo payment form (no real card processing) |
 | `/Cart/Confirmation` | Order receipt after checkout |
 
 ### Staff area - `/Admin` ("Personale")

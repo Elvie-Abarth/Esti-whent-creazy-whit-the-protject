@@ -172,6 +172,19 @@ product was called and cost *at the moment of purchase*. If an admin later
 renames or deletes that product, an old receipt still reads correctly
 instead of showing a broken reference or today's (possibly different) price.
 
+Two more columns exist for the accessory-shipping feature. `Orders` has
+`DeliveryMethod` (`0` Pickup, `1` Shipping) and `ShippingAddress`
+(only ever set when shipping). Shipping ships whatever's shippable in the
+order - a guinea pig always still needs a separate in-store pickup no
+matter what's chosen, so `OrderItems` also has its own `IsAnimal`
+snapshot column (same idea as `ProductName`/`UnitPrice`): it's what lets
+the order confirmation page name exactly which item(s) in a shipped
+order still need picking up, without needing to re-join back to
+`Animals` (whose row may itself later be edited or deleted) to find out.
+`SqlOrderStore.Checkout` only rejects `Shipping` outright when the order
+is *entirely* animals - a mixed cart ships the accessory half and still
+sells the animal in the same transaction.
+
 ### `Promotions`
 
 Time-boxed discounts (`StartDate`/`EndDate`, `DiscountPercent`), optionally
