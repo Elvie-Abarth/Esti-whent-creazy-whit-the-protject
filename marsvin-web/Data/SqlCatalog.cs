@@ -32,6 +32,23 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
 
     public Animal? FindAnimal(int id) => Animals.FirstOrDefault(a => a.ProductId == id);
 
+    public Product? FindProduct(int id)
+    {
+        using var connection = Open();
+
+        using var typeCommand = new SqlCommand(
+            "SELECT ProductType FROM dbo.Products WHERE ProductId = @ProductId;", connection);
+        typeCommand.Parameters.AddWithValue("@ProductId", id);
+        var productType = (byte?)typeCommand.ExecuteScalar();
+
+        return productType switch
+        {
+            1 => LoadAnimalById(connection, id),
+            2 => LoadAccessoryById(connection, id),
+            _ => null
+        };
+    }
+
     public IEnumerable<Animal> AvailableAnimals() =>
         Animals.Where(a => a.Status == AnimalStatus.Available);
 
@@ -68,31 +85,49 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         using var command = new SqlCommand(sql, connection);
         using var reader = command.ExecuteReader();
         while (reader.Read())
-        {
-            animals.Add(new Animal
-            {
-                ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                Name = reader.GetString(reader.GetOrdinal("Name")),
-                Description = reader.GetString(reader.GetOrdinal("Description")),
-                DescriptionEn = reader.GetNullableString("DescriptionEn"),
-                Price = reader.GetDecimal(reader.GetOrdinal("Price")),
-                Breed = reader.GetString(reader.GetOrdinal("Breed")),
-                BreedEn = reader.GetNullableString("BreedEn"),
-                Sex = (Sex)reader.GetByte(reader.GetOrdinal("Sex")),
-                DateOfBirth = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("DateOfBirth"))),
-                Colour = reader.GetString(reader.GetOrdinal("Colour")),
-                ColourEn = reader.GetNullableString("ColourEn"),
-                CoatPrimary = reader.GetString(reader.GetOrdinal("CoatPrimary")),
-                CoatSecondary = reader.GetString(reader.GetOrdinal("CoatSecondary")),
-                Status = (AnimalStatus)reader.GetByte(reader.GetOrdinal("Status")),
-                BondedWithId = reader.GetNullableInt32("BondedWithId"),
-                Personality = reader.GetString(reader.GetOrdinal("Personality")),
-                PersonalityEn = reader.GetNullableString("PersonalityEn"),
-                PhotoUrl = reader.GetNullableString("PhotoUrl")
-            });
-        }
+            animals.Add(ReadAnimal(reader));
         return animals;
     }
+
+    private static Animal? LoadAnimalById(SqlConnection connection, int id)
+    {
+        const string sql = """
+            SELECT p.ProductId, p.Name, p.Description, p.DescriptionEn, p.Price,
+                   a.Breed, a.BreedEn, a.Sex, a.DateOfBirth, a.Colour, a.ColourEn,
+                   a.CoatPrimary, a.CoatSecondary, a.Status, a.BondedWithId,
+                   a.Personality, a.PersonalityEn, a.PhotoUrl
+            FROM dbo.Products p
+            JOIN dbo.Animals a ON a.ProductId = p.ProductId
+            WHERE p.ProductId = @ProductId;
+            """;
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@ProductId", id);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? ReadAnimal(reader) : null;
+    }
+
+    private static Animal ReadAnimal(SqlDataReader reader) => new()
+    {
+        ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+        Name = reader.GetString(reader.GetOrdinal("Name")),
+        Description = reader.GetString(reader.GetOrdinal("Description")),
+        DescriptionEn = reader.GetNullableString("DescriptionEn"),
+        Price = reader.GetDecimal(reader.GetOrdinal("Price")),
+        Breed = reader.GetString(reader.GetOrdinal("Breed")),
+        BreedEn = reader.GetNullableString("BreedEn"),
+        Sex = (Sex)reader.GetByte(reader.GetOrdinal("Sex")),
+        DateOfBirth = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("DateOfBirth"))),
+        Colour = reader.GetString(reader.GetOrdinal("Colour")),
+        ColourEn = reader.GetNullableString("ColourEn"),
+        CoatPrimary = reader.GetString(reader.GetOrdinal("CoatPrimary")),
+        CoatSecondary = reader.GetString(reader.GetOrdinal("CoatSecondary")),
+        Status = (AnimalStatus)reader.GetByte(reader.GetOrdinal("Status")),
+        BondedWithId = reader.GetNullableInt32("BondedWithId"),
+        Personality = reader.GetString(reader.GetOrdinal("Personality")),
+        PersonalityEn = reader.GetNullableString("PersonalityEn"),
+        PhotoUrl = reader.GetNullableString("PhotoUrl")
+    };
 
     private static List<StockProduct> LoadAccessories(SqlConnection connection)
     {
@@ -108,24 +143,40 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         using var command = new SqlCommand(sql, connection);
         using var reader = command.ExecuteReader();
         while (reader.Read())
-        {
-            accessories.Add(new StockProduct
-            {
-                ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                Name = reader.GetString(reader.GetOrdinal("Name")),
-                NameEn = reader.GetNullableString("NameEn"),
-                Description = reader.GetString(reader.GetOrdinal("Description")),
-                DescriptionEn = reader.GetNullableString("DescriptionEn"),
-                Price = reader.GetDecimal(reader.GetOrdinal("Price")),
-                Sku = reader.GetString(reader.GetOrdinal("Sku")),
-                Category = (AccessoryCategory)reader.GetByte(reader.GetOrdinal("Category")),
-                StockQuantity = reader.GetInt32(reader.GetOrdinal("StockQuantity")),
-                Unit = reader.GetNullableString("Unit"),
-                PhotoUrl = reader.GetNullableString("PhotoUrl")
-            });
-        }
+            accessories.Add(ReadAccessory(reader));
         return accessories;
     }
+
+    private static StockProduct? LoadAccessoryById(SqlConnection connection, int id)
+    {
+        const string sql = """
+            SELECT p.ProductId, p.Name, p.NameEn, p.Description, p.DescriptionEn, p.Price,
+                   s.Sku, s.Category, s.StockQuantity, s.Unit, s.PhotoUrl
+            FROM dbo.Products p
+            JOIN dbo.StockProducts s ON s.ProductId = p.ProductId
+            WHERE p.ProductId = @ProductId;
+            """;
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@ProductId", id);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? ReadAccessory(reader) : null;
+    }
+
+    private static StockProduct ReadAccessory(SqlDataReader reader) => new()
+    {
+        ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+        Name = reader.GetString(reader.GetOrdinal("Name")),
+        NameEn = reader.GetNullableString("NameEn"),
+        Description = reader.GetString(reader.GetOrdinal("Description")),
+        DescriptionEn = reader.GetNullableString("DescriptionEn"),
+        Price = reader.GetDecimal(reader.GetOrdinal("Price")),
+        Sku = reader.GetString(reader.GetOrdinal("Sku")),
+        Category = (AccessoryCategory)reader.GetByte(reader.GetOrdinal("Category")),
+        StockQuantity = reader.GetInt32(reader.GetOrdinal("StockQuantity")),
+        Unit = reader.GetNullableString("Unit"),
+        PhotoUrl = reader.GetNullableString("PhotoUrl")
+    };
 
     public void CreateAnimal(Animal animal)
     {

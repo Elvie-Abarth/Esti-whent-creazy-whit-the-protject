@@ -1,9 +1,9 @@
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Cart;
 
@@ -26,7 +26,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
     [TempData]
     public string? ToastMessage { get; set; }
 
-    public void OnGet() => Lines = cart.GetLines(CurrentUserId);
+    public void OnGet() => Lines = cart.GetLines(this.CurrentUserId());
 
     public IActionResult OnPostAdd(
         int productId, int quantity = 1, string? returnUrl = null,
@@ -54,7 +54,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
                     $"{animal.Name} is only sold alone if you confirm it won't be living alone.");
                 return RedirectAfterAdd(returnUrl);
             }
-            cart.AddOrIncrement(CurrentUserId, productId, 1);
+            cart.AddOrIncrement(this.CurrentUserId(), productId, 1);
             ToastMessage = new Bilingual($"{animal.Name} er lagt i kurven.", $"{animal.Name} has been added to the cart.");
             return RedirectAfterAdd(returnUrl);
         }
@@ -65,7 +65,14 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             ErrorMessage = new Bilingual("Varen findes ikke.", "This item doesn't exist.");
             return RedirectAfterAdd(returnUrl);
         }
-        if (!product.CanBeAddedToCart(quantity))
+
+        // Checked against what's already in the cart plus what's being added,
+        // not just the new quantity alone - otherwise adding 5 more of
+        // something with 6 in stock when 5 are already in the cart passes
+        // this check (5 <= 6) and leaves 10 in the cart, which then only
+        // fails much later, at checkout, with no obvious way to fix it from there.
+        var alreadyInCart = cart.GetLines(this.CurrentUserId()).FirstOrDefault(l => l.ProductId == productId)?.Quantity ?? 0;
+        if (!product.CanBeAddedToCart(alreadyInCart + quantity))
         {
             ErrorMessage = new Bilingual(
                 $"Der er ikke {quantity} styk tilbage af {product.Name}.",
@@ -73,7 +80,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             return RedirectAfterAdd(returnUrl);
         }
 
-        cart.AddOrIncrement(CurrentUserId, productId, quantity);
+        cart.AddOrIncrement(this.CurrentUserId(), productId, quantity);
         ToastMessage = new Bilingual($"{product.Name} er lagt i kurven.", $"{product.Name} has been added to the cart.");
         return RedirectAfterAdd(returnUrl);
     }
@@ -88,15 +95,6 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         !string.IsNullOrEmpty(returnUrl) && IsSafeLocalUrl(returnUrl)
             ? LocalRedirect(returnUrl)
             : RedirectToPage();
-
-    // Deliberately not PageModel.Url.IsLocalUrl: that needs an IUrlHelper wired up
-    // through the full request pipeline, which a PageModel constructed directly in
-    // a unit test doesn't have (Url is null there), so it throws where this doesn't.
-    // Same local-path shape Url.IsLocalUrl checks: exactly one leading slash - not
-    // "//host/evil" or "/\host/evil", either of which a browser can treat as
-    // protocol-relative and follow off-site.
-    private static bool IsSafeLocalUrl(string url) =>
-        url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\");
 
     public IActionResult OnPostUpdateQuantity(int productId, int quantity)
     {
@@ -122,7 +120,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
 
         if (quantity < 1)
         {
-            cart.RemoveLine(CurrentUserId, productId);
+            cart.RemoveLine(this.CurrentUserId(), productId);
             return RedirectToPage();
         }
 
@@ -134,15 +132,13 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             return RedirectToPage();
         }
 
-        cart.SetQuantity(CurrentUserId, productId, quantity);
+        cart.SetQuantity(this.CurrentUserId(), productId, quantity);
         return RedirectToPage();
     }
 
     public IActionResult OnPostRemove(int productId)
     {
-        cart.RemoveLine(CurrentUserId, productId);
+        cart.RemoveLine(this.CurrentUserId(), productId);
         return RedirectToPage();
     }
-
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

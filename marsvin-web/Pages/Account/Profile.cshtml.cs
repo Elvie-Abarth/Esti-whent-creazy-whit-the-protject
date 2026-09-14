@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authentication;
@@ -8,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Account;
 
@@ -41,23 +41,23 @@ public class ProfileModel(
 
     public void OnGet()
     {
-        var user = users.FindById(CurrentUserId)!;
+        var user = users.FindById(this.CurrentUserId())!;
         Input.DisplayName = user.DisplayName;
         Input.Email = user.Email;
 
         if (User.IsInRole("Customer"))
         {
-            Orders = orders.GetOrdersForUser(CurrentUserId);
+            Orders = orders.GetOrdersForUser(this.CurrentUserId());
         }
 
         if (User.IsInRole("Employee") || User.IsInRole("Admin"))
         {
-            TotalWorkHours = shifts.GetForUser(CurrentUserId).Sum(s => (s.EndAt - s.StartAt).TotalHours);
+            TotalWorkHours = shifts.GetForUser(this.CurrentUserId()).Sum(s => (s.EndAt - s.StartAt).TotalHours);
         }
 
         if (User.IsInRole("Employee"))
         {
-            MyTimeOffRequests = timeOffRequests.GetForUser(CurrentUserId);
+            MyTimeOffRequests = timeOffRequests.GetForUser(this.CurrentUserId());
         }
     }
 
@@ -65,7 +65,7 @@ public class ProfileModel(
     {
         if (!ModelState.IsValid) return Page();
 
-        var user = users.FindById(CurrentUserId)!;
+        var user = users.FindById(this.CurrentUserId())!;
         var hasher = new PasswordHasher<ApplicationUser>();
 
         // Changing your email or password is exactly the kind of thing that
@@ -79,7 +79,7 @@ public class ProfileModel(
         }
 
         var email = Input.Email.Trim().ToLowerInvariant();
-        var updated = users.UpdateProfile(CurrentUserId, Input.DisplayName.Trim(), email);
+        var updated = users.UpdateProfile(this.CurrentUserId(), Input.DisplayName.Trim(), email);
         if (!updated)
         {
             ModelState.AddModelError(nameof(Input.Email), "Der findes allerede en konto med den e-mail.");
@@ -88,14 +88,14 @@ public class ProfileModel(
 
         if (!string.IsNullOrEmpty(Input.NewPassword))
         {
-            users.UpdatePassword(CurrentUserId, hasher.HashPassword(user, Input.NewPassword));
+            users.UpdatePassword(this.CurrentUserId(), hasher.HashPassword(user, Input.NewPassword));
         }
 
         // The auth cookie's claims (name, email) were fixed at login - refresh
         // them now, otherwise the header would keep showing the old name/email
         // until the next login even though the database is already updated.
-        var refreshed = users.FindById(CurrentUserId)!;
-        await SignInAsync(refreshed);
+        var refreshed = users.FindById(this.CurrentUserId())!;
+        await this.SignInAsync(refreshed);
 
         ToastMessage = new Bilingual("Dine oplysninger er opdateret.", "Your details have been updated.");
         return RedirectToPage();
@@ -112,7 +112,7 @@ public class ProfileModel(
     {
         if (!User.IsInRole("Customer")) return Forbid();
 
-        var order = orders.FindForUser(orderId, CurrentUserId);
+        var order = orders.FindForUser(orderId, this.CurrentUserId());
         if (order is null)
         {
             ErrorMessage = new Bilingual("Ordren blev ikke fundet.", "The order wasn't found.");
@@ -121,24 +121,35 @@ public class ProfileModel(
 
         var added = new List<string>();
         var skipped = new List<string>();
+        var currentLines = cart.GetLines(this.CurrentUserId());
 
         foreach (var item in order.Items)
         {
-            var animal = catalog.FindAnimal(item.ProductId);
-            if (animal is not null)
+            // FindProduct instead of FindAnimal-then-Accessories.FirstOrDefault -
+            // one lookup instead of two full-table loads per line.
+            var product = catalog.FindProduct(item.ProductId);
+
+            // A guinea pig is never actually re-orderable (the specific
+            // animal is Sold, not restocked) - CanBeAddedToCart already says
+            // so for a StockProduct, but an Animal has no such check to call,
+            // so it's excluded here instead.
+            if (product is not StockProduct stockProduct)
             {
                 skipped.Add(item.ProductName);
                 continue;
             }
 
-            var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == item.ProductId);
-            if (product is null || !product.CanBeAddedToCart(item.Quantity))
+            // Same reasoning as Cart/Index.OnPostAdd: checked against what's
+            // already in the cart plus what's being re-added, not the
+            // re-added quantity alone.
+            var alreadyInCart = currentLines.FirstOrDefault(l => l.ProductId == item.ProductId)?.Quantity ?? 0;
+            if (!stockProduct.CanBeAddedToCart(alreadyInCart + item.Quantity))
             {
                 skipped.Add(item.ProductName);
                 continue;
             }
 
-            cart.AddOrIncrement(CurrentUserId, item.ProductId, item.Quantity);
+            cart.AddOrIncrement(this.CurrentUserId(), item.ProductId, item.Quantity);
             added.Add(item.ProductName);
         }
 
@@ -173,9 +184,20 @@ public class ProfileModel(
                 "The end date must be after the start date.");
             return RedirectToPage();
         }
+        // Matches the maxlength on the form field and dbo.TimeOffRequests.Reason
+        // (NVARCHAR(500)) - the HTML attribute is only a hint, not enforcement,
+        // so an over-length POST needs the same limit checked here too, rather
+        // than reaching the database and failing there instead.
+        if (reason is { Length: > 500 })
+        {
+            ErrorMessage = new Bilingual(
+                "Begrundelsen må højst fylde 500 tegn.",
+                "The reason can be at most 500 characters.");
+            return RedirectToPage();
+        }
 
-        var requester = users.FindById(CurrentUserId)!;
-        timeOffRequests.Create(CurrentUserId, startDate, endDate, string.IsNullOrWhiteSpace(reason) ? null : reason.Trim());
+        var requester = users.FindById(this.CurrentUserId())!;
+        timeOffRequests.Create(this.CurrentUserId(), startDate, endDate, string.IsNullOrWhiteSpace(reason) ? null : reason.Trim());
 
         var admins = users.GetAll().Where(u => u.Role == UserRole.Admin && u.IsActive);
         foreach (var admin in admins)
@@ -207,7 +229,7 @@ public class ProfileModel(
     {
         if (!User.IsInRole("Customer")) return Forbid();
 
-        var user = users.FindById(CurrentUserId)!;
+        var user = users.FindById(this.CurrentUserId())!;
         var hasher = new PasswordHasher<ApplicationUser>();
         if (hasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword) == PasswordVerificationResult.Failed)
         {
@@ -219,26 +241,11 @@ public class ProfileModel(
 
         // Same DeleteUser as an admin uses or the inactivity job runs - cart
         // cleared, past orders kept but orphaned, never destroyed.
-        users.DeleteUser(CurrentUserId);
+        users.DeleteUser(this.CurrentUserId());
         ToastMessage = new Bilingual("Din konto og dine data er slettet.", "Your account and data have been deleted.");
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToPage("/Index");
     }
-
-    private async Task SignInAsync(ApplicationUser user)
-    {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Name, user.DisplayName),
-            new(ClaimTypes.Role, user.Role.ToString())
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-    }
-
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     public sealed class InputModel
     {

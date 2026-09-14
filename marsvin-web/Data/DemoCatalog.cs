@@ -150,6 +150,10 @@ public sealed class DemoCatalog : ICatalog
 
     public Animal? FindAnimal(int id) => Animals.FirstOrDefault(a => a.ProductId == id);
 
+    public Product? FindProduct(int id) =>
+        (Product?)Animals.FirstOrDefault(a => a.ProductId == id) ??
+        Accessories.FirstOrDefault(a => a.ProductId == id);
+
     public IEnumerable<Animal> AvailableAnimals() =>
         Animals.Where(a => a.Status == AnimalStatus.Available);
 
