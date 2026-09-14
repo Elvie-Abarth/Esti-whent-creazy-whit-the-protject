@@ -147,7 +147,8 @@
             <form method="post" asp-page-handler="Create" class="auth-form">
                 <label>
                     <span data-en="Staff member">Medarbejder</span>
-                    <select name="userId">
+                    <select name="userId" required>
+                        <option value="" selected disabled data-en="Choose a staff member">Vælg en medarbejder</option>
                         @foreach (var staff in Model.StaffMembers)
                         {
                             <option value="@staff.UserId">@staff.DisplayName (@staff.Role)</option>
