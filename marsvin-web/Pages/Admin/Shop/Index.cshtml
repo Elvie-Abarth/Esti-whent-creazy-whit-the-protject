@@ -20,6 +20,12 @@
                 <p data-en="Update how much is in stock, and mark animals reserved / not for sale.">Opdatér lagerantal, og markér dyr reserveret / ikke til salg.</p>
             </a>
         </li>
+        <li>
+            <a asp-page="/Admin/Orders/Index">
+                <h3 data-en="Orders">Ordrer</h3>
+                <p data-en="Every order placed in the shop.">Alle ordrer afgivet i butikken.</p>
+            </a>
+        </li>
         @if (User.IsInRole("Admin"))
         {
             <li>

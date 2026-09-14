@@ -1,16 +1,16 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Admin.Users;
 
 [Authorize(Roles = "Admin")]
-public class IndexModel(IUserAccountStore users) : PageModel
+public class IndexModel(IUserAccountStore users, IAuditLogStore audit) : PageModel
 {
     public IReadOnlyList<ApplicationUser> Items { get; private set; } = [];
 
@@ -24,7 +24,7 @@ public class IndexModel(IUserAccountStore users) : PageModel
 
     public IActionResult OnPostUpdateRole(int userId, UserRole role)
     {
-        if (userId == CurrentUserId)
+        if (userId == this.CurrentUserId())
         {
             ErrorMessage = new Bilingual("Du kan ikke ændre din egen rolle.", "You can't change your own role.");
             return RedirectToPage();
@@ -41,13 +41,15 @@ public class IndexModel(IUserAccountStore users) : PageModel
                 "There must be at least one active admin account - this one can't be changed to another role.");
             return RedirectToPage();
         }
+        var target = users.FindById(userId);
         users.UpdateRole(userId, role);
+        RecordAudit("User.RoleChanged", $"{target?.DisplayName ?? $"#{userId}"} -> {role}");
         return RedirectToPage();
     }
 
     public IActionResult OnPostToggleActive(int userId, bool isActive)
     {
-        if (userId == CurrentUserId)
+        if (userId == this.CurrentUserId())
         {
             ErrorMessage = new Bilingual("Du kan ikke deaktivere din egen konto.", "You can't deactivate your own account.");
             return RedirectToPage();
@@ -59,13 +61,15 @@ public class IndexModel(IUserAccountStore users) : PageModel
                 "There must be at least one active admin account - this one can't be deactivated.");
             return RedirectToPage();
         }
+        var target = users.FindById(userId);
         users.SetActive(userId, isActive);
+        RecordAudit(isActive ? "User.Activated" : "User.Deactivated", target?.DisplayName ?? $"#{userId}");
         return RedirectToPage();
     }
 
     public IActionResult OnPostDelete(int userId)
     {
-        if (userId == CurrentUserId)
+        if (userId == this.CurrentUserId())
         {
             ErrorMessage = new Bilingual("Du kan ikke slette din egen konto.", "You can't delete your own account.");
             return RedirectToPage();
@@ -77,7 +81,9 @@ public class IndexModel(IUserAccountStore users) : PageModel
                 "There must be at least one active admin account - this one can't be deleted.");
             return RedirectToPage();
         }
+        var target = users.FindById(userId);
         users.DeleteUser(userId);
+        RecordAudit("User.Deleted", target?.DisplayName ?? $"#{userId}");
         return RedirectToPage();
     }
 
@@ -105,10 +111,12 @@ public class IndexModel(IUserAccountStore users) : PageModel
             return Page();
         }
 
+        RecordAudit("User.Created", $"{NewStaff.DisplayName} ({NewStaff.Email}), {NewStaff.Role}");
         return RedirectToPage();
     }
 
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private void RecordAudit(string action, string details) =>
+        audit.Record(this.CurrentUserId(), this.CurrentDisplayName(), action, details);
 
     public sealed class NewStaffInputModel
     {

@@ -30,4 +30,7 @@ public interface IOrderStore
 
     /// <summary>Every order this user has placed, most recent first.</summary>
     IReadOnlyList<Order> GetOrdersForUser(int userId);
+
+    /// <summary>Every order ever placed, across every customer, most recent first - the admin order list.</summary>
+    IReadOnlyList<Order> GetAllOrders();
 }

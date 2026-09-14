@@ -1,0 +1,70 @@
+@page
+@using MarsvinWebExample.Models
+@model MarsvinWebExample.Pages.Admin.Orders.IndexModel
+@{
+    ViewData["Title"] = "Ordrer (admin)";
+    ViewData["TitleEn"] = "Orders (admin)";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Orders">Ordrer</h2>
+            <p data-en="Every order placed in the shop, most recent first.">Alle ordrer afgivet i butikken, det seneste øverst.</p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.Items.Count == 0)
+    {
+        <p data-en="No orders yet.">Ingen ordrer endnu.</p>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th data-en="Order">Ordre</th>
+                    <th data-en="Date">Dato</th>
+                    <th data-en="Customer">Kunde</th>
+                    <th data-en="Items">Varer</th>
+                    <th data-en="Total">I alt</th>
+                    <th data-en="Delivery">Levering</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.Items)
+                {
+                    <tr>
+                        <td>#@order.OrderId</td>
+                        <td>@order.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
+                        <td>
+                            @if (order.BuyerDisplayName is not null)
+                            {
+                                @order.BuyerDisplayName <br /><span class="cavy-meta">@order.BuyerEmail</span>
+                            }
+                            else
+                            {
+                                <span class="cavy-meta" data-en="Account deleted">Konto slettet</span>
+                            }
+                        </td>
+                        <td>@string.Join(", ", order.Items.Select(i => $"{i.ProductName} x{i.Quantity}"))</td>
+                        <td>@order.TotalPrice.ToString("N0") kr.</td>
+                        <td>
+                            @if (order.DeliveryMethod == DeliveryMethod.Shipping)
+                            {
+                                <span data-en="@($"Shipping: {order.ShippingAddress}")">Fragt: @order.ShippingAddress</span>
+                            }
+                            else
+                            {
+                                <span data-en="Pickup">Afhentning</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

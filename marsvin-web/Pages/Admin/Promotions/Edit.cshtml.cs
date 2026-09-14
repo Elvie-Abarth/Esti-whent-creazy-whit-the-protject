@@ -4,11 +4,12 @@ using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Admin.Promotions;
 
 [Authorize(Roles = "Admin")]
-public class EditModel(IPromotionStore promotions, ICatalog catalog) : PageModel
+public class EditModel(IPromotionStore promotions, ICatalog catalog, IAuditLogStore audit) : PageModel
 {
     public int PromotionId { get; set; }
     public bool IsNew => PromotionId == 0;
@@ -66,9 +67,15 @@ public class EditModel(IPromotionStore promotions, ICatalog catalog) : PageModel
         };
 
         if (id == 0)
+        {
             promotions.Create(promotion);
+            audit.Record(this.CurrentUserId(), this.CurrentDisplayName(), "Promotion.Created", promotion.Title);
+        }
         else
+        {
             promotions.Update(promotion);
+            audit.Record(this.CurrentUserId(), this.CurrentDisplayName(), "Promotion.Updated", promotion.Title);
+        }
 
         return RedirectToPage("Index");
     }

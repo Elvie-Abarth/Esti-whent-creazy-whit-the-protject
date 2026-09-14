@@ -1,0 +1,49 @@
+@page
+@model MarsvinWebExample.Pages.Admin.AuditLog.IndexModel
+@{
+    ViewData["Title"] = "Logbog (admin)";
+    ViewData["TitleEn"] = "Audit log (admin)";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Audit log">Logbog</h2>
+            <p data-en="The most recent 200 admin/employee actions - who changed what, and when.">
+                De seneste 200 admin-/medarbejderhandlinger - hvem ændrede hvad, og hvornår.
+            </p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.Entries.Count == 0)
+    {
+        <p data-en="No actions recorded yet.">Ingen handlinger registreret endnu.</p>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th data-en="When">Hvornår</th>
+                    <th data-en="Who">Hvem</th>
+                    <th data-en="Action">Handling</th>
+                    <th data-en="Details">Detaljer</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model.Entries)
+                {
+                    <tr>
+                        <td>@entry.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
+                        <td>@entry.ActorName</td>
+                        <td>@entry.Action</td>
+                        <td>@entry.Details</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

@@ -1,9 +1,9 @@
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Admin.Schedule;
 
@@ -32,7 +32,7 @@ public class IndexModel(
 
     public void OnGet()
     {
-        Shifts = User.IsInRole("Admin") ? shifts.GetAll() : shifts.GetForUser(CurrentUserId);
+        Shifts = User.IsInRole("Admin") ? shifts.GetAll() : shifts.GetForUser(this.CurrentUserId());
 
         if (User.IsInRole("Admin"))
         {
@@ -52,6 +52,17 @@ public class IndexModel(
                 "The end time must be after the start time.");
             return RedirectToPage();
         }
+        // Matches the maxlength on the form field and dbo.Shifts.Note
+        // (NVARCHAR(200)) - the HTML attribute is only a hint, not
+        // enforcement, so an over-length POST needs the same limit checked
+        // here too, rather than reaching the database and failing there.
+        if (note is { Length: > 200 })
+        {
+            ErrorMessage = new Bilingual(
+                "Noten må højst fylde 200 tegn.",
+                "The note can be at most 200 characters.");
+            return RedirectToPage();
+        }
 
         var staff = users.FindById(userId);
         if (staff is null || staff.Role == UserRole.Customer)
@@ -60,8 +71,34 @@ public class IndexModel(
             return RedirectToPage();
         }
 
+        var newStart = date.ToDateTime(startTime);
+        var newEnd = date.ToDateTime(endTime);
+
+        // Two shifts "overlap" when one starts before the other ends, both
+        // ways - the standard interval-overlap check. Caught here rather
+        // than left for whoever notices the schedule looks wrong later.
+        var hasOverlappingShift = shifts.GetForUser(userId).Any(s => s.StartAt < newEnd && newStart < s.EndAt);
+        if (hasOverlappingShift)
+        {
+            ErrorMessage = new Bilingual(
+                $"{staff.DisplayName} har allerede en vagt, der overlapper med det tidsrum.",
+                $"{staff.DisplayName} already has a shift that overlaps with that time.");
+            return RedirectToPage();
+        }
+
+        var newDateRange = DateOnly.FromDateTime(newStart);
+        var hasApprovedDayOff = timeOffRequests.GetForUser(userId)
+            .Any(r => r.Status == TimeOffStatus.Approved && newDateRange >= r.StartDate && newDateRange <= r.EndDate);
+        if (hasApprovedDayOff)
+        {
+            ErrorMessage = new Bilingual(
+                $"{staff.DisplayName} har godkendt fri den dag.",
+                $"{staff.DisplayName} has approved time off that day.");
+            return RedirectToPage();
+        }
+
         var trimmedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
-        shifts.Create(userId, date.ToDateTime(startTime), date.ToDateTime(endTime), trimmedNote);
+        shifts.Create(userId, newStart, newEnd, trimmedNote);
 
         await emailSender.SendAsync(staff.Email, "Din vagtplan er blevet opdateret",
             $"""
@@ -119,13 +156,11 @@ public class IndexModel(
     {
         if (!User.IsInRole("Admin")) return Forbid();
 
-        var decidingAdmin = users.FindById(CurrentUserId)!;
+        var decidingAdmin = users.FindById(this.CurrentUserId())!;
         timeOffRequests.Decide(requestId, approve ? TimeOffStatus.Approved : TimeOffStatus.Denied, decidingAdmin.DisplayName);
         ToastMessage = approve
             ? new Bilingual("Anmodningen er godkendt.", "The request has been approved.")
             : new Bilingual("Anmodningen er afvist.", "The request has been denied.");
         return RedirectToPage();
     }
-
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

@@ -4,11 +4,12 @@ using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Admin.Products;
 
 [Authorize(Roles = "Admin")]
-public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin) : PageModel
+public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogStore audit) : PageModel
 {
     public int ProductId { get; set; }
     public bool IsNew => ProductId == 0;
@@ -61,9 +62,15 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin) : PageModel
         };
 
         if (id == 0)
+        {
             catalogAdmin.CreateStockProduct(product);
+            audit.Record(this.CurrentUserId(), this.CurrentDisplayName(), "Product.Created", product.Name);
+        }
         else
+        {
             catalogAdmin.UpdateStockProduct(product);
+            audit.Record(this.CurrentUserId(), this.CurrentDisplayName(), "Product.Updated", product.Name);
+        }
 
         return RedirectToPage("Index");
     }

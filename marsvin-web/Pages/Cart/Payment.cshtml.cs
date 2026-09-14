@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Cart;
 
@@ -13,7 +13,7 @@ namespace MarsvinWebExample.Pages.Cart;
 // Customer action - employees and admins have their own area (/Admin) and
 // aren't meant to be shopping through the storefront.
 [Authorize(Roles = "Customer")]
-public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
+public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore users, IEmailSender emailSender) : PageModel
 {
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
     public decimal Total => Lines.Sum(l => l.LineTotal);
@@ -35,13 +35,13 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
 
     public IActionResult OnGet()
     {
-        Lines = cart.GetLines(CurrentUserId);
+        Lines = cart.GetLines(this.CurrentUserId());
         return Lines.Count == 0 ? RedirectToPage("Index") : Page();
     }
 
-    public IActionResult OnPost()
+    public async Task<IActionResult> OnPostAsync()
     {
-        Lines = cart.GetLines(CurrentUserId);
+        Lines = cart.GetLines(this.CurrentUserId());
         if (Lines.Count == 0) return RedirectToPage("Index");
 
         if (Input.DeliveryMethod == DeliveryMethod.Shipping)
@@ -61,17 +61,50 @@ public class PaymentModel(ICartStore cart, IOrderStore orders) : PageModel
         // aren't read past validating their shape. Checkout re-validates stock,
         // animal availability, and the shipping/animal rule itself (see
         // SqlOrderStore.Checkout), same as it did before this page existed.
-        var result = orders.Checkout(CurrentUserId, Input.DeliveryMethod, Input.ShippingAddress);
+        var result = orders.Checkout(this.CurrentUserId(), Input.DeliveryMethod, Input.ShippingAddress);
         if (!result.Success)
         {
             ErrorMessage = result.ErrorMessage;
             return RedirectToPage("Index");
         }
 
+        await SendConfirmationEmailAsync(result.Order!);
+
         return RedirectToPage("Confirmation", new { orderId = result.Order!.OrderId });
     }
 
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private async Task SendConfirmationEmailAsync(Order order)
+    {
+        var buyer = users.FindById(this.CurrentUserId());
+        if (buyer is null) return;
+
+        var itemLines = string.Join("\n", order.Items.Select(i =>
+            $"- {i.ProductName} x{i.Quantity}: {i.LineTotal:N0} kr."));
+        var deliveryLine = order.DeliveryMethod == DeliveryMethod.Shipping
+            ? $"Sendes til: {order.ShippingAddress}" +
+              (order.Items.Any(i => i.IsAnimal)
+                  ? $"\n{string.Join(" og ", order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName))} afhentes i butikken separat."
+                  : "")
+            : "Afhentes i butikken.";
+
+        await emailSender.SendAsync(buyer.Email, $"Ordrebekræftelse #{order.OrderId}",
+            $"""
+            Hej {buyer.DisplayName},
+
+            Tak for din ordre #{order.OrderId}:
+
+            {itemLines}
+
+            I alt: {order.TotalPrice:N0} kr.
+
+            {deliveryLine}
+
+            Se ordren under Min konto.
+
+            Venlig hilsen
+            Marsvin
+            """);
+    }
 
     public sealed class PaymentInputModel
     {

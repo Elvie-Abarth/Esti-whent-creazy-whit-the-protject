@@ -33,4 +33,14 @@ public sealed class Order
 
     /// <summary>Only set when <see cref="DeliveryMethod"/> is Shipping.</summary>
     public string? ShippingAddress { get; init; }
+
+    /// <summary>
+    /// Only populated by GetAllOrders (the admin order list) - null for
+    /// FindForUser/GetOrdersForUser, where the caller already knows who they
+    /// are. Reflects UserId: null once the buyer's account has been deleted,
+    /// the same as UserId itself.
+    /// </summary>
+    public string? BuyerDisplayName { get; init; }
+
+    public string? BuyerEmail { get; init; }
 }
