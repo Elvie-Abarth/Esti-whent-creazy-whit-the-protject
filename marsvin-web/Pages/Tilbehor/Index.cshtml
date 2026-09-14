@@ -13,19 +13,30 @@
         </div>
     </div>
 
+    <form method="get" class="search-box" role="search" aria-label="Søg i tilbehør" data-en-aria-label="Search accessories">
+        @if (Model.Active is not null)
+        {
+            <input type="hidden" name="kategori" value="@Model.Active" />
+        }
+        <input type="search" name="q" value="@Model.Query"
+               placeholder="Søg..." data-en-placeholder="Search..."
+               aria-label="Søg i tilbehør" data-en-aria-label="Search accessories" />
+        <button type="submit" class="btn btn--quiet" data-en="Search">Søg</button>
+    </form>
+
     <nav class="filters" aria-label="Filtrér efter kategori" data-en-aria-label="Filter by category">
-        <a class="filter" asp-page="/Tilbehor/Index"
+        <a class="filter" asp-page="/Tilbehor/Index" asp-route-q="@Model.Query"
            aria-current="@(Model.Active is null ? "true" : "false")" data-en="All">Alt</a>
         @foreach (var (value, label, labelEn) in MarsvinWebExample.Pages.Tilbehor.IndexModel.Categories)
         {
-            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@value"
+            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@value" asp-route-q="@Model.Query"
                aria-current="@(Model.Active == value ? "true" : "false")" data-en="@labelEn">@label</a>
         }
     </nav>
 
     @if (Model.Items.Count == 0)
     {
-        <p data-en="No items in that category right now. Try another one, or call the shop.">Ingen varer i den kategori lige nu. Prøv en anden, eller ring til butikken.</p>
+        <p data-en="No items match. Try another search or category, or call the shop.">Ingen varer matcher. Prøv en anden søgning eller kategori, eller ring til butikken.</p>
     }
     else
     {

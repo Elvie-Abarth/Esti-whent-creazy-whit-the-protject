@@ -31,6 +31,13 @@
             el.setAttribute("alt", lang === "en" ? el.dataset.enAlt : el.dataset.daAlt);
         });
 
+        document.querySelectorAll("[data-en-placeholder]").forEach(function (el) {
+            if (el.dataset.daPlaceholder === undefined) {
+                el.dataset.daPlaceholder = el.getAttribute("placeholder") || "";
+            }
+            el.setAttribute("placeholder", lang === "en" ? el.dataset.enPlaceholder : el.dataset.daPlaceholder);
+        });
+
         var toggle = document.getElementById("lang-toggle");
         if (toggle) {
             toggle.textContent = lang === "en" ? "DA" : "EN";

@@ -368,6 +368,17 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .welfare .btn--quiet:hover { background: var(--hay); color: var(--meadow); border-color: var(--hay); }
 
 /* ------------------------------ accessories -------------------- */
+.search-box { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; max-width: 22rem; }
+.search-box input {
+    flex: 1;
+    font: inherit;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--meadow);
+}
+
 .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
 
 .filter {
