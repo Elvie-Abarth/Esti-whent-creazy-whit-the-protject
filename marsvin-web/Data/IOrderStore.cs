@@ -14,11 +14,14 @@ public interface IOrderStore
     /// Turns the user's current cart into an order. Re-checks stock/animal
     /// availability inside the transaction - the cart can go stale between
     /// "add to cart" and checkout - and fails the whole checkout rather than
-    /// partially fulfilling it if anything no longer qualifies. Shipping is
-    /// rejected (not just ignored) if the cart contains an animal - guinea
-    /// pigs are always picked up in store, checked here rather than trusted
-    /// from whatever the submitted form claims. Defaults to Pickup with no
-    /// address so every pre-existing call site keeps working unchanged.
+    /// partially fulfilling it if anything no longer qualifies. Shipping ships
+    /// whatever's shippable in the cart - a guinea pig always still needs a
+    /// separate in-store pickup regardless, so Shipping is only rejected
+    /// outright when there's nothing shippable at all (the cart is only
+    /// animals); a mixed cart succeeds and still sells the animal. Checked
+    /// here rather than trusted from whatever the submitted form claims.
+    /// Defaults to Pickup with no address so every pre-existing call site
+    /// keeps working unchanged.
     /// </summary>
     CheckoutResult Checkout(int userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null);
 

@@ -26,7 +26,7 @@ public class IndexModel(IUserAccountStore users) : PageModel
     {
         if (userId == CurrentUserId)
         {
-            ErrorMessage = "Du kan ikke ændre din egen rolle.";
+            ErrorMessage = new Bilingual("Du kan ikke ændre din egen rolle.", "You can't change your own role.");
             return RedirectToPage();
         }
         // Self-protection above stops an admin locking themselves out, but
@@ -36,7 +36,9 @@ public class IndexModel(IUserAccountStore users) : PageModel
         // count to zero.
         if (role != UserRole.Admin && IsLastActiveAdmin(userId))
         {
-            ErrorMessage = "Der skal være mindst én aktiv admin-konto - denne kan ikke ændres til en anden rolle.";
+            ErrorMessage = new Bilingual(
+                "Der skal være mindst én aktiv admin-konto - denne kan ikke ændres til en anden rolle.",
+                "There must be at least one active admin account - this one can't be changed to another role.");
             return RedirectToPage();
         }
         users.UpdateRole(userId, role);
@@ -47,12 +49,14 @@ public class IndexModel(IUserAccountStore users) : PageModel
     {
         if (userId == CurrentUserId)
         {
-            ErrorMessage = "Du kan ikke deaktivere din egen konto.";
+            ErrorMessage = new Bilingual("Du kan ikke deaktivere din egen konto.", "You can't deactivate your own account.");
             return RedirectToPage();
         }
         if (!isActive && IsLastActiveAdmin(userId))
         {
-            ErrorMessage = "Der skal være mindst én aktiv admin-konto - denne kan ikke deaktiveres.";
+            ErrorMessage = new Bilingual(
+                "Der skal være mindst én aktiv admin-konto - denne kan ikke deaktiveres.",
+                "There must be at least one active admin account - this one can't be deactivated.");
             return RedirectToPage();
         }
         users.SetActive(userId, isActive);
@@ -63,12 +67,14 @@ public class IndexModel(IUserAccountStore users) : PageModel
     {
         if (userId == CurrentUserId)
         {
-            ErrorMessage = "Du kan ikke slette din egen konto.";
+            ErrorMessage = new Bilingual("Du kan ikke slette din egen konto.", "You can't delete your own account.");
             return RedirectToPage();
         }
         if (IsLastActiveAdmin(userId))
         {
-            ErrorMessage = "Der skal være mindst én aktiv admin-konto - denne kan ikke slettes.";
+            ErrorMessage = new Bilingual(
+                "Der skal være mindst én aktiv admin-konto - denne kan ikke slettes.",
+                "There must be at least one active admin account - this one can't be deleted.");
             return RedirectToPage();
         }
         users.DeleteUser(userId);

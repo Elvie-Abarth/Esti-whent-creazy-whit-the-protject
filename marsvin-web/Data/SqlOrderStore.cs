@@ -15,7 +15,7 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         {
             var lines = LoadCartLines(connection, transaction, userId);
             if (lines.Count == 0)
-                return CheckoutResult.Fail("Din kurv er tom.");
+                return CheckoutResult.Fail(new Bilingual("Din kurv er tom.", "Your cart is empty."));
 
             // A guinea pig can't go in a parcel, but an order can still mix an
             // animal with accessories - Shipping then means "ship whatever's
@@ -27,12 +27,16 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             if (deliveryMethod == DeliveryMethod.Shipping && lines.All(l => l.IsAnimal))
             {
                 transaction.Rollback();
-                return CheckoutResult.Fail("Der er intet at sende med fragt i denne ordre - vælg afhentning.");
+                return CheckoutResult.Fail(new Bilingual(
+                    "Der er intet at sende med fragt i denne ordre - vælg afhentning.",
+                    "There's nothing to ship in this order - choose pickup."));
             }
             if (deliveryMethod == DeliveryMethod.Shipping && string.IsNullOrWhiteSpace(shippingAddress))
             {
                 transaction.Rollback();
-                return CheckoutResult.Fail("Angiv en leveringsadresse for forsendelse.");
+                return CheckoutResult.Fail(new Bilingual(
+                    "Angiv en leveringsadresse for forsendelse.",
+                    "Enter a delivery address for shipping."));
             }
 
             foreach (var line in lines)
@@ -237,16 +241,20 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
             using var reader = command.ExecuteReader();
             if (!reader.Read())
-                return $"{line.ProductName} findes ikke længere.";
+                return new Bilingual($"{line.ProductName} findes ikke længere.", $"{line.ProductName} doesn't exist anymore.");
 
             var status = (AnimalStatus)reader.GetByte(reader.GetOrdinal("Status"));
             var dateOfBirth = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("DateOfBirth")));
             var weeksOld = (DateOnly.FromDateTime(DateTime.Today).DayNumber - dateOfBirth.DayNumber) / 7;
 
             if (status != AnimalStatus.Available)
-                return $"{line.ProductName} er ikke længere til salg.";
+                return new Bilingual($"{line.ProductName} er ikke længere til salg.", $"{line.ProductName} is no longer for sale.");
             if (weeksOld < 4)
-                return $"{line.ProductName} er endnu ikke gammel nok til at flytte hjemmefra.";
+            {
+                return new Bilingual(
+                    $"{line.ProductName} er endnu ikke gammel nok til at flytte hjemmefra.",
+                    $"{line.ProductName} isn't old enough to leave home yet.");
+            }
 
             return null;
         }
@@ -259,9 +267,13 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
             var stock = (int?)command.ExecuteScalar();
             if (stock is null)
-                return $"{line.ProductName} findes ikke længere.";
+                return new Bilingual($"{line.ProductName} findes ikke længere.", $"{line.ProductName} doesn't exist anymore.");
             if (stock < line.Quantity)
-                return $"Der er ikke {line.Quantity} styk tilbage af {line.ProductName}.";
+            {
+                return new Bilingual(
+                    $"Der er ikke {line.Quantity} styk tilbage af {line.ProductName}.",
+                    $"There aren't {line.Quantity} left of {line.ProductName}.");
+            }
 
             return null;
         }

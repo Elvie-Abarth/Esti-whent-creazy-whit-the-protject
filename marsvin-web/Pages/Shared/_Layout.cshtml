@@ -77,17 +77,21 @@
     @RenderBody()
 </main>
 
-@if (TempData["ToastMessage"] is string toastMessage)
+@* Every ToastMessage/ErrorMessage in the app is [TempData], set right before
+   a redirect - rendered once, here, instead of each page repeating its own
+   "@if (Model.ErrorMessage...)" block in a different spot on the page. Both
+   are packed as Bilingual (see Models/Bilingual.cs): C# code has no markup
+   to attach a data-en attribute to, so the message travels through TempData
+   as one encoded string and gets unpacked back into Da/En right here. *@
+@if (TempData["ToastMessage"] is string toastMessageRaw)
 {
-    <p class="toast" role="status" aria-live="polite">@toastMessage</p>
+    var toastMessage = Bilingual.Parse(toastMessageRaw);
+    <p class="toast" role="status" aria-live="polite" data-en="@toastMessage.En">@toastMessage.Da</p>
 }
-@* Every ErrorMessage in the app is [TempData] and set right before a redirect
-   (same shape as ToastMessage above) - rendered once, here, instead of each
-   page repeating its own "@if (Model.ErrorMessage...)" block in a different
-   spot on the page. *@
-@if (TempData["ErrorMessage"] is string errorToastMessage)
+@if (TempData["ErrorMessage"] is string errorToastMessageRaw)
 {
-    <p class="toast toast--error" role="alert" aria-live="assertive">@errorToastMessage</p>
+    var errorToastMessage = Bilingual.Parse(errorToastMessageRaw);
+    <p class="toast toast--error" role="alert" aria-live="assertive" data-en="@errorToastMessage.En">@errorToastMessage.Da</p>
 }
 
 <footer class="site-footer">

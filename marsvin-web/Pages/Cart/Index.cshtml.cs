@@ -37,7 +37,9 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         {
             if (!animal.CanBeAddedToCart(1))
             {
-                ErrorMessage = $"{animal.Name} kan ikke lægges i kurven lige nu.";
+                ErrorMessage = new Bilingual(
+                    $"{animal.Name} kan ikke lægges i kurven lige nu.",
+                    $"{animal.Name} can't be added to the cart right now.");
                 return RedirectAfterAdd(returnUrl);
             }
             // Guinea pigs are herd animals. A bonded animal (BondedWithId set) already
@@ -47,28 +49,32 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             // as trustworthy as no checkbox at all.
             if (animal.BondedWithId is null && (!confirmNotAlone || string.IsNullOrWhiteSpace(companionNote)))
             {
-                ErrorMessage = $"{animal.Name} sælges kun enkeltvis, hvis du bekræfter det ikke skal bo alene.";
+                ErrorMessage = new Bilingual(
+                    $"{animal.Name} sælges kun enkeltvis, hvis du bekræfter det ikke skal bo alene.",
+                    $"{animal.Name} is only sold alone if you confirm it won't be living alone.");
                 return RedirectAfterAdd(returnUrl);
             }
             cart.AddOrIncrement(CurrentUserId, productId, 1);
-            ToastMessage = $"{animal.Name} er lagt i kurven.";
+            ToastMessage = new Bilingual($"{animal.Name} er lagt i kurven.", $"{animal.Name} has been added to the cart.");
             return RedirectAfterAdd(returnUrl);
         }
 
         var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == productId);
         if (product is null || quantity < 1)
         {
-            ErrorMessage = "Varen findes ikke.";
+            ErrorMessage = new Bilingual("Varen findes ikke.", "This item doesn't exist.");
             return RedirectAfterAdd(returnUrl);
         }
         if (!product.CanBeAddedToCart(quantity))
         {
-            ErrorMessage = $"Der er ikke {quantity} styk tilbage af {product.Name}.";
+            ErrorMessage = new Bilingual(
+                $"Der er ikke {quantity} styk tilbage af {product.Name}.",
+                $"There aren't {quantity} left of {product.Name}.");
             return RedirectAfterAdd(returnUrl);
         }
 
         cart.AddOrIncrement(CurrentUserId, productId, quantity);
-        ToastMessage = $"{product.Name} er lagt i kurven.";
+        ToastMessage = new Bilingual($"{product.Name} er lagt i kurven.", $"{product.Name} has been added to the cart.");
         return RedirectAfterAdd(returnUrl);
     }
 
@@ -101,14 +107,16 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         var animal = catalog.FindAnimal(productId);
         if (animal is not null)
         {
-            ErrorMessage = $"{animal.Name} er ét dyr - antallet kan ikke ændres.";
+            ErrorMessage = new Bilingual(
+                $"{animal.Name} er ét dyr - antallet kan ikke ændres.",
+                $"{animal.Name} is one animal - the quantity can't be changed.");
             return RedirectToPage();
         }
 
         var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == productId);
         if (product is null)
         {
-            ErrorMessage = "Varen findes ikke.";
+            ErrorMessage = new Bilingual("Varen findes ikke.", "This item doesn't exist.");
             return RedirectToPage();
         }
 
@@ -120,7 +128,9 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
 
         if (!product.CanBeAddedToCart(quantity))
         {
-            ErrorMessage = $"Der er ikke {quantity} styk tilbage af {product.Name}.";
+            ErrorMessage = new Bilingual(
+                $"Der er ikke {quantity} styk tilbage af {product.Name}.",
+                $"There aren't {quantity} left of {product.Name}.");
             return RedirectToPage();
         }
 

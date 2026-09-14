@@ -23,9 +23,6 @@ public class ProfileModel(
     public InputModel Input { get; set; } = new();
 
     [TempData]
-    public string? SuccessMessage { get; set; }
-
-    [TempData]
     public string? ErrorMessage { get; set; }
 
     [TempData]
@@ -100,7 +97,7 @@ public class ProfileModel(
         var refreshed = users.FindById(CurrentUserId)!;
         await SignInAsync(refreshed);
 
-        SuccessMessage = "Dine oplysninger er opdateret.";
+        ToastMessage = new Bilingual("Dine oplysninger er opdateret.", "Your details have been updated.");
         return RedirectToPage();
     }
 
@@ -118,7 +115,7 @@ public class ProfileModel(
         var order = orders.FindForUser(orderId, CurrentUserId);
         if (order is null)
         {
-            ErrorMessage = "Ordren blev ikke fundet.";
+            ErrorMessage = new Bilingual("Ordren blev ikke fundet.", "The order wasn't found.");
             return RedirectToPage();
         }
 
@@ -145,8 +142,18 @@ public class ProfileModel(
             added.Add(item.ProductName);
         }
 
-        if (added.Count > 0) ToastMessage = $"{string.Join(", ", added)} lagt i kurven.";
-        if (skipped.Count > 0) ErrorMessage = $"Kunne ikke tilføjes igen: {string.Join(", ", skipped)}.";
+        if (added.Count > 0)
+        {
+            ToastMessage = new Bilingual(
+                $"{string.Join(", ", added)} lagt i kurven.",
+                $"{string.Join(", ", added)} added to the cart.");
+        }
+        if (skipped.Count > 0)
+        {
+            ErrorMessage = new Bilingual(
+                $"Kunne ikke tilføjes igen: {string.Join(", ", skipped)}.",
+                $"Couldn't be added again: {string.Join(", ", skipped)}.");
+        }
 
         return RedirectToPage();
     }
@@ -161,7 +168,9 @@ public class ProfileModel(
 
         if (endDate < startDate)
         {
-            ErrorMessage = "Slutdatoen skal være efter startdatoen.";
+            ErrorMessage = new Bilingual(
+                "Slutdatoen skal være efter startdatoen.",
+                "The end date must be after the start date.");
             return RedirectToPage();
         }
 
@@ -185,7 +194,7 @@ public class ProfileModel(
                 """);
         }
 
-        ToastMessage = "Din anmodning om fri er sendt.";
+        ToastMessage = new Bilingual("Din anmodning om fri er sendt.", "Your day-off request has been sent.");
         return RedirectToPage();
     }
 
@@ -202,14 +211,16 @@ public class ProfileModel(
         var hasher = new PasswordHasher<ApplicationUser>();
         if (hasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword) == PasswordVerificationResult.Failed)
         {
-            ErrorMessage = "Forkert adgangskode - kontoen blev ikke slettet.";
+            ErrorMessage = new Bilingual(
+                "Forkert adgangskode - kontoen blev ikke slettet.",
+                "Wrong password - the account wasn't deleted.");
             return RedirectToPage();
         }
 
         // Same DeleteUser as an admin uses or the inactivity job runs - cart
         // cleared, past orders kept but orphaned, never destroyed.
         users.DeleteUser(CurrentUserId);
-        ToastMessage = "Din konto og dine data er slettet.";
+        ToastMessage = new Bilingual("Din konto og dine data er slettet.", "Your account and data have been deleted.");
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToPage("/Index");
     }

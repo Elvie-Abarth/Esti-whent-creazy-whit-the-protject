@@ -47,14 +47,16 @@ public class IndexModel(
 
         if (endTime <= startTime)
         {
-            ErrorMessage = "Sluttidspunktet skal være efter starttidspunktet.";
+            ErrorMessage = new Bilingual(
+                "Sluttidspunktet skal være efter starttidspunktet.",
+                "The end time must be after the start time.");
             return RedirectToPage();
         }
 
         var staff = users.FindById(userId);
         if (staff is null || staff.Role == UserRole.Customer)
         {
-            ErrorMessage = "Vælg en gyldig medarbejder.";
+            ErrorMessage = new Bilingual("Vælg en gyldig medarbejder.", "Choose a valid staff member.");
             return RedirectToPage();
         }
 
@@ -75,7 +77,7 @@ public class IndexModel(
             Marsvin
             """);
 
-        ToastMessage = $"Vagt tilføjet for {staff.DisplayName}.";
+        ToastMessage = new Bilingual($"Vagt tilføjet for {staff.DisplayName}.", $"Shift added for {staff.DisplayName}.");
         return RedirectToPage();
     }
 
@@ -109,7 +111,7 @@ public class IndexModel(
             }
         }
 
-        ToastMessage = "Vagten er slettet.";
+        ToastMessage = new Bilingual("Vagten er slettet.", "The shift has been deleted.");
         return RedirectToPage();
     }
 
@@ -119,7 +121,9 @@ public class IndexModel(
 
         var decidingAdmin = users.FindById(CurrentUserId)!;
         timeOffRequests.Decide(requestId, approve ? TimeOffStatus.Approved : TimeOffStatus.Denied, decidingAdmin.DisplayName);
-        ToastMessage = approve ? "Anmodningen er godkendt." : "Anmodningen er afvist.";
+        ToastMessage = approve
+            ? new Bilingual("Anmodningen er godkendt.", "The request has been approved.")
+            : new Bilingual("Anmodningen er afvist.", "The request has been denied.");
         return RedirectToPage();
     }
 
