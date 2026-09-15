@@ -234,6 +234,9 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
   demo credentials, where the LocalDB files live, resetting the database.
 - **`DATABASE-ARCHITECTURE.md`** — the data layer: schema-as-code, the
   store pattern, transactions/locking, seeding.
+- **`DATABASE-CREATION-SCRIPT.md`** — the literal commands that build the
+  database: what `dotnet run` does automatically, the full schema script,
+  and the equivalent `sqlcmd` steps to do it by hand.
 - **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,
   auth flow, site map, the bilingual DA/EN system, security practices,
   testing strategy.

@@ -44,9 +44,11 @@ per call is cheap and is what the whole codebase does throughout.
 There's no migrations framework (no EF Migrations, no Flyway). Instead,
 **the entire schema lives in one plain SQL script**,
 `Data/Sql/schema.sql`, and it is re-run in full on *every single app
-startup* (see `DbInitializer.RunSchemaScript`). That only works safely
-because every statement in it is written to be a no-op once it's already
-been applied:
+startup* (see `DbInitializer.RunSchemaScript`). See
+`DATABASE-CREATION-SCRIPT.md` for the full script inline and the equivalent
+`sqlcmd` commands to build the database by hand, outside the app. That only
+works safely because every statement in it is written to be a no-op once
+it's already been applied:
 
 - **New tables** are wrapped in `IF OBJECT_ID('dbo.TableName', 'U') IS NULL
   BEGIN ... END` - created the first time the table is missing, skipped

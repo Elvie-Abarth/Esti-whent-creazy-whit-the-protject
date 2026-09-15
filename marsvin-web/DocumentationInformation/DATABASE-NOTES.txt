@@ -117,7 +117,10 @@ RELEVANT FILES IN THIS PROJECT
 ---------------------------------
 See DATABASE-ARCHITECTURE.md and WEBSITE-ARCHITECTURE.md for the full
 picture (schema design, request pipeline, auth flow, site map, testing
-strategy) - this is just the quick pointer list:
+strategy), and DATABASE-CREATION-SCRIPT.md for the literal commands that
+build the database (both what "dotnet run" does automatically and the
+equivalent sqlcmd steps to do it by hand) - this is just the quick pointer
+list:
 
 Data\Sql\schema.sql          - table definitions (Products/Animals/StockProducts,
                                Users/PendingLogins/CartItems/Orders/OrderItems/
