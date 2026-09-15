@@ -257,6 +257,12 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 
 .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
 
+/* The "save as PDF" half of the print button's promise lives inside the
+   browser's own print dialog (a Destination/Printer dropdown), not
+   something a page can add or control - this just tells people where to
+   look for it instead of only the "Print" button they land on. */
+.print-hint { font-size: 0.85rem; color: var(--bark); margin-top: 0.4rem; }
+
 /* ------------------------------ sections ----------------------- */
 .section { padding: clamp(2.5rem, 6vw, 4.5rem) 0; }
 .section--paper { background: var(--paper); border-block: 1px solid var(--line); }
