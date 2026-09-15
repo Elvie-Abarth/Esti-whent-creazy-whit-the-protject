@@ -19,10 +19,15 @@ see `DATABASE-NOTES.txt`.
     rolled claims principal, described in §4.
 - **No frontend framework** - no React/Vue/etc., no build step, no NPM
   dependency for the site itself. Styling is one hand-written CSS file
-  (`wwwroot/css/site.css`); the only JavaScript in the whole site is one
-  small file for the DA/EN language toggle (`wwwroot/js/lang-toggle.js`,
-  see §6) - everything else is server-rendered Razor and plain HTML forms.
+  (`wwwroot/css/site.css`); JavaScript is four small, single-purpose files
+  under `wwwroot/js/` - `lang-toggle.js` (the DA/EN swap, see §6),
+  `confirm-delete.js` (delegated `confirm()` dialogs, see §9),
+  `print-button.js` (the Print button, see §7), and `check-email.js` (polls
+  for the "check your email" login flow, see §4) - everything else is
+  server-rendered Razor and plain HTML forms.
 - **MailKit** for real SMTP email (see §8).
+- **QuestPDF** (Community licence) for the server-generated PDF downloads
+  on `/Foderliste` and `/PasningsguideHurtig` (see §7).
 - **xUnit** for tests, in a separate `marsvin-web.Tests` project, with two
   distinct testing strategies (see §10).
 
@@ -35,7 +40,8 @@ marsvin-web/
                       IsSafeLocalUrl, shared across every page model that needs them
   Data/             - IXxxStore interfaces, SqlXxxStore implementations, DbInitializer, email
   Models/           - plain C# classes/enums the stores read and write (Animal, Order, Shift, ...)
-  wwwroot/          - site.css, lang-toggle.js, confirm-delete.js, favicon.svg - static files served as-is
+  wwwroot/          - site.css, favicon.svg, and js/ (lang-toggle.js, confirm-delete.js,
+                      print-button.js, check-email.js) - static files served as-is
   Program.cs        - composition root: DI registrations, middleware pipeline, startup
   appsettings.json  - connection string, SMTP host/port (not credentials - see below), base URL
   DATABASE-NOTES.txt / DATABASE-ARCHITECTURE.md / WEBSITE-ARCHITECTURE.md - project docs
@@ -169,6 +175,15 @@ end to end:
 3. If the token is missing, wrong, expired, or already used,
    `ConfirmLogin.cshtml` just shows "log in again" - no session is created.
 
+Confirming the link typically happens in a *different* browser tab (the one
+the email client opened it in) than the "we sent you a link" tab the user
+was left on. `wwwroot/js/check-email.js` closes that gap: since cookies are
+shared across tabs of the same browser, it polls `/Account/Profile` with
+`redirect: 'manual'` every couple of seconds from the `CheckEmail` tab, and
+auto-navigates once that fetch comes back authenticated - i.e. once some
+other tab has confirmed the link - instead of leaving the user stuck on a
+"check your email" page that never updates itself.
+
 This means a correct password is necessary but not sufficient - proof of
 access to the account's own inbox is also required, every single time,
 regardless of role. Five wrong password attempts within a short window
@@ -296,13 +311,14 @@ localisation resource file. The mechanism, end to end:
    ```html
    <h2 data-en="Staff area">Personale</h2>
    ```
-2. `wwwroot/js/lang-toggle.js` (the *only* JS file in the project) finds
-   every `[data-en]` element on `DOMContentLoaded`, remembers the original
-   Danish text, and swaps `textContent` between the two based on a
-   `localStorage` preference - toggled by the `EN`/`DA` button in the
-   header. `data-en-aria-label`, `data-en-alt`, and `data-en-placeholder`
-   do the same for `aria-label`/`alt`/`placeholder` attributes that aren't
-   visible text.
+2. `wwwroot/js/lang-toggle.js` finds every `[data-en]` element on
+   `DOMContentLoaded`, remembers the original Danish text, and swaps
+   `textContent` between the two based on a `localStorage` preference -
+   toggled by the `EN`/`DA` button in the header. `data-en-aria-label`,
+   `data-en-alt`, `data-en-placeholder`, and `data-en-href` do the same for
+   `aria-label`/`alt`/`placeholder`/`href` attributes that aren't visible
+   text - `data-en-href` is what lets the food list's and quick guide's
+   "Download PDF" link point at the Danish or English PDF (see §7).
 3. The `<title>` tag participates in the exact same generic `[data-en]`
    mechanism: every page sets both `ViewData["Title"]` (Danish) and
    `ViewData["TitleEn"]` (English) in its `@{ }` block, and
