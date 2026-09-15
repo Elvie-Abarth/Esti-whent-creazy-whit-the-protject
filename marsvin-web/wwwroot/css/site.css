@@ -764,10 +764,14 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 /* ------------------------------ food list ------------------------- */
 /* --safe/--moderate/--never tint the same .callout box used elsewhere on
    this page - equal specificity to the base .callout border-left, so
-   source order (these rules come after it) is what makes the colour win. */
-.food-callout--safe { border-left-color: var(--grass); }
-.food-callout--moderate { border-left-color: var(--bark); }
-.food-callout--never { border-left-color: #7A1F3D; }
+   source order (these rules come after it) is what makes the colour win.
+   Wider than the base 3px .callout stripe, plus a faint matching wash
+   across the whole box, since a thin edge in muted, similarly-dark
+   earthy tones (especially --bark) was hard to tell apart at a glance. */
+.food-callout { border-left-width: 7px; }
+.food-callout--safe { border-left-color: var(--grass); background: #EFF4E6; }
+.food-callout--moderate { border-left-color: #C1791A; background: #FBF1DE; }
+.food-callout--never { border-left-color: #7A1F3D; background: #FBEAEE; }
 
 /* Beats .guide-article .callout ul's bullet-list styling above (equal
    class count, but that selector also matches on the `ul` element, which
