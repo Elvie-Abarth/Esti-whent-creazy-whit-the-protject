@@ -38,6 +38,15 @@
             el.setAttribute("placeholder", lang === "en" ? el.dataset.enPlaceholder : el.dataset.daPlaceholder);
         });
 
+        // e.g. the food list's "download PDF" link, where DA/EN needs a
+        // different file from the server rather than just different text.
+        document.querySelectorAll("[data-en-href]").forEach(function (el) {
+            if (el.dataset.daHref === undefined) {
+                el.dataset.daHref = el.getAttribute("href") || "";
+            }
+            el.setAttribute("href", lang === "en" ? el.dataset.enHref : el.dataset.daHref);
+        });
+
         var toggle = document.getElementById("lang-toggle");
         if (toggle) {
             toggle.textContent = lang === "en" ? "DA" : "EN";

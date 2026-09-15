@@ -2,6 +2,12 @@ using System.Threading.RateLimiting;
 using MarsvinWebExample.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
+using QuestPDF.Infrastructure;
+
+// Community licence: free for this kind of project (small team, not
+// generating revenue) - required by QuestPDF before GeneratePdf() will run.
+// See Data/FoodListPdfDocument.cs, used by the /Foderliste/Pdf download.
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
