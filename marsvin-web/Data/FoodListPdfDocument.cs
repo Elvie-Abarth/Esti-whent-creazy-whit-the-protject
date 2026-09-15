@@ -66,7 +66,7 @@ public sealed class FoodListPdfDocument(bool english) : IDocument
         });
     }
 
-    private void RenderSection(ColumnDescriptor column, FoodListSection section)
+    private void RenderSection(ColumnDescriptor column, GuideListSection section)
     {
         var (accent, tint) = section.Tier switch
         {
@@ -89,7 +89,7 @@ public sealed class FoodListPdfDocument(bool english) : IDocument
 
     // Two columns, filled left-to-right row by row - the same order the
     // site's CSS grid (grid-auto-flow: row, the default) lays these out in.
-    private void RenderItemGrid(IContainer container, IReadOnlyList<FoodListItem> items)
+    private void RenderItemGrid(IContainer container, IReadOnlyList<GuideListItem> items)
     {
         container.Column(col =>
         {
@@ -107,7 +107,7 @@ public sealed class FoodListPdfDocument(bool english) : IDocument
         });
     }
 
-    private void RenderItem(IContainer container, FoodListItem item)
+    private void RenderItem(IContainer container, GuideListItem item)
     {
         container.Column(col =>
         {

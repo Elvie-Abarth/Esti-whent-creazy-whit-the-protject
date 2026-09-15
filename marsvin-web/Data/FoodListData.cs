@@ -4,7 +4,7 @@ namespace MarsvinWebExample.Data;
 
 // Mirrors the content of Pages/Foderliste.cshtml for FoodListPdfDocument.
 // Keep this in sync by hand when that page's lists change - see the note on
-// FoodListItem/FoodListSection for why it isn't the other way around.
+// GuideListItem/GuideListSection for why it isn't the other way around.
 public static class FoodListData
 {
     public const string TitleDa = "Marsvins foderliste";
@@ -20,7 +20,7 @@ public static class FoodListData
          "Covers vegetables, fruit, and — since guinea pig owners often pick greens straight from the garden — the weeds, flowers, and hedge plants that come up most often as either a good find or a real risk."),
     ];
 
-    public static readonly IReadOnlyList<FoodListSection> FoodSections =
+    public static readonly IReadOnlyList<GuideListSection> FoodSections =
     [
         new("Sikkert, hver dag", "Safe, every day", "safe",
         [
@@ -94,7 +94,7 @@ public static class FoodListData
         "Mange marsvineejere plukker grønt til deres marsvin direkte fra haven. Kun fra et sted du ved ikke er sprøjtet, og aldrig fra vejkanten - samme regel som mælkebøtten ovenfor.",
         "Many owners pick greens for their guinea pigs straight from the garden. Only from a patch you know hasn't been sprayed, and never from the roadside - the same rule as the dandelion above.");
 
-    public static readonly IReadOnlyList<FoodListSection> GardenSections =
+    public static readonly IReadOnlyList<GuideListSection> GardenSections =
     [
         new("Sikkert", "Safe", "safe",
         [
