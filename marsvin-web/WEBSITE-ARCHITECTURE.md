@@ -22,9 +22,9 @@ see `DATABASE-NOTES.txt`.
   (`wwwroot/css/site.css`); the only JavaScript in the whole site is one
   small file for the DA/EN language toggle (`wwwroot/js/lang-toggle.js`,
   see §6) - everything else is server-rendered Razor and plain HTML forms.
-- **MailKit** for real SMTP email (see §7).
+- **MailKit** for real SMTP email (see §8).
 - **xUnit** for tests, in a separate `marsvin-web.Tests` project, with two
-  distinct testing strategies (see §9).
+  distinct testing strategies (see §10).
 
 ## 2. Project layout
 
@@ -314,7 +314,72 @@ No page is ever served twice for the two languages, and nothing here needs
 a round-trip to the server to switch - it's a pure client-side text
 substitution, remembered per browser via `localStorage`.
 
-## 7. Email notifications
+## 7. PDF downloads
+
+`/Foderliste` and `/PasningsguideHurtig` each offer two separate actions,
+split because they do genuinely different things:
+
+- **Print** (`data-print`, handled by `wwwroot/js/print-button.js`) just
+  calls `window.print()` - the browser's own print dialog, for an actual
+  paper copy (or whatever "save as PDF" the browser's Destination dropdown
+  happens to offer, which varies by browser/OS and isn't something the site
+  controls).
+- **Download PDF** is a real, server-generated PDF (selectable text, not a
+  screenshot) built with QuestPDF (Community licence, set once via
+  `QuestPDF.Settings.License` in `Program.cs`). No dialog, no browser
+  dependency.
+
+The content for each PDF is *not* rendered from the page's own Razor
+markup - it's a hand-maintained mirror in `Data/FoodListData.cs` /
+`Data/QuickGuideData.cs` (both typed as `GuideListItem`/`GuideListSection`,
+`Models/GuideListSection.cs`), consumed by `Data/FoodListPdfDocument.cs` /
+`Data/QuickGuidePdfDocument.cs`. The two pages existed first and had been
+through several rounds of review, so mirroring them was lower-risk than
+making them data-driven - the tradeoff is these have to be kept in sync by
+hand when either page's content changes.
+
+The download link's `href` swaps between the Danish and English PDF using
+the same `data-en-*` pattern §6 describes for `aria-label`/`alt`/
+`placeholder`, extended in `lang-toggle.js` to cover `data-en-href`:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant B as Browser
+    participant L as lang-toggle.js
+    participant S as Server (Razor Pages)
+    participant M as FoderlistePdfModel
+    participant D as FoodListPdfDocument
+    participant Q as QuestPDF
+
+    U->>B: Opens /Foderliste
+    B->>L: DOMContentLoaded
+    L->>L: Read localStorage "marsvin-lang"
+    L->>B: Set Download PDF link href<br/>(/Foderliste/Pdf?en=false|true)
+
+    U->>B: Clicks "EN" toggle (optional)
+    B->>L: click event
+    L->>B: Update href to ?en=true
+
+    U->>B: Clicks "Download PDF"
+    B->>S: GET /Foderliste/Pdf?en=true
+    S->>M: OnGet(en: true)
+    M->>D: new FoodListPdfDocument(true)
+    M->>D: GeneratePdf()
+    D->>D: Read FoodListData (static content)
+    D->>Q: Compose(container)
+    Q-->>D: byte[] pdfBytes
+    D-->>M: pdfBytes
+    M-->>S: File(pdfBytes, "application/pdf",<br/>"guinea-pig-food-list.pdf")
+    S-->>B: 200 OK<br/>Content-Disposition: attachment
+    B-->>U: Downloads guinea-pig-food-list.pdf
+```
+
+`PasningsguideHurtig` follows the identical shape through
+`PasningsguideHurtigPdfModel` / `QuickGuidePdfDocument` / `QuickGuideData`.
+Both endpoints are public - no auth needed, matching the pages themselves.
+
+## 8. Email notifications
 
 These trigger a real email (`IEmailSender` -> `SmtpEmailSender`, MailKit,
 Gmail SMTP, or `LoggingEmailSender` if no credentials are configured - see
@@ -334,7 +399,7 @@ All of these share the same `IEmailSender.SendAsync(toEmail, subject, body)`
 shape - plain-text email, no HTML templates, no queue (sent synchronously,
 inline in the request/background-job that triggered it).
 
-## 8. Security practices (a summary - see the code comments for the "why")
+## 9. Security practices (a summary - see the code comments for the "why")
 
 - **SQL injection**: every query is parameterised, no exceptions -
   see `DATABASE-ARCHITECTURE.md` §5.
@@ -344,7 +409,7 @@ inline in the request/background-job that triggered it).
   (`PendingLogins.TokenHash`) - the raw token exists only in the email.
 - **CSRF**: Razor Pages' built-in antiforgery token on every form
   (`asp-validation-summary`/form tag helpers wire it in automatically) -
-  the end-to-end HTTP tests (§9) specifically verify a request without a
+  the end-to-end HTTP tests (§10) specifically verify a request without a
   valid token is rejected.
 - **IDOR (Insecure Direct Object Reference)**: anywhere a request carries
   an ID for something owned by a user (an order to reorder, for instance),
@@ -358,7 +423,7 @@ inline in the request/background-job that triggered it).
   ever being used in a redirect - a plain `static` method rather than
   `PageModel.Url.IsLocalUrl`, because the latter needs framework services
   that aren't available when a PageModel is constructed directly in a unit
-  test (see §9).
+  test (see §10).
 - **Self-protection on staff management**: an Admin can't change their own
   role, deactivate, or delete themselves from `/Admin/Users`; the *last*
   active Admin account can't be demoted, deactivated, or deleted by anyone,
@@ -394,7 +459,7 @@ inline in the request/background-job that triggered it).
   did it and when (`/Admin/AuditLog`, `IAuditLogStore`) - the
   accountability half of the role-based access control described above.
 
-## 9. Testing - two layers
+## 10. Testing - two layers
 
 ### Layer 1: direct `PageModel`/store unit tests
 
@@ -447,7 +512,7 @@ Together, the two layers cover both ends: layer 1 checks the *logic* is
 right in isolation and cheaply, layer 2 checks the *whole request actually
 behaves correctly* when nothing is mocked or bypassed.
 
-## 10. Frontend conventions (`wwwroot/css/site.css`)
+## 11. Frontend conventions (`wwwroot/css/site.css`)
 
 A few reusable patterns worth knowing before touching a page's markup:
 
@@ -472,7 +537,7 @@ A few reusable patterns worth knowing before touching a page's markup:
 - **`[data-en]` / `[data-en-aria-label]` / `[data-en-alt]` /
   `[data-en-placeholder]`** - see §6.
 - **`data-confirm`** - not a styling hook, but worth knowing alongside the
-  above: read by `confirm-delete.js` (see §8) to show a `confirm()` dialog
+  above: read by `confirm-delete.js` (see §9) to show a `confirm()` dialog
   before a destructive form submits, without ever building that dialog's
   text as an interpolated JavaScript string.
 
