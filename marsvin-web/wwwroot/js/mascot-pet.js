@@ -10,29 +10,64 @@
     // asset to fetch (nothing for the CSP to worry about either), and it's
     // only ever built inside a real click handler, so the "audio needs a
     // user gesture first" browser restriction is already satisfied.
+    //
+    // A single clean oscillator reads as a video-game blip, not an animal -
+    // a real guinea pig "wheek" has a breathy, rasped quality on top of the
+    // rising pitch. Band-pass-filtered white noise gives that rasp; a faint
+    // sine underneath gives the pitch some body without the whole thing
+    // sounding like a synth tone on its own.
     function playSqueak() {
         var Ctx = window.AudioContext || window.webkitAudioContext;
         if (!Ctx) return;
 
         try {
             var ctx = new Ctx();
-            var osc = ctx.createOscillator();
-            var gain = ctx.createGain();
+            var now = ctx.currentTime;
+            var duration = 0.18;
 
-            osc.type = "sawtooth";
-            osc.frequency.setValueAtTime(650, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.08);
-            osc.frequency.exponentialRampToValueAtTime(550, ctx.currentTime + 0.22);
+            var bufferSize = Math.ceil(ctx.sampleRate * duration);
+            var noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            var data = noiseBuffer.getChannelData(0);
+            for (var i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
-            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+            var noise = ctx.createBufferSource();
+            noise.buffer = noiseBuffer;
 
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.25);
-            osc.onended = function () {
+            var filter = ctx.createBiquadFilter();
+            filter.type = "bandpass";
+            filter.Q.value = 5;
+            filter.frequency.setValueAtTime(900, now);
+            filter.frequency.exponentialRampToValueAtTime(2200, now + duration * 0.45);
+            filter.frequency.exponentialRampToValueAtTime(1100, now + duration);
+
+            var noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.0001, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.3, now + 0.015);
+            noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+            noise.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+
+            var tone = ctx.createOscillator();
+            tone.type = "sine";
+            tone.frequency.setValueAtTime(900, now);
+            tone.frequency.exponentialRampToValueAtTime(2000, now + duration * 0.45);
+            tone.frequency.exponentialRampToValueAtTime(1000, now + duration);
+
+            var toneGain = ctx.createGain();
+            toneGain.gain.setValueAtTime(0.0001, now);
+            toneGain.gain.exponentialRampToValueAtTime(0.07, now + 0.015);
+            toneGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+            tone.connect(toneGain);
+            toneGain.connect(ctx.destination);
+
+            noise.start(now);
+            noise.stop(now + duration);
+            tone.start(now);
+            tone.stop(now + duration);
+            tone.onended = function () {
                 ctx.close();
             };
         } catch (e) {
