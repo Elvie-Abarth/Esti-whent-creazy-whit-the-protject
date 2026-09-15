@@ -28,14 +28,15 @@ Open <http://localhost:5080>. Press Ctrl+C to stop.
 
 On first run this automatically creates a `MarsvinDb` database on
 `(localdb)\MSSQLLocalDB`, runs the schema, and seeds it with demo data — see
-`marsvin-web/DATABASE-NOTES.txt` for where the files live, how to browse the
-database, and how to recover if LocalDB gets disconnected.
+`marsvin-web/DocumentationInformation/DATABASE-NOTES.txt` for where the files
+live, how to browse the database, and how to recover if LocalDB gets
+disconnected.
 
 Login here is email-confirmation-only (see below) — without real SMTP
 credentials configured, confirmation links are logged to the console instead
 of emailed, so the app is fully usable out of the box. To send real mail, set
 `dotnet user-secrets set Email:Username ...` / `Email:Password ...` from the
-`marsvin-web` folder (see `DATABASE-NOTES.txt`).
+`marsvin-web` folder (see `DocumentationInformation/DATABASE-NOTES.txt`).
 
 You need the **.NET 9 SDK**, for VS Code the **C# Dev Kit** extension, and
 **SQL Server LocalDB** (ships with Visual Studio, or install separately).
@@ -103,7 +104,7 @@ to Danish and switches to English client-side, remembering the choice per
 browser.
 
 Demo login credentials (seeded once, on a fresh database — see
-`marsvin-web/DATABASE-NOTES.txt`):
+`marsvin-web/DocumentationInformation/DATABASE-NOTES.txt`):
 
 ```
 Admin:    admin@marsvin.dk     / Admin123!
@@ -224,3 +225,15 @@ stays as the fallback for every animal that doesn't have one yet.
 
 Responsive down to mobile, visible keyboard focus, and `prefers-reduced-motion`
 respected.
+
+## More documentation
+
+Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
+
+- **`DATABASE-NOTES.txt`** — operational how-tos: starting the project,
+  demo credentials, where the LocalDB files live, resetting the database.
+- **`DATABASE-ARCHITECTURE.md`** — the data layer: schema-as-code, the
+  store pattern, transactions/locking, seeding.
+- **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,
+  auth flow, site map, the bilingual DA/EN system, security practices,
+  testing strategy.

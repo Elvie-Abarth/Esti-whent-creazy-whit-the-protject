@@ -6,7 +6,8 @@ was seeded (6 animals, 12 accessories, 18 products total).
 
 You do NOT need this file to run the project - "dotnet run" recreates and
 reseeds the database automatically every time (see ../schema.sql and
-../../DbInitializer.cs, and marsvin-web/DATABASE-NOTES.txt). This backup is
+../../DbInitializer.cs, and
+marsvin-web/DocumentationInformation/DATABASE-NOTES.txt). This backup is
 here as a point-in-time snapshot you can restore directly, e.g. to inspect
 the data without running the app, or to hand the database to someone else
 as a single file.

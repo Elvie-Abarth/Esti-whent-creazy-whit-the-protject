@@ -11,7 +11,7 @@ public sealed class LoggingEmailSender(ILogger<LoggingEmailSender> logger) : IEm
     public Task SendAsync(string toEmail, string subject, string body)
     {
         logger.LogWarning(
-            "No SMTP credentials configured (see DATABASE-NOTES.txt) - " +
+            "No SMTP credentials configured (see DocumentationInformation/DATABASE-NOTES.txt) - " +
             "logging this email instead of sending it.\nTo: {ToEmail}\nSubject: {Subject}\n{Body}",
             toEmail, subject, body);
         return Task.CompletedTask;
