@@ -496,20 +496,32 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .footer-nav a:hover { color: var(--paper); }
 
 /* A little mascot pacing back and forth under the "not a real business"
-   line - purely decorative (aria-hidden), so the walk/waddle animations
-   below are safe to drop entirely: the global prefers-reduced-motion rule
-   at the top of this file already cancels them, leaving the guinea pig
-   sitting still in its resting pose rather than mid-stride. */
+   line - the walk/waddle/heart animations below are all safe to drop
+   entirely under prefers-reduced-motion: the global rule at the top of
+   this file already cancels them (leaving the guinea pig sitting still in
+   its resting pose, and a click just doing nothing visible), so nothing
+   extra is needed here for that. */
 .footer-mascot-lane {
-    width: 120px;
-    height: 46px;
+    width: 200px;
+    height: 90px;
     margin-top: 1.1rem;
     overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+}
+.footer-mascot-button {
+    display: block;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: relative;
 }
 .footer-mascot {
     width: 56px;
     height: auto;
-    animation: footer-mascot-walk 7s ease-in-out infinite;
+    display: block;
+    animation: footer-mascot-walk 15s ease-in-out infinite;
 }
 .footer-mascot-body {
     transform-origin: 50% 100%;
@@ -519,16 +531,40 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     /* The drawing's head/eye/ear sit on its left side (same as the header
        .brand mark this is copied from) - so it faces left at rest, and
        needs scaleX(-1) to face (and lead with its nose into) the direction
-       it's actually moving while walking right. */
+       it's actually moving while walking right. The walk itself is longer
+       going back left (130px) than the lane's own resting width, so it
+       reads as a proper stroll rather than a quick shuffle. */
     0%   { transform: translateX(0) scaleX(-1); }
-    45%  { transform: translateX(58px) scaleX(-1); }
-    50%  { transform: translateX(58px) scaleX(1); }
+    45%  { transform: translateX(130px) scaleX(-1); }
+    50%  { transform: translateX(130px) scaleX(1); }
     95%  { transform: translateX(0) scaleX(1); }
     100% { transform: translateX(0) scaleX(-1); }
 }
 @keyframes footer-mascot-waddle {
     0%, 100% { transform: translateY(0) rotate(-3deg); }
     50%      { transform: translateY(-1.5px) rotate(3deg); }
+}
+
+/* Clicking/tapping pops a heart above the mascot - see wwwroot/js/mascot-pet.js
+   for the delegated click listener (inline onclick="" is CSP-blocked). */
+.footer-mascot-heart {
+    position: absolute;
+    top: -6px;
+    left: 18px;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--fleece);
+    opacity: 0;
+    pointer-events: none;
+}
+.footer-mascot-heart--pop {
+    animation: footer-mascot-heart-pop 0.9s ease-out;
+}
+@keyframes footer-mascot-heart-pop {
+    0%   { opacity: 0; transform: translateY(0) scale(0.6); }
+    15%  { opacity: 1; transform: translateY(-6px) scale(1.15); }
+    30%  { opacity: 1; transform: translateY(-10px) scale(1); }
+    100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
 }
 
 .footer-copyright {
