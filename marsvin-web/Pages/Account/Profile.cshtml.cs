@@ -119,8 +119,17 @@ public class ProfileModel(
             return RedirectToPage();
         }
 
+        // Danish and English name lists tracked in parallel (not just one
+        // list re-used for both toast halves) - an animal's name has no
+        // English form to fall back to (it's a proper noun, same in both
+        // languages), but an accessory's does, and re-using item.ProductName
+        // (always the Danish snapshot) for the English half was exactly the
+        // bug that showed a Danish product name inside an otherwise-English
+        // "added to the cart" toast.
         var added = new List<string>();
+        var addedEn = new List<string>();
         var skipped = new List<string>();
+        var skippedEn = new List<string>();
         var currentLines = cart.GetLines(this.CurrentUserId());
 
         foreach (var item in order.Items)
@@ -136,8 +145,11 @@ public class ProfileModel(
             if (product is not StockProduct stockProduct)
             {
                 skipped.Add(item.ProductName);
+                skippedEn.Add(item.ProductName);
                 continue;
             }
+
+            var nameEn = stockProduct.NameEn ?? stockProduct.Name;
 
             // Same reasoning as Cart/Index.OnPostAdd: checked against what's
             // already in the cart plus what's being re-added, not the
@@ -146,24 +158,26 @@ public class ProfileModel(
             if (!stockProduct.CanBeAddedToCart(alreadyInCart + item.Quantity))
             {
                 skipped.Add(item.ProductName);
+                skippedEn.Add(nameEn);
                 continue;
             }
 
             cart.AddOrIncrement(this.CurrentUserId(), item.ProductId, item.Quantity);
             added.Add(item.ProductName);
+            addedEn.Add(nameEn);
         }
 
         if (added.Count > 0)
         {
             ToastMessage = new Bilingual(
                 $"{string.Join(", ", added)} lagt i kurven.",
-                $"{string.Join(", ", added)} added to the cart.");
+                $"{string.Join(", ", addedEn)} added to the cart.");
         }
         if (skipped.Count > 0)
         {
             ErrorMessage = new Bilingual(
                 $"Kunne ikke tilføjes igen: {string.Join(", ", skipped)}.",
-                $"Couldn't be added again: {string.Join(", ", skipped)}.");
+                $"Couldn't be added again: {string.Join(", ", skippedEn)}.");
         }
 
         return RedirectToPage();

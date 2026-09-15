@@ -281,7 +281,7 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
     {
         using var command = new SqlCommand(
             """
-            SELECT c.ProductId, c.Quantity, p.Name, p.Price,
+            SELECT c.ProductId, c.Quantity, p.Name, p.NameEn, p.Price,
                    CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal
             FROM dbo.CartItems c
             JOIN dbo.Products p ON p.ProductId = c.ProductId
@@ -294,10 +294,12 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            var nameEnOrdinal = reader.GetOrdinal("NameEn");
             lines.Add(new CartLine
             {
                 ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
                 ProductName = reader.GetString(reader.GetOrdinal("Name")),
+                ProductNameEn = reader.IsDBNull(nameEnOrdinal) ? null : reader.GetString(nameEnOrdinal),
                 UnitPrice = reader.GetDecimal(reader.GetOrdinal("Price")),
                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
                 IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1
@@ -351,13 +353,14 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             command.Parameters.AddWithValue("@ProductId", line.ProductId);
 
             var stock = (int?)command.ExecuteScalar();
+            var nameEn = line.ProductNameEn ?? line.ProductName;
             if (stock is null)
-                return new Bilingual($"{line.ProductName} findes ikke længere.", $"{line.ProductName} doesn't exist anymore.");
+                return new Bilingual($"{line.ProductName} findes ikke længere.", $"{nameEn} doesn't exist anymore.");
             if (stock < line.Quantity)
             {
                 return new Bilingual(
                     $"Der er ikke {line.Quantity} styk tilbage af {line.ProductName}.",
-                    $"There aren't {line.Quantity} left of {line.ProductName}.");
+                    $"There aren't {line.Quantity} left of {nameEn}.");
             }
 
             return null;

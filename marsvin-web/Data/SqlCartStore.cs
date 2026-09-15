@@ -10,7 +10,7 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
         using var connection = Open();
         using var command = new SqlCommand(
             """
-            SELECT c.ProductId, c.Quantity, p.Name, p.Price,
+            SELECT c.ProductId, c.Quantity, p.Name, p.NameEn, p.Price,
                    CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal
             FROM dbo.CartItems c
             JOIN dbo.Products p ON p.ProductId = c.ProductId
@@ -24,10 +24,12 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            var nameEnOrdinal = reader.GetOrdinal("NameEn");
             lines.Add(new CartLine
             {
                 ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
                 ProductName = reader.GetString(reader.GetOrdinal("Name")),
+                ProductNameEn = reader.IsDBNull(nameEnOrdinal) ? null : reader.GetString(nameEnOrdinal),
                 UnitPrice = reader.GetDecimal(reader.GetOrdinal("Price")),
                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
                 IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1

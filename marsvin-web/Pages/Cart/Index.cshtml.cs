@@ -76,12 +76,14 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         {
             ErrorMessage = new Bilingual(
                 $"Der er ikke {quantity} styk tilbage af {product.Name}.",
-                $"There aren't {quantity} left of {product.Name}.");
+                $"There aren't {quantity} left of {product.NameEn ?? product.Name}.");
             return RedirectAfterAdd(returnUrl);
         }
 
         cart.AddOrIncrement(this.CurrentUserId(), productId, quantity);
-        ToastMessage = new Bilingual($"{product.Name} er lagt i kurven.", $"{product.Name} has been added to the cart.");
+        ToastMessage = new Bilingual(
+            $"{product.Name} er lagt i kurven.",
+            $"{product.NameEn ?? product.Name} has been added to the cart.");
         return RedirectAfterAdd(returnUrl);
     }
 
@@ -128,7 +130,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         {
             ErrorMessage = new Bilingual(
                 $"Der er ikke {quantity} styk tilbage af {product.Name}.",
-                $"There aren't {quantity} left of {product.Name}.");
+                $"There aren't {quantity} left of {product.NameEn ?? product.Name}.");
             return RedirectToPage();
         }
 
