@@ -515,13 +515,20 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     border: none;
     background: none;
     cursor: pointer;
+}
+/* The heart lives inside this walker, not the button - it has to ride
+   along with the same translateX/scaleX the mascot walks with, or it just
+   sits fixed at the button's own (unmoving) resting spot while the pig
+   walks off underneath it. */
+.footer-mascot-walker {
+    display: block;
     position: relative;
+    animation: footer-mascot-walk 15s ease-in-out infinite;
 }
 .footer-mascot {
     width: 56px;
     height: auto;
     display: block;
-    animation: footer-mascot-walk 15s ease-in-out infinite;
 }
 .footer-mascot-body {
     transform-origin: 50% 100%;
