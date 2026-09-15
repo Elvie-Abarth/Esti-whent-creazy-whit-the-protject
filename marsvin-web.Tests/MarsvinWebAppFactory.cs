@@ -16,6 +16,14 @@ namespace MarsvinWebExample.Tests;
 /// environment variable is the one override that's already loaded into
 /// configuration the moment WebApplication.CreateBuilder(args) runs, so
 /// that's what's used here instead.
+///
+/// Email:Username gets the same treatment, forced to empty here regardless
+/// of what's in the developer's own user-secrets (set there to send real
+/// mail when running the app by hand) - otherwise every test that goes
+/// through Login/Register/checkout would send a real email through those
+/// same credentials on every test run, dozens of times over. Empty makes
+/// Program.cs's own IsNullOrWhiteSpace check pick LoggingEmailSender, the
+/// same as a machine with no SMTP configured at all.
 /// </summary>
 public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
 {
@@ -25,6 +33,7 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
     public MarsvinWebAppFactory()
     {
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", ConnectionString);
+        Environment.SetEnvironmentVariable("Email__Username", "");
     }
 
     protected override void Dispose(bool disposing)
@@ -33,6 +42,7 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
         if (!disposing) return;
 
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", null);
+        Environment.SetEnvironmentVariable("Email__Username", null);
 
         SqlConnection.ClearAllPools();
         using var connection = new SqlConnection("Server=(localdb)\\MSSQLLocalDB;Trusted_Connection=True;TrustServerCertificate=True;");
