@@ -39,11 +39,20 @@ public class ProfileModel(
 
     public IReadOnlyList<TimeOffRequest> MyTimeOffRequests { get; private set; } = [];
 
+    public bool TotpEnabled { get; private set; }
+
     public void OnGet()
     {
         var user = users.FindById(this.CurrentUserId())!;
         Input.DisplayName = user.DisplayName;
         Input.Email = user.Email;
+
+        TotpEnabled = user.TotpEnabled;
+        if (user.TotpSecret is not null && !user.TotpEnabled)
+        {
+            PendingTotpSecret = user.TotpSecret;
+            PendingTotpUri = Totp.BuildOtpAuthUri(user.TotpSecret, user.Email);
+        }
 
         if (User.IsInRole("Customer"))
         {
@@ -78,7 +87,10 @@ public class ProfileModel(
             return Page();
         }
 
+        var originalEmail = user.Email;
         var email = Input.Email.Trim().ToLowerInvariant();
+        var emailChanged = !string.Equals(originalEmail, email, StringComparison.OrdinalIgnoreCase);
+
         var updated = users.UpdateProfile(this.CurrentUserId(), Input.DisplayName.Trim(), email);
         if (!updated)
         {
@@ -86,9 +98,43 @@ public class ProfileModel(
             return Page();
         }
 
-        if (!string.IsNullOrEmpty(Input.NewPassword))
+        var passwordChanged = !string.IsNullOrEmpty(Input.NewPassword);
+        if (passwordChanged)
         {
-            users.UpdatePassword(this.CurrentUserId(), hasher.HashPassword(user, Input.NewPassword));
+            users.UpdatePassword(this.CurrentUserId(), hasher.HashPassword(user, Input.NewPassword!));
+        }
+
+        // ASVS 2.5.5 - notify on every auth-factor change. The email address
+        // goes to the *old* inbox (the one place still guaranteed to reach
+        // the real owner if this wasn't them), the password one to whatever
+        // address is on record now.
+        if (emailChanged)
+        {
+            await emailSender.SendAsync(originalEmail, "Din e-mail er ændret på Marsvin",
+                $"""
+                Hej {user.DisplayName},
+
+                Din konto-e-mail er ændret fra {originalEmail} til {email}.
+
+                Var det ikke dig, så kontakt os med det samme via kontaktoplysningerne på hjemmesiden.
+
+                Venlig hilsen
+                Marsvin
+                """);
+        }
+        if (passwordChanged)
+        {
+            await emailSender.SendAsync(email, "Din adgangskode er ændret på Marsvin",
+                $"""
+                Hej {user.DisplayName},
+
+                Din adgangskode er lige blevet ændret.
+
+                Var det ikke dig, så nulstil din adgangskode med det samme og kontakt os via kontaktoplysningerne på hjemmesiden.
+
+                Venlig hilsen
+                Marsvin
+                """);
         }
 
         // The auth cookie's claims (name, email) were fixed at login - refresh
@@ -98,6 +144,54 @@ public class ProfileModel(
         await this.SignInAsync(refreshed);
 
         ToastMessage = new Bilingual("Dine oplysninger er opdateret.", "Your details have been updated.");
+        return RedirectToPage();
+    }
+
+    // ------------------------------ TOTP (2FA) ------------------------------
+    // Real MitID isn't reachable for a local demo (it needs a registered,
+    // certified Danish service provider agreement) - this is a self-built
+    // RFC 6238 stand-in, the same standard behind Google/Microsoft
+    // Authenticator, so it's a real second factor rather than a mock.
+
+    // Set whenever the account has a secret stored but not yet confirmed
+    // (TotpSecret set, TotpEnabled still false) - the view shows the manual-
+    // entry setup form only in that state.
+    public string? PendingTotpSecret { get; private set; }
+    public string? PendingTotpUri { get; private set; }
+
+    public IActionResult OnPostStartTotpEnrollment()
+    {
+        var secret = Totp.GenerateSecret();
+        users.SetTotpSecret(this.CurrentUserId(), secret);
+        return RedirectToPage();
+    }
+
+    public IActionResult OnPostConfirmTotp(string code)
+    {
+        var user = users.FindById(this.CurrentUserId())!;
+        if (user.TotpSecret is null || !Totp.ValidateCode(user.TotpSecret, code))
+        {
+            ErrorMessage = new Bilingual("Forkert kode - prøv igen.", "Wrong code - try again.");
+            return RedirectToPage();
+        }
+
+        users.SetTotpEnabled(this.CurrentUserId(), true);
+        ToastMessage = new Bilingual("2FA er nu aktiveret på din konto.", "2FA is now enabled on your account.");
+        return RedirectToPage();
+    }
+
+    public IActionResult OnPostDisableTotp(string currentPassword)
+    {
+        var user = users.FindById(this.CurrentUserId())!;
+        var hasher = new PasswordHasher<ApplicationUser>();
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword) == PasswordVerificationResult.Failed)
+        {
+            ErrorMessage = new Bilingual("Forkert adgangskode - 2FA blev ikke deaktiveret.", "Wrong password - 2FA wasn't disabled.");
+            return RedirectToPage();
+        }
+
+        users.SetTotpSecret(this.CurrentUserId(), null);
+        ToastMessage = new Bilingual("2FA er deaktiveret.", "2FA is disabled.");
         return RedirectToPage();
     }
 

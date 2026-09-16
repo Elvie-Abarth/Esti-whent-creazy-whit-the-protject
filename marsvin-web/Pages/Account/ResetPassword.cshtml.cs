@@ -9,7 +9,8 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace MarsvinWebExample.Pages.Account;
 
 [EnableRateLimiting("auth")]
-public class ResetPasswordModel(IUserAccountStore users, IPendingLoginStore pendingLogins, LoginLockoutTracker lockout)
+public class ResetPasswordModel(
+    IUserAccountStore users, IPendingLoginStore pendingLogins, LoginLockoutTracker lockout, IEmailSender emailSender)
     : PageModel
 {
     [BindProperty]
@@ -29,7 +30,7 @@ public class ResetPasswordModel(IUserAccountStore users, IPendingLoginStore pend
         TokenIsValid = !string.IsNullOrEmpty(token) && pendingLogins.IsValid(token);
     }
 
-    public IActionResult OnPost()
+    public async Task<IActionResult> OnPostAsync()
     {
         TokenIsValid = !string.IsNullOrEmpty(Token) && pendingLogins.IsValid(Token);
         if (!TokenIsValid) return Page();
@@ -53,6 +54,20 @@ public class ResetPasswordModel(IUserAccountStore users, IPendingLoginStore pend
         // The only thing that can lift a RequiresManualReset lockout -
         // choosing a new password here is what that escalation demanded.
         lockout.Clear(user.Email.Trim().ToLowerInvariant());
+
+        // ASVS 2.5.5 - notify on every auth-factor change, this recovery
+        // path included, not just the self-service one on Profile.
+        await emailSender.SendAsync(user.Email, "Din adgangskode er ændret på Marsvin",
+            $"""
+            Hej {user.DisplayName},
+
+            Din adgangskode er lige blevet ændret via "glemt adgangskode".
+
+            Var det ikke dig, så kontakt os med det samme via kontaktoplysningerne på hjemmesiden.
+
+            Venlig hilsen
+            Marsvin
+            """);
 
         ToastMessage = new Bilingual(
             "Din adgangskode er ændret. Log ind med den nye.",

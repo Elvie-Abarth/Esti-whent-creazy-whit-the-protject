@@ -1,0 +1,33 @@
+@page
+@model MarsvinWebExample.Pages.Account.VerifyTotpModel
+@{
+    ViewData["Title"] = "Bekræft med 2FA";
+    ViewData["TitleEn"] = "Verify with 2FA";
+}
+
+<div class="wrap section auth-page">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Enter your authenticator code">Indtast din 2FA-kode</h2>
+            <p data-en="Your password is correct - now enter the 6-digit code from your authenticator app.">
+                Din adgangskode er korrekt - indtast nu den 6-cifrede kode fra din authenticator-app.
+            </p>
+        </div>
+    </div>
+
+    <form method="post" class="auth-form">
+        <div asp-validation-summary="All" class="form-errors"></div>
+        <input type="hidden" asp-for="Token" />
+
+        <label>
+            <span data-en="Code">Kode</span>
+            <input asp-for="Code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" autofocus />
+        </label>
+
+        <button type="submit" class="btn" data-en="Verify">Bekræft</button>
+    </form>
+
+    <p class="auth-switch">
+        <a asp-page="/Account/Login" data-en="Back to login">Tilbage til login</a>
+    </p>
+</div>

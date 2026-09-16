@@ -130,6 +130,16 @@ BEGIN
     ALTER TABLE dbo.Users ADD InactivityWarningStage TINYINT NOT NULL DEFAULT 0;
 END
 
+IF COL_LENGTH('dbo.Users', 'TotpSecret') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD TotpSecret NVARCHAR(64) NULL;
+END
+
+IF COL_LENGTH('dbo.Users', 'TotpEnabled') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD TotpEnabled BIT NOT NULL DEFAULT 0;
+END
+
 IF OBJECT_ID('dbo.PendingLogins', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PendingLogins

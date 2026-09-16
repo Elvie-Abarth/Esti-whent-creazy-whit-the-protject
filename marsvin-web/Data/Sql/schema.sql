@@ -117,6 +117,19 @@ BEGIN
     ALTER TABLE dbo.Users ADD InactivityWarningStage TINYINT NOT NULL DEFAULT 0;
 END
 
+-- TOTP second factor (see Account/Profile, Account/VerifyTotp): TotpSecret is
+-- set as soon as enrollment starts, before TotpEnabled flips to 1 once the
+-- user proves they've actually saved it by entering one valid code.
+IF COL_LENGTH('dbo.Users', 'TotpSecret') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD TotpSecret NVARCHAR(64) NULL;
+END
+
+IF COL_LENGTH('dbo.Users', 'TotpEnabled') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD TotpEnabled BIT NOT NULL DEFAULT 0;
+END
+
 -- Short-lived, single-use tokens for the email login-confirmation step (see
 -- LoginModel/ConfirmLoginModel): only the token's hash is ever stored, the
 -- same way a password never is - a leaked database can't be turned into

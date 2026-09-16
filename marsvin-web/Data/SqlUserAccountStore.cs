@@ -9,7 +9,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled " +
             "FROM dbo.Users WHERE Email = @Email;", connection);
         command.Parameters.AddWithValue("@Email", email);
 
@@ -21,7 +21,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled " +
             "FROM dbo.Users WHERE UserId = @UserId;", connection);
         command.Parameters.AddWithValue("@UserId", userId);
 
@@ -33,7 +33,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled " +
             "FROM dbo.Users ORDER BY UserId;", connection);
 
         var users = new List<ApplicationUser>();
@@ -210,7 +210,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled " +
             "FROM dbo.Users WHERE Role = @CustomerRole AND LastActiveAt <= @LastActiveBefore AND InactivityWarningStage < @Stage;",
             connection);
         command.Parameters.AddWithValue("@CustomerRole", (byte)UserRole.Customer);
@@ -233,6 +233,29 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         command.ExecuteNonQuery();
     }
 
+    public void SetTotpSecret(int userId, string? secret)
+    {
+        using var connection = Open();
+        // Always resets TotpEnabled to 0 alongside the secret - a fresh or
+        // cleared secret is never "confirmed enabled" until re-verified,
+        // whether this is starting enrollment or disabling it outright.
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET TotpSecret = @Secret, TotpEnabled = 0 WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@Secret", (object?)secret ?? DBNull.Value);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+
+    public void SetTotpEnabled(int userId, bool enabled)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET TotpEnabled = @Enabled WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@Enabled", enabled);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+
     private SqlConnection Open()
     {
         var connection = new SqlConnection(connectionString);
@@ -249,6 +272,8 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         Role = (UserRole)reader.GetByte(reader.GetOrdinal("Role")),
         IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
         CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-        LastActiveAt = reader.GetDateTime(reader.GetOrdinal("LastActiveAt"))
+        LastActiveAt = reader.GetDateTime(reader.GetOrdinal("LastActiveAt")),
+        TotpSecret = reader.IsDBNull(reader.GetOrdinal("TotpSecret")) ? null : reader.GetString(reader.GetOrdinal("TotpSecret")),
+        TotpEnabled = reader.GetBoolean(reader.GetOrdinal("TotpEnabled"))
     };
 }

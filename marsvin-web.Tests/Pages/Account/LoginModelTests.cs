@@ -119,6 +119,25 @@ public class LoginModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPostAsync_TotpEnrolledAccount_RedirectsToVerifyTotpInsteadOfEmailing()
+    {
+        var email = NewCustomerWithPassword("CorrectPass123!");
+        var user = _users.FindByEmail(email)!;
+        _users.SetTotpSecret(user.UserId, Totp.GenerateSecret());
+        _users.SetTotpEnabled(user.UserId, true);
+        var (model, auth, sentEmail) = MakeModel();
+        model.Input = new LoginModel.InputModel { Email = email, Password = "CorrectPass123!" };
+
+        var result = await model.OnPostAsync(returnUrl: null);
+
+        Assert.Null(auth.SignedInAs);
+        Assert.Empty(sentEmail.Sent); // no email link step for a TOTP-enrolled account
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("VerifyTotp", redirect.PageName);
+        Assert.NotNull(redirect.RouteValues?["token"]);
+    }
+
+    [Fact]
     public async Task OnPostAsync_WrongPassword_DoesNotSignInAndShowsError()
     {
         var email = NewCustomerWithPassword("CorrectPass123!");

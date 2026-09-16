@@ -118,6 +118,140 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPostAsync_EmailChanged_NotifiesTheOldAddress()
+    {
+        // ASVS 2.5.5 - notified at the *old* address, the one place still
+        // guaranteed to reach the real owner if this wasn't actually them.
+        var user = NewCustomer();
+        var originalEmail = user.Email;
+        var (model, _, sentEmail) = MakeModel(user.UserId);
+        var newEmail = $"updated-{Guid.NewGuid():N}@example.com";
+        model.Input = new ProfileModel.InputModel
+        {
+            DisplayName = user.DisplayName,
+            Email = newEmail,
+            CurrentPassword = OriginalPassword
+        };
+
+        await model.OnPostAsync();
+
+        var notification = Assert.Single(sentEmail.Sent);
+        Assert.Equal(originalEmail, notification.ToEmail);
+    }
+
+    [Fact]
+    public async Task OnPostAsync_PasswordChanged_NotifiesTheCurrentAddress()
+    {
+        var user = NewCustomer();
+        var (model, _, sentEmail) = MakeModel(user.UserId);
+        model.Input = new ProfileModel.InputModel
+        {
+            DisplayName = user.DisplayName,
+            Email = user.Email,
+            CurrentPassword = OriginalPassword,
+            NewPassword = "BrandNewPass456!",
+            ConfirmNewPassword = "BrandNewPass456!"
+        };
+
+        await model.OnPostAsync();
+
+        var notification = Assert.Single(sentEmail.Sent);
+        Assert.Equal(user.Email, notification.ToEmail, ignoreCase: true); // ProfileModel normalizes email to lowercase before sending
+    }
+
+    [Fact]
+    public async Task OnPostAsync_NameOnlyChanged_SendsNoNotificationEmail()
+    {
+        // Neither auth factor (email, password) changed - nothing to notify about.
+        var user = NewCustomer();
+        var (model, _, sentEmail) = MakeModel(user.UserId);
+        model.Input = new ProfileModel.InputModel
+        {
+            DisplayName = "Just A New Name",
+            Email = user.Email,
+            CurrentPassword = OriginalPassword
+        };
+
+        await model.OnPostAsync();
+
+        Assert.Empty(sentEmail.Sent);
+    }
+
+    [Fact]
+    public void OnPostStartTotpEnrollment_GeneratesAndStoresAPendingSecret()
+    {
+        var user = NewCustomer();
+        var (model, _, _) = MakeModel(user.UserId);
+
+        model.OnPostStartTotpEnrollment();
+
+        var updated = _users.FindById(user.UserId)!;
+        Assert.NotNull(updated.TotpSecret);
+        Assert.False(updated.TotpEnabled);
+    }
+
+    [Fact]
+    public void OnPostConfirmTotp_ValidCode_EnablesTotp()
+    {
+        var user = NewCustomer();
+        var (model, _, _) = MakeModel(user.UserId);
+        model.OnPostStartTotpEnrollment();
+        var secret = _users.FindById(user.UserId)!.TotpSecret!;
+        var code = TotpTestHelper.CurrentCode(secret);
+
+        model.OnPostConfirmTotp(code);
+
+        Assert.True(_users.FindById(user.UserId)!.TotpEnabled);
+        Assert.NotNull(model.ToastMessage);
+    }
+
+    [Fact]
+    public void OnPostConfirmTotp_WrongCode_DoesNotEnableAndShowsError()
+    {
+        var user = NewCustomer();
+        var (model, _, _) = MakeModel(user.UserId);
+        model.OnPostStartTotpEnrollment();
+
+        model.OnPostConfirmTotp("000000");
+
+        Assert.False(_users.FindById(user.UserId)!.TotpEnabled);
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
+    public void OnPostDisableTotp_CorrectPassword_ClearsSecretAndDisables()
+    {
+        var user = NewCustomer();
+        var (model, _, _) = MakeModel(user.UserId);
+        model.OnPostStartTotpEnrollment();
+        var secret = _users.FindById(user.UserId)!.TotpSecret!;
+        model.OnPostConfirmTotp(TotpTestHelper.CurrentCode(secret));
+
+        model.OnPostDisableTotp(OriginalPassword);
+
+        var updated = _users.FindById(user.UserId)!;
+        Assert.False(updated.TotpEnabled);
+        Assert.Null(updated.TotpSecret);
+    }
+
+    [Fact]
+    public void OnPostDisableTotp_WrongPassword_LeavesTotpEnabled()
+    {
+        var user = NewCustomer();
+        var (model, _, _) = MakeModel(user.UserId);
+        model.OnPostStartTotpEnrollment();
+        var secret = _users.FindById(user.UserId)!.TotpSecret!;
+        model.OnPostConfirmTotp(TotpTestHelper.CurrentCode(secret));
+
+        model.OnPostDisableTotp("WrongPassword!");
+
+        var updated = _users.FindById(user.UserId)!;
+        Assert.True(updated.TotpEnabled);
+        Assert.NotNull(updated.TotpSecret);
+        Assert.NotNull(model.ErrorMessage);
+    }
+
+    [Fact]
     public async Task OnPostAsync_EmailAlreadyUsedByAnotherAccount_ShowsErrorAndDoesNotUpdate()
     {
         var user = NewCustomer();

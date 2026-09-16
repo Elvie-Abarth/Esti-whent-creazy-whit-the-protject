@@ -96,6 +96,25 @@ public sealed class SqlPendingLoginStore(string connectionString) : IPendingLogi
         return (int)command.ExecuteScalar()! > 0;
     }
 
+    public PendingLoginTicket? Peek(string rawToken)
+    {
+        var tokenHash = Hash(rawToken);
+
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "SELECT UserId, ReturnUrl FROM dbo.PendingLogins " +
+            "WHERE TokenHash = @TokenHash AND ExpiresAt > SYSUTCDATETIME();", connection);
+        command.Parameters.AddWithValue("@TokenHash", tokenHash);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read()) return null;
+
+        var returnUrlOrdinal = reader.GetOrdinal("ReturnUrl");
+        return new PendingLoginTicket(
+            reader.GetInt32(reader.GetOrdinal("UserId")),
+            reader.IsDBNull(returnUrlOrdinal) ? null : reader.GetString(returnUrlOrdinal));
+    }
+
     private SqlConnection Open()
     {
         var connection = new SqlConnection(connectionString);

@@ -24,4 +24,13 @@ public interface IPendingLoginStore
     /// second way to redeem the same token.
     /// </summary>
     bool IsValid(string rawToken);
+
+    /// <summary>
+    /// Looks up a still-valid token's ticket without consuming it - lets
+    /// Account/VerifyTotp check which user a token belongs to on a wrong
+    /// code without burning the token, so the user can retry until it
+    /// actually expires. The final successful check still calls Consume to
+    /// finalize it as single-use.
+    /// </summary>
+    PendingLoginTicket? Peek(string rawToken);
 }

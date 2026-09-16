@@ -186,15 +186,49 @@ other tab has confirmed the link - instead of leaving the user stuck on a
 
 This means a correct password is necessary but not sufficient - proof of
 access to the account's own inbox is also required, every single time,
-regardless of role. Five wrong password attempts within a short window
-locks that email out for 5 minutes (`LoginModel`'s in-memory
-`FailedAttempts` dictionary - a demo-scale lockout, not something that
-would survive an app restart or work across multiple instances in a real
-deployment; entries older than an hour are pruned on access so the
-dictionary can't grow unbounded). `Login`/`Register`/`ForgotPassword` are
+regardless of role (unless TOTP is enabled - see below, which replaces
+this email step with a faster real-time factor instead of stacking on top
+of it). Failed attempts escalate via `LoginLockoutTracker` (a Singleton, in-
+memory - demo-scale, wouldn't survive an app restart or work across
+multiple instances in a real deployment): every failure sets a
+progressively longer delay (3^attempts seconds, capped at 5 minutes), the
+3rd emails the account owner a "did you do this?" notice, and the 5th sets
+a hard lockout that time alone can't lift - only `ResetPasswordModel`
+calling `Clear()` on a successful password reset does. Entries requiring
+that hard reset are excluded from the tracker's own time-based pruning
+(everything else still expires after an hour), so the escalation can't
+silently wear off on its own. `Login`/`Register`/`ForgotPassword` are
 additionally rate-limited per client IP (see §3) - a second, coarser layer
 that also stops one attacker from re-locking a victim's account on demand,
 which the per-email lockout alone can't.
+
+### Optional second factor: TOTP (`Account/Profile`, `Account/VerifyTotp`)
+
+A self-built RFC 6238 implementation (`Data/Totp.cs`, HMAC-SHA1 only - no
+new dependency): the same standard behind Google/Microsoft Authenticator.
+Real MitID integration isn't reachable for a local demo (it requires being
+a registered, certified Danish service provider with government-issued
+certificates), so this is an honest, working stand-in rather than a mock.
+
+Enrollment (`ProfileModel`) is two steps on purpose: `OnPostStartTotpEnrollment`
+generates and stores a secret with `TotpEnabled` still false, then
+`OnPostConfirmTotp` only flips it true once the user proves they actually
+saved it correctly by producing one valid code - enabling it unconditionally
+the moment a secret exists would risk locking someone out with a QR code
+they never actually scanned. `OnPostDisableTotp` requires the current
+password, the same re-check every sensitive Profile action does.
+
+For a TOTP-enrolled account, `LoginModel.OnPostAsync` skips the email-link
+step entirely after a correct password and redirects straight to
+`VerifyTotpModel` with a `PendingLogins` token (created but never emailed -
+it's redeemed in the same browser session, not fetched from an inbox
+later, so it's valid for 5 minutes rather than 15).
+`VerifyTotpModel.OnPostAsync` peeks the ticket (`IPendingLoginStore.Peek`,
+read-only - unlike `Consume`, a wrong code doesn't burn the token, so the
+user can retry until it actually expires), validates the code against
+`LoginLockoutTracker` the same way a wrong password does (a 6-digit code
+is only 1-in-a-million odds, so it needs the same brute-force protection),
+and only calls `Consume` + `SignInAsync` once a code actually checks out.
 
 **`RegisterModel` goes through the exact same confirmation step**, reusing
 `ConfirmLoginModel` unchanged: it creates the account, then - instead of
@@ -215,9 +249,12 @@ are registered. `ResetPasswordModel.OnGet` calls the read-only
 `IPendingLoginStore.IsValid` to tell a visitor up front that a dead link is
 dead, without spending it; `OnPost` calls `IPendingLoginStore.Consume` (the
 same single-use consumption `ConfirmLoginModel` uses) and, if it's still
-valid, hashes the new password and calls `IUserAccountStore.UpdatePassword`
-- no sign-in happens here, the visitor is sent to `/Account/Login` to sign
-in with the new password through the normal confirmed flow.
+valid, hashes the new password and calls `IUserAccountStore.UpdatePassword`,
+then emails the account owner that it changed (ASVS 2.5.5 - every auth-
+factor change is notified, not just this recovery path; `ProfileModel`'s
+self-service email/password change does the same) - no sign-in happens
+here, the visitor is sent to `/Account/Login` to sign in with the new
+password through the normal confirmed flow.
 
 ### The session itself
 

@@ -14,7 +14,11 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
 
-    private ResetPasswordModel MakeModel() => new(_users, _pendingLogins, new LoginLockoutTracker());
+    private (ResetPasswordModel Model, RecordingEmailSender Email) MakeModel()
+    {
+        var email = new RecordingEmailSender();
+        return (new ResetPasswordModel(_users, _pendingLogins, new LoginLockoutTracker(), email), email);
+    }
 
     private (int UserId, string Token) NewUserWithResetToken([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
     {
@@ -30,7 +34,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
     public void OnGet_ValidToken_TokenIsValidIsTrue()
     {
         var (_, token) = NewUserWithResetToken();
-        var model = MakeModel();
+        var (model, _) = MakeModel();
 
         model.OnGet(token);
 
@@ -40,7 +44,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
     [Fact]
     public void OnGet_UnknownToken_TokenIsValidIsFalse()
     {
-        var model = MakeModel();
+        var (model, _) = MakeModel();
 
         model.OnGet("not-a-real-token");
 
@@ -54,7 +58,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         // the token, or every visitor who merely opens the reset link before
         // filling in the form would find it already dead by the time they submit.
         var (_, token) = NewUserWithResetToken();
-        var model = MakeModel();
+        var (model, _) = MakeModel();
 
         model.OnGet(token);
         model.OnGet(token); // opening the link twice must not matter yet
@@ -63,14 +67,14 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
-    public void OnPost_ValidTokenAndMatchingPasswords_UpdatesPasswordConsumesTokenAndRedirectsToLogin()
+    public async Task OnPostAsync_ValidTokenAndMatchingPasswords_UpdatesPasswordConsumesTokenAndRedirectsToLogin()
     {
         var (userId, token) = NewUserWithResetToken();
-        var model = MakeModel();
+        var (model, sentEmail) = MakeModel();
         model.Token = token;
         model.Input = new ResetPasswordModel.InputModel { NewPassword = "NewPass456!", ConfirmNewPassword = "NewPass456!" };
 
-        var result = model.OnPost();
+        var result = await model.OnPostAsync();
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
         Assert.Equal("Login", redirect.PageName);
@@ -78,41 +82,45 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         var updated = _users.FindById(userId)!;
         Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, updated.PasswordHash, "NewPass456!"));
 
+        // ASVS 2.5.5 - the account owner is notified their password changed.
+        var notification = Assert.Single(sentEmail.Sent);
+        Assert.Equal(updated.Email, notification.ToEmail);
+
         // Single-use: the same token can't be redeemed a second time.
-        var replay = MakeModel();
+        var (replay, _) = MakeModel();
         replay.Token = token;
         replay.Input = new ResetPasswordModel.InputModel { NewPassword = "AnotherPass789!", ConfirmNewPassword = "AnotherPass789!" };
-        replay.OnPost();
+        await replay.OnPostAsync();
         Assert.False(replay.TokenIsValid);
         Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, _users.FindById(userId)!.PasswordHash, "NewPass456!"));
     }
 
     [Fact]
-    public void OnPost_UnknownToken_DoesNotChangeAnyPassword()
+    public async Task OnPostAsync_UnknownToken_DoesNotChangeAnyPassword()
     {
         var (userId, _) = NewUserWithResetToken();
         var originalHash = _users.FindById(userId)!.PasswordHash;
-        var model = MakeModel();
+        var (model, _) = MakeModel();
         model.Token = "not-a-real-token";
         model.Input = new ResetPasswordModel.InputModel { NewPassword = "NewPass456!", ConfirmNewPassword = "NewPass456!" };
 
-        model.OnPost();
+        await model.OnPostAsync();
 
         Assert.False(model.TokenIsValid);
         Assert.Equal(originalHash, _users.FindById(userId)!.PasswordHash);
     }
 
     [Fact]
-    public void OnPost_PasswordsDoNotMatch_ShowsModelErrorAndDoesNotChangePassword()
+    public async Task OnPostAsync_PasswordsDoNotMatch_ShowsModelErrorAndDoesNotChangePassword()
     {
         var (userId, token) = NewUserWithResetToken();
         var originalHash = _users.FindById(userId)!.PasswordHash;
-        var model = MakeModel();
+        var (model, _) = MakeModel();
         model.Token = token;
         model.Input = new ResetPasswordModel.InputModel { NewPassword = "NewPass456!", ConfirmNewPassword = "Different789!" };
         model.ModelState.AddModelError("Input.ConfirmNewPassword", "Adgangskoderne er ikke ens.");
 
-        model.OnPost();
+        await model.OnPostAsync();
 
         Assert.Equal(originalHash, _users.FindById(userId)!.PasswordHash);
     }

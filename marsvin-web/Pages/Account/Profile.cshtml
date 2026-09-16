@@ -69,6 +69,57 @@
     </form>
 </div>
 
+<section class="section section--paper">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <h2 data-en="Two-factor login (2FA)">To-faktor login (2FA)</h2>
+                <p data-en="Require a code from an authenticator app (Google Authenticator, Microsoft Authenticator, etc.) in addition to your password when logging in.">
+                    Kræv en kode fra en authenticator-app (Google Authenticator, Microsoft Authenticator m.fl.) ud over din adgangskode ved login.
+                </p>
+            </div>
+        </div>
+
+        @if (Model.TotpEnabled)
+        {
+            <p data-en="2FA is enabled on your account.">2FA er aktiveret på din konto.</p>
+            <form method="post" asp-page-handler="DisableTotp" class="auth-form"
+                  data-confirm="Er du sikker på, du vil deaktivere 2FA?">
+                <label>
+                    <span data-en="Current password">Nuværende adgangskode</span>
+                    <input type="password" name="currentPassword" required autocomplete="current-password" />
+                </label>
+                <button type="submit" class="btn btn--quiet" data-en="Disable 2FA">Deaktivér 2FA</button>
+            </form>
+        }
+        else if (Model.PendingTotpSecret is not null)
+        {
+            <p data-en="Scan or enter this into your authenticator app, then enter the 6-digit code it shows to finish enabling 2FA.">
+                Scan eller indtast dette i din authenticator-app, og indtast derefter den 6-cifrede kode den viser for at aktivere 2FA.
+            </p>
+            <p><code>@Model.PendingTotpSecret</code></p>
+            <p class="cavy-meta" data-en="@($"Full setup link: {Model.PendingTotpUri}")">Fuldt opsætningslink: @Model.PendingTotpUri</p>
+
+            <form method="post" asp-page-handler="ConfirmTotp" class="auth-form">
+                <label>
+                    <span data-en="Code from your authenticator app">Kode fra din authenticator-app</span>
+                    <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required />
+                </label>
+                <button type="submit" class="btn" data-en="Confirm and enable">Bekræft og aktivér</button>
+            </form>
+            <form method="post" asp-page-handler="StartTotpEnrollment">
+                <button type="submit" class="btn btn--quiet" data-en="Generate a new code instead">Generér en ny kode i stedet</button>
+            </form>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="StartTotpEnrollment">
+                <button type="submit" class="btn" data-en="Enable 2FA">Aktivér 2FA</button>
+            </form>
+        }
+    </div>
+</section>
+
 @if (User.IsInRole("Employee") || User.IsInRole("Admin"))
 {
     <section class="section section--paper">

@@ -53,4 +53,14 @@ public interface IUserAccountStore
     IReadOnlyList<ApplicationUser> GetCustomersNeedingInactivityWarning(DateTime lastActiveBefore, byte stage);
 
     void SetInactivityWarningStage(int userId, byte stage);
+
+    /// <summary>
+    /// Starts (or restarts) TOTP enrollment: stores the secret and clears
+    /// TotpEnabled - it only flips true once VerifyTotp/Profile confirms the
+    /// user can actually produce a valid code with it. Pass null to clear
+    /// the secret entirely (disabling 2FA).
+    /// </summary>
+    void SetTotpSecret(int userId, string? secret);
+
+    void SetTotpEnabled(int userId, bool enabled);
 }

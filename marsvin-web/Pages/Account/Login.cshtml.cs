@@ -25,6 +25,11 @@ public class LoginModel(
     // inbox, short enough that a link sitting unread stops being useful fast.
     private static readonly TimeSpan ConfirmationValidFor = TimeSpan.FromMinutes(15);
 
+    // Shorter than the email-link window - this one's redeemed in the same
+    // browser session immediately, not fetched from an inbox at some later
+    // point, so there's no reason to leave it valid for as long.
+    private static readonly TimeSpan TotpValidFor = TimeSpan.FromMinutes(5);
+
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
@@ -93,12 +98,25 @@ public class LoginModel(
 
         lockout.Clear(email);
 
+        var safeReturnUrl = !string.IsNullOrEmpty(returnUrl) && IsSafeLocalUrl(returnUrl) ? returnUrl : null;
+
+        // A user who's enrolled in TOTP already proves possession of a
+        // registered device in real time - that's a stronger, faster factor
+        // than "click a link in your email", so it replaces the email step
+        // rather than stacking on top of it. Reuses the same single-use,
+        // expiring token mechanism as the email link; it just never gets
+        // emailed anywhere, only redirected to straight away.
+        if (user!.TotpEnabled)
+        {
+            var totpToken = pendingLogins.Create(user.UserId, safeReturnUrl, TotpValidFor);
+            return RedirectToPage("VerifyTotp", new { token = totpToken });
+        }
+
         // Password alone doesn't sign you in - a confirmation link goes to the
         // account's own email first (proof you also control the inbox, not
         // just the password), and ConfirmLoginModel finishes the sign-in once
         // that link is opened.
-        var safeReturnUrl = !string.IsNullOrEmpty(returnUrl) && IsSafeLocalUrl(returnUrl) ? returnUrl : null;
-        var token = pendingLogins.Create(user!.UserId, safeReturnUrl, ConfirmationValidFor);
+        var token = pendingLogins.Create(user.UserId, safeReturnUrl, ConfirmationValidFor);
         var confirmUrl = $"{Request.Scheme}://{Request.Host}/Account/ConfirmLogin?token={Uri.EscapeDataString(token)}";
 
         await emailSender.SendAsync(user.Email, "Bekræft login til Marsvin",
