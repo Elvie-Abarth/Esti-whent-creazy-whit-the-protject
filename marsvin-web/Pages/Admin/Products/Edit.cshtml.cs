@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using static MarsvinWebExample.Pages.PageModelExtensions;
@@ -9,13 +11,17 @@ using static MarsvinWebExample.Pages.PageModelExtensions;
 namespace MarsvinWebExample.Pages.Admin.Products;
 
 [Authorize(Roles = "Admin")]
-public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogStore audit) : PageModel
+public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogStore audit, IWebHostEnvironment environment)
+    : PageModel
 {
     public int ProductId { get; set; }
     public bool IsNew => ProductId == 0;
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
+
+    [BindProperty]
+    public IFormFile? PhotoFile { get; set; }
 
     public IActionResult OnGet(int id)
     {
@@ -41,10 +47,17 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
         return Page();
     }
 
-    public IActionResult OnPost(int id)
+    public async Task<IActionResult> OnPostAsync(int id)
     {
         ProductId = id;
         if (!ModelState.IsValid) return Page();
+
+        if (PhotoFile is not null && PhotoFile.Length > 0)
+        {
+            var url = await PhotoUploadHelper.SaveAsync(PhotoFile, "products", environment, ModelState);
+            if (url is null) return Page();
+            Input.PhotoUrl = url;
+        }
 
         var product = new StockProduct
         {

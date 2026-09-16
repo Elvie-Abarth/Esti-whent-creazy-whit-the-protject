@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using static MarsvinWebExample.Pages.PageModelExtensions;
@@ -9,7 +11,8 @@ using static MarsvinWebExample.Pages.PageModelExtensions;
 namespace MarsvinWebExample.Pages.Admin.Animals;
 
 [Authorize(Roles = "Admin")]
-public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogStore audit) : PageModel
+public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogStore audit, IWebHostEnvironment environment)
+    : PageModel
 {
     public int ProductId { get; set; }
     public bool IsNew => ProductId == 0;
@@ -17,6 +20,12 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
+
+    // A separate top-level property (rather than nested in InputModel) -
+    // IFormFile doesn't round-trip through OnGet's InputModel construction
+    // the way the rest of Input's fields do, so it doesn't belong there.
+    [BindProperty]
+    public IFormFile? PhotoFile { get; set; }
 
     public IActionResult OnGet(int id)
     {
@@ -55,11 +64,18 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
         return Page();
     }
 
-    public IActionResult OnPost(int id)
+    public async Task<IActionResult> OnPostAsync(int id)
     {
         ProductId = id;
         OtherAnimals = catalog.Animals.Where(a => a.ProductId != id).ToList();
         if (!ModelState.IsValid) return Page();
+
+        if (PhotoFile is not null && PhotoFile.Length > 0)
+        {
+            var url = await PhotoUploadHelper.SaveAsync(PhotoFile, "animals", environment, ModelState);
+            if (url is null) return Page();
+            Input.PhotoUrl = url;
+        }
 
         var animal = new Animal
         {
