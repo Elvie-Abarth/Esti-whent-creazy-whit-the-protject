@@ -25,6 +25,7 @@ public sealed class StockProduct : Product
         AccessoryCategory.House   => "Huse",
         AccessoryCategory.Toy     => "Legetøj",
         AccessoryCategory.Bedding => "Strøelse",
+        AccessoryCategory.Care    => "Pleje",
         _ => "Andet"
     };
 
@@ -36,6 +37,7 @@ public sealed class StockProduct : Product
         AccessoryCategory.House   => "Houses",
         AccessoryCategory.Toy     => "Toys",
         AccessoryCategory.Bedding => "Bedding",
+        AccessoryCategory.Care    => "Care",
         _ => "Other"
     };
 

@@ -23,7 +23,8 @@ public enum AccessoryCategory
     Cage,
     House,
     Toy,
-    Bedding
+    Bedding,
+    Care
 }
 
 public enum TimeOffStatus

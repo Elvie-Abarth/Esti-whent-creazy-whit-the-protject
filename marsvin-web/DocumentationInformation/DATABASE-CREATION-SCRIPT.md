@@ -83,7 +83,7 @@ BEGIN
     (
         ProductId     INT           NOT NULL PRIMARY KEY REFERENCES dbo.Products (ProductId),
         Sku           NVARCHAR(50)  NOT NULL UNIQUE,
-        Category      TINYINT       NOT NULL,             -- 0 Hay,1 Food,2 Cage,3 House,4 Toy,5 Bedding
+        Category      TINYINT       NOT NULL,             -- 0 Hay,1 Food,2 Cage,3 House,4 Toy,5 Bedding,6 Care
         StockQuantity INT           NOT NULL,
         Unit          NVARCHAR(20)  NULL,
         PhotoUrl      NVARCHAR(300) NULL

@@ -21,7 +21,8 @@ public class IndexModel(ICatalog catalog) : PageModel
         (AccessoryCategory.Cage,    "Bure",     "Cages"),
         (AccessoryCategory.House,   "Huse",     "Houses"),
         (AccessoryCategory.Toy,     "Legetøj",  "Toys"),
-        (AccessoryCategory.Bedding, "Strøelse", "Bedding")
+        (AccessoryCategory.Bedding, "Strøelse", "Bedding"),
+        (AccessoryCategory.Care,    "Pleje",    "Care")
     ];
 
     public void OnGet(string? kategori = null, string? q = null)
