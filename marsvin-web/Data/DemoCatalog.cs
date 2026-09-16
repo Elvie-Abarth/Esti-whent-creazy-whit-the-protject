@@ -158,15 +158,12 @@ public sealed class DemoCatalog : ICatalog
 
     public IReadOnlyList<StockProduct> Accessories { get; } =
     [
-        // Photo: "Rusty The Smiling Guinea Pig" by Christina Telep (500px),
-        // CC BY 3.0, via Wikimedia Commons - a real photo, not a stock
-        // studio shot of the bag itself, but it's this product in use.
         new StockProduct { ProductId = 101, Name = "Timothy-hø, 2 kg", Sku = "HAY-TIM-2",
             Category = AccessoryCategory.Hay, StockQuantity = 48, Price = 89, Unit = "pose",
             Description = "Grundfoderet. Skal være tilgængeligt hele døgnet - marsvin spiser hø nærmest konstant.",
             NameEn = "Timothy hay, 2 kg",
             DescriptionEn = "The staple feed. Should be available around the clock - guinea pigs eat hay almost constantly.",
-            PhotoUrl = "/img/products/guinea-pig-with-hay.jpg" },
+            PhotoUrl = "/img/products/hay-bag.jpg" },
         new StockProduct { ProductId = 102, Name = "Engblanding med kløver, 1 kg", Sku = "HAY-ENG-1",
             Category = AccessoryCategory.Hay, StockQuantity = 26, Price = 65, Unit = "pose",
             Description = "Blandet enghø. Bruges som variation oven på det daglige timothy.",
@@ -267,7 +264,9 @@ public sealed class DemoCatalog : ICatalog
             Description = "Alternativ til hamp for dyr med planteallergi. Meget absorberende.",
             NameEn = "Dust-free paper bedding, 15 l",
             DescriptionEn = "Alternative to hemp for animals with a plant allergy. Highly absorbent." },
-        // Photo: "Muizenkooiwaterfles.JPG", public domain, via Wikimedia Commons.
+        // Photo and the hay-bag one above (101): real product shots from
+        // zooplus.dk's own product listings - fine for this non-public demo
+        // project, not something to reuse if this ever went live.
         new StockProduct { ProductId = 122, Name = "Vandflaske, 600 ml", Sku = "PLJ-VAN-600",
             Category = AccessoryCategory.Care, StockQuantity = 33, Price = 49, Unit = "stk",
             Description = "Monteres udenpå buret. Skift vandet dagligt, selvom flasken ser fyldt ud.",
