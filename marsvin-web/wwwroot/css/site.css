@@ -824,6 +824,33 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     vertical-align: middle;
 }
 
+/* Admin/Stock's Accessories/Guinea-pigs switch - two tables that used to sit
+   stacked one under the other; only the tab picked is shown, so there's more
+   breathing room and less scrolling to find the table you actually want. */
+.stock-tabs {
+    display: flex;
+    gap: 0.6rem;
+    margin: 2.5rem 0 2rem;
+    border-bottom: 1px solid var(--line);
+}
+.stock-tab {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.75rem 1.1rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--bark);
+    cursor: pointer;
+    margin-bottom: -1px;
+}
+.stock-tab:hover { color: var(--meadow); }
+.stock-tab.is-active { color: var(--meadow); border-bottom-color: var(--fleece); }
+.stock-tab-count { font-weight: 400; color: var(--bark); }
+
+.stock-panel { margin-top: 0.5rem; }
+
 .inline-form {
     display: inline-flex;
     align-items: center;

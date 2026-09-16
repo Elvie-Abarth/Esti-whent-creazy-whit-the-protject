@@ -16,64 +16,77 @@
         <a class="btn btn--quiet" asp-page="/Admin/Shop/Index" data-en="Back to shop management">Til butiksstyring</a>
     </div>
 
-    <h3 data-en="Accessories">Tilbehør</h3>
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th data-en="Name">Navn</th>
-                <th data-en="Category">Kategori</th>
-                <th data-en="Stock">Lager</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.Accessories)
-            {
-                <tr>
-                    <td>@item.Name</td>
-                    <td>@item.CategoryName</td>
-                    <td>
-                        <form method="post" asp-page-handler="UpdateStock" class="inline-form">
-                            <input type="hidden" name="productId" value="@item.ProductId" />
-                            <input type="number" name="stockQuantity" value="@item.StockQuantity" min="0" />
-                            <button type="submit" class="btn btn--quiet" data-en="Update">Opdatér</button>
-                        </form>
-                    </td>
-                    <td></td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="stock-tabs" role="tablist">
+        <button type="button" class="stock-tab is-active" role="tab" aria-selected="true" data-tab="accessories">
+            <span data-en="Accessories">Tilbehør</span> <span class="stock-tab-count">(@Model.Accessories.Count)</span>
+        </button>
+        <button type="button" class="stock-tab" role="tab" aria-selected="false" data-tab="animals">
+            <span data-en="Guinea pigs">Marsvin</span> <span class="stock-tab-count">(@Model.Animals.Count)</span>
+        </button>
+    </div>
 
-    <h3 data-en="Guinea pigs">Marsvin</h3>
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th data-en="Name">Navn</th>
-                <th data-en="Breed">Race</th>
-                <th data-en="Status">Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var animal in Model.Animals)
-            {
+    <div class="stock-panel" data-tab-panel="accessories">
+        <table class="admin-table">
+            <thead>
                 <tr>
-                    <td>@animal.Name</td>
-                    <td>@animal.Breed</td>
-                    <td>
-                        <form method="post" asp-page-handler="UpdateStatus" class="inline-form">
-                            <input type="hidden" name="productId" value="@animal.ProductId" />
-                            <select name="status">
-                                @foreach (var status in Enum.GetValues<AnimalStatus>())
-                                {
-                                    <option value="@status" selected="@(status == animal.Status)">@status</option>
-                                }
-                            </select>
-                            <button type="submit" class="btn btn--quiet" data-en="Update">Opdatér</button>
-                        </form>
-                    </td>
+                    <th data-en="Name">Navn</th>
+                    <th data-en="Category">Kategori</th>
+                    <th data-en="Stock">Lager</th>
+                    <th></th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Accessories)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td>@item.CategoryName</td>
+                        <td>
+                            <form method="post" asp-page-handler="UpdateStock" class="inline-form">
+                                <input type="hidden" name="productId" value="@item.ProductId" />
+                                <input type="number" name="stockQuantity" value="@item.StockQuantity" min="0" />
+                                <button type="submit" class="btn btn--quiet" data-en="Update">Opdatér</button>
+                            </form>
+                        </td>
+                        <td></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="stock-panel" data-tab-panel="animals" hidden>
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th data-en="Name">Navn</th>
+                    <th data-en="Breed">Race</th>
+                    <th data-en="Status">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var animal in Model.Animals)
+                {
+                    <tr>
+                        <td>@animal.Name</td>
+                        <td>@animal.Breed</td>
+                        <td>
+                            <form method="post" asp-page-handler="UpdateStatus" class="inline-form">
+                                <input type="hidden" name="productId" value="@animal.ProductId" />
+                                <select name="status">
+                                    @foreach (var status in Enum.GetValues<AnimalStatus>())
+                                    {
+                                        <option value="@status" selected="@(status == animal.Status)">@status</option>
+                                    }
+                                </select>
+                                <button type="submit" class="btn btn--quiet" data-en="Update">Opdatér</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<script src="~/js/stock-tabs.js" asp-append-version="true"></script>
