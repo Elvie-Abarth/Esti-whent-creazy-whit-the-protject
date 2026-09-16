@@ -282,7 +282,10 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 /* Animals get a full border because each one is an individual with a
    profile. Accessories below get only a hairline rule. The difference
    is deliberate. */
-.pairs { display: grid; gap: 1.75rem; }
+/* Two columns so a solo-for-sale animal (one .cavy card) sits next to
+   another solo one instead of leaving half the row empty - a bonded pair
+   already fills both columns itself (.pair--bonded), so it's unaffected. */
+.pairs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.75rem; }
 
 .pair {
     border: 2px solid var(--meadow);
@@ -290,6 +293,7 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     background: var(--paper);
     overflow: hidden;
 }
+.pair--bonded { grid-column: 1 / -1; }
 
 .pair-label {
     background: var(--meadow);
@@ -587,7 +591,8 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 @media (max-width: 860px) {
     .hero,
     .detail,
-    .welfare .wrap { grid-template-columns: 1fr; gap: 2rem; }
+    .welfare .wrap,
+    .pairs { grid-template-columns: 1fr; gap: 2rem; }
 
     .hero-art { max-width: 420px; }
     .cavy + .cavy { border-left: none; border-top: 1px dashed var(--line); }

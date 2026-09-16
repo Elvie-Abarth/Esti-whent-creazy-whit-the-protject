@@ -52,7 +52,7 @@
         <div class="pairs">
             @foreach (var group in Model.Groups)
             {
-                <article class="pair">
+                <article class="pair @(group.Count > 1 ? "pair--bonded" : "")">
                     @if (group.Count > 1)
                     {
                         <p class="pair-label" data-en="Live together — sold as a pair">Bor sammen — sælges som par</p>
