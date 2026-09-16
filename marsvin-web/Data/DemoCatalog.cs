@@ -81,6 +81,78 @@ public sealed class DemoCatalog : ICatalog
             BreedEn = "Rex", ColourEn = "Grey",
             PersonalityEn = "Still with his mother. Can be seen, but not taken home yet.",
             DescriptionEn = "Rex boar with a short curly coat. Ready for a new home in a week."
+        },
+
+        // Real photos of the author's own guinea pigs (see wwwroot/img/animals),
+        // added alongside the fictional demo animals above rather than
+        // replacing them.
+        new Animal
+        {
+            ProductId = 7, Name = "Shelly", Breed = "Amerikaner", Sex = Sex.Sow,
+            DateOfBirth = new DateOnly(2022, 1, 1), Colour = "Sort med hvid", Price = 450,
+            CoatPrimary = "#2B2B2B", CoatSecondary = "#F5F0E6", PhotoUrl = "/img/animals/shelly.jpg",
+            Personality = "Venlig og snakkesalig - fløjter gerne når der er noget godt i skålen.",
+            Description = "Amerikaner-hun med et markant hvidt stribe ned ad ansigtet. Fødselsår kendt, præcis dato usikker.",
+            BreedEn = "American", ColourEn = "Black with white",
+            PersonalityEn = "Friendly and vocal - happy to whistle when there's something good in the bowl.",
+            DescriptionEn = "American sow with a striking white blaze down her face. Birth year known, exact date uncertain."
+        },
+        new Animal
+        {
+            ProductId = 8, Name = "Bo", Breed = "Peruviansk", Sex = Sex.Boar,
+            DateOfBirth = new DateOnly(2019, 1, 1), Colour = "Sølvbrun og creme, langhåret", Price = 475,
+            CoatPrimary = "#8B6F47", CoatSecondary = "#E8DFC8", PhotoUrl = "/img/animals/bo.jpg",
+            Personality = "Meget kærlig fyr, også kendt som Børge og Einstein.",
+            Description = "Langhåret peruviansk han. Kun fødselsår kendt.",
+            BreedEn = "Peruvian", ColourEn = "Silver-brown and cream, long-haired",
+            PersonalityEn = "A super sweet guy, also known as Børge and Einstein.",
+            DescriptionEn = "Long-haired Peruvian boar. Only birth year known."
+        },
+        new Animal
+        {
+            ProductId = 9, Name = "Eefje", Breed = "Enfarvet", Sex = Sex.Sow,
+            DateOfBirth = new DateOnly(2022, 9, 1), Colour = "Chokoladebrun", Price = 400,
+            CoatPrimary = "#3D2418", CoatSecondary = "#5C3A28", PhotoUrl = "/img/animals/eefje.jpg",
+            Personality = "Sød, men bange for det meste. Fløjter usikkert når hun virkelig gerne vil have en godbid - og kan godt være lidt af en bølle.",
+            Description = "Glathåret hun i en dyb, ensfarvet chokoladebrun.",
+            BreedEn = "Self", ColourEn = "Chocolate brown",
+            PersonalityEn = "Sweet but scared of everything. Squeaks unsurely when really wanting a treat - and can be a bit of a bully.",
+            DescriptionEn = "Smooth-coated sow in a deep, solid chocolate brown."
+        },
+        new Animal
+        {
+            ProductId = 10, Name = "Cookie", Breed = "Abyssinier", Sex = Sex.Boar,
+            DateOfBirth = new DateOnly(2024, 10, 27), Colour = "Sort, rødbrun og grå", Price = 450,
+            CoatPrimary = "#201C1A", CoatSecondary = "#C97A2E", PhotoUrl = "/img/animals/cookie.jpg",
+            Personality = "Elsker at blive kælet med.",
+            Description = "Abyssinier-han med rosetmønster i sort, rødbrun og grå. Hedder Eigil på stamtavlen.",
+            BreedEn = "Abyssinian", ColourEn = "Black, rust and grey",
+            PersonalityEn = "Loves cuddles.",
+            DescriptionEn = "Abyssinian boar with a rosette pattern in black, rust and grey. Registered as Eigil on his pedigree."
+        },
+        new Animal
+        {
+            ProductId = 11, Name = "Tot", Breed = "Abyssinier", Sex = Sex.Sow,
+            DateOfBirth = new DateOnly(2022, 4, 14), Colour = "Sort-hvid roan", Price = 425,
+            CoatPrimary = "#23211F", CoatSecondary = "#E8E2D8", PhotoUrl = "/img/animals/tot.png",
+            BondedWithId = 12,
+            Personality = "Lillesøster til Lente - en snakkesalig, venlig sjæl der elsker at blive kælet med.",
+            Description = "Abyssinier-hun med sort-hvidt roan-mønster. Søster-par med Lente, født samme dag.",
+            BreedEn = "Abyssinian", ColourEn = "Black-and-white roan",
+            PersonalityEn = "Little sister of Lente - a vocal, friendly sweetheart who absolutely loves cuddles.",
+            DescriptionEn = "Abyssinian sow with a black-and-white roan coat. Sister pair with Lente, born the same day."
+        },
+        new Animal
+        {
+            ProductId = 12, Name = "Lente", Breed = "Abyssinier", Sex = Sex.Sow,
+            DateOfBirth = new DateOnly(2022, 4, 14), Colour = "Trefarvet - sort, hvid og rødbrun", Price = 425,
+            CoatPrimary = "#1E1B19", CoatSecondary = "#C1702E", PhotoUrl = "/img/animals/lente.png",
+            BondedWithId = 11,
+            Personality = "Bulldozeren - storesøster til Tot.",
+            Description = "Abyssinier-hun, trefarvet med markant rødbrun rosette. Tåler ikke persille.",
+            BreedEn = "Abyssinian", ColourEn = "Tri-colour - black, white and ginger",
+            PersonalityEn = "The bulldozer - big sister of Tot.",
+            DescriptionEn = "Abyssinian sow, tri-colour with a striking ginger rosette. Can't tolerate parsley."
         }
     ];
 
