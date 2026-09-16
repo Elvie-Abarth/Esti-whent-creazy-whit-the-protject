@@ -1,0 +1,13 @@
+@inject Microsoft.Extensions.Options.IOptions<MarsvinWebExample.Data.RecaptchaOptions> RecaptchaOptions
+@{
+    var siteKey = RecaptchaOptions.Value.SiteKey;
+}
+@* Renders nothing at all when no Recaptcha:SiteKey is configured - see
+   GoogleRecaptchaVerifier for the matching server-side skip, and Program.cs
+   for why the CSP only needs to trust google.com/gstatic.com when this
+   widget is actually on the page. *@
+@if (!string.IsNullOrWhiteSpace(siteKey))
+{
+    <div class="g-recaptcha" data-sitekey="@siteKey"></div>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+}

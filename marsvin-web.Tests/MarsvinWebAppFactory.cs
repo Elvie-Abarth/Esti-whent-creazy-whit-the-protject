@@ -24,6 +24,13 @@ namespace MarsvinWebExample.Tests;
 /// same credentials on every test run, dozens of times over. Empty makes
 /// Program.cs's own IsNullOrWhiteSpace check pick LoggingEmailSender, the
 /// same as a machine with no SMTP configured at all.
+///
+/// Recaptcha:SecretKey gets the same treatment for the same reason: with a
+/// real key configured, GoogleRecaptchaVerifier would actually call out to
+/// Google on every Login/Register/ForgotPassword test, and every one of
+/// those posts would fail (no real "g-recaptcha-response" token exists in a
+/// test request) unless this is forced empty, which makes verification a
+/// no-op the same as an unconfigured machine.
 /// </summary>
 public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
 {
@@ -34,6 +41,7 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
     {
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", ConnectionString);
         Environment.SetEnvironmentVariable("Email__Username", "");
+        Environment.SetEnvironmentVariable("Recaptcha__SecretKey", "");
     }
 
     protected override void Dispose(bool disposing)
@@ -43,6 +51,7 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
 
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", null);
         Environment.SetEnvironmentVariable("Email__Username", null);
+        Environment.SetEnvironmentVariable("Recaptcha__SecretKey", null);
 
         SqlConnection.ClearAllPools();
         using var connection = new SqlConnection("Server=(localdb)\\MSSQLLocalDB;Trusted_Connection=True;TrustServerCertificate=True;");

@@ -16,7 +16,9 @@ namespace MarsvinWebExample.Pages.Account;
 // victim's email could re-lock their account indefinitely, and nothing
 // stopped one client from trying thousands of different emails per minute.
 [EnableRateLimiting("auth")]
-public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender) : PageModel
+public class LoginModel(
+    IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender, IRecaptchaVerifier recaptcha)
+    : PageModel
 {
     // Long enough that "check your email" doesn't feel like a race against the
     // inbox, short enough that a link sitting unread stops being useful fast.
@@ -38,6 +40,12 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
+    // Populated by model binding from the hidden <textarea name="g-recaptcha-
+    // response"> reCAPTCHA's own JS injects into the form - not set directly
+    // by anything in this project's markup.
+    [BindProperty(Name = "g-recaptcha-response")]
+    public string? RecaptchaResponse { get; set; }
+
     public string? ReturnUrl { get; set; }
 
     public void OnGet(string? returnUrl) => ReturnUrl = returnUrl;
@@ -46,6 +54,12 @@ public class LoginModel(IUserAccountStore users, IPendingLoginStore pendingLogin
     {
         ReturnUrl = returnUrl;
         if (!ModelState.IsValid) return Page();
+
+        if (!await recaptcha.VerifyAsync(RecaptchaResponse))
+        {
+            ModelState.AddModelError(string.Empty, "Bekræft venligst, at du ikke er en robot.");
+            return Page();
+        }
 
         var email = Input.Email.Trim().ToLowerInvariant();
 

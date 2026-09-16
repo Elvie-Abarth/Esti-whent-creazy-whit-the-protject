@@ -48,6 +48,18 @@ internal sealed class RecordingEmailSender : IEmailSender
     }
 }
 
+/// <summary>
+/// Always passes, regardless of the token - these tests aren't exercising
+/// reCAPTCHA itself (GoogleRecaptchaVerifierTests covers that), and every
+/// PageModel here is constructed directly rather than through DI, so the
+/// real Recaptcha:SecretKey-driven skip in GoogleRecaptchaVerifier never
+/// comes into play the way it does for the full HTTP end-to-end tests.
+/// </summary>
+internal sealed class AlwaysPassRecaptchaVerifier : IRecaptchaVerifier
+{
+    public Task<bool> VerifyAsync(string? token) => Task.FromResult(true);
+}
+
 [Collection("SqlCatalog collection")]
 public class LoginModelTests(SqlCatalogFixture fixture)
 {
@@ -62,7 +74,8 @@ public class LoginModelTests(SqlCatalogFixture fixture)
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
         var email = new RecordingEmailSender();
-        var model = new LoginModel(_users, _pendingLogins, email) { PageContext = new PageContext { HttpContext = httpContext } };
+        var model = new LoginModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier())
+            { PageContext = new PageContext { HttpContext = httpContext } };
         return (model, auth, email);
     }
 

@@ -79,6 +79,14 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Email:Username"]))
 else
     builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
+// SiteKey is public config; SecretKey follows the same user-secrets-only
+// rule as Email:Password. GoogleRecaptchaVerifier skips verification when
+// SecretKey is empty, and _Recaptcha.cshtml skips rendering the widget when
+// SiteKey is empty, so Login/Register/ForgotPassword stay usable out of the
+// box without a developer's own Google reCAPTCHA keys.
+builder.Services.Configure<RecaptchaOptions>(builder.Configuration.GetSection("Recaptcha"));
+builder.Services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>();
+
 // Used to build absolute links (login-confirmation, inactivity-warning
 // emails) from a BackgroundService, which has no HttpContext/Request to read
 // the real scheme+host from the way a PageModel can.
@@ -147,9 +155,13 @@ app.Use(async (context, next) =>
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     // No inline <style>/style="" or inline <script> anywhere in the project
     // (confirmed by grep) - so both script-src and style-src stay locked to
-    // 'self' with no 'unsafe-inline'/'unsafe-eval'.
+    // 'self' with no 'unsafe-inline'/'unsafe-eval'. The two google.com/
+    // gstatic.com additions are only reached at all when a Recaptcha:SiteKey
+    // is configured (see _Recaptcha.cshtml) - reCAPTCHA's widget script and
+    // the iframe it renders both need to load from Google's own origins.
     headers["Content-Security-Policy"] =
-        "default-src 'self'; script-src 'self'; style-src 'self'; " +
+        "default-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com; " +
+        "style-src 'self'; frame-src https://www.google.com; " +
         "img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';";
     await next();
 });

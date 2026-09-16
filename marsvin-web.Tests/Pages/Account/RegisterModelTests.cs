@@ -26,7 +26,7 @@ public class RegisterModelTests(SqlCatalogFixture fixture)
         httpContext.Request.Host = new HostString("localhost");
 
         var email = new RecordingEmailSender();
-        var model = new RegisterModel(_users, _pendingLogins, email)
+        var model = new RegisterModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier())
         {
             PageContext = new PageContext { HttpContext = httpContext }
         };

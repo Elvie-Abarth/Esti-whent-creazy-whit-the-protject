@@ -38,6 +38,15 @@ of emailed, so the app is fully usable out of the box. To send real mail, set
 `dotnet user-secrets set Email:Username ...` / `Email:Password ...` from the
 `marsvin-web` folder (see `DocumentationInformation/DATABASE-NOTES.txt`).
 
+Login/Register/ForgotPassword also support Google reCAPTCHA, the same way:
+without a `Recaptcha:SiteKey`/`Recaptcha:SecretKey` configured, no widget is
+shown and nothing is verified, so those pages work exactly as before. To
+turn it on, get a reCAPTCHA v2 ("I'm not a robot" checkbox) key pair from
+<https://www.google.com/recaptcha/admin>, put the site key in
+`appsettings.json`'s `Recaptcha:SiteKey` (it's public - embedded straight
+into the page), and set the secret key with
+`dotnet user-secrets set Recaptcha:SecretKey ...` (never commit that one).
+
 You need the **.NET 9 SDK**, for VS Code the **C# Dev Kit** extension, and
 **SQL Server LocalDB** (ships with Visual Studio, or install separately).
 `dotnet --list-sdks` and `sqllocaldb info` tell you what you have.

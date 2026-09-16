@@ -11,18 +11,32 @@ namespace MarsvinWebExample.Pages.Account;
 // emails, or (paired with response timing) probe which addresses have an
 // account.
 [EnableRateLimiting("auth")]
-public class ForgotPasswordModel(IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender) : PageModel
+public class ForgotPasswordModel(
+    IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender, IRecaptchaVerifier recaptcha)
+    : PageModel
 {
     private static readonly TimeSpan ConfirmationValidFor = TimeSpan.FromMinutes(15);
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
+    // Populated by model binding from the hidden <textarea name="g-recaptcha-
+    // response"> reCAPTCHA's own JS injects into the form - not set directly
+    // by anything in this project's markup.
+    [BindProperty(Name = "g-recaptcha-response")]
+    public string? RecaptchaResponse { get; set; }
+
     public void OnGet() { }
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid) return Page();
+
+        if (!await recaptcha.VerifyAsync(RecaptchaResponse))
+        {
+            ModelState.AddModelError(string.Empty, "Bekræft venligst, at du ikke er en robot.");
+            return Page();
+        }
 
         var user = users.FindByEmail(Input.Email.Trim().ToLowerInvariant());
 

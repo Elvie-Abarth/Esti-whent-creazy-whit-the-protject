@@ -20,7 +20,7 @@ public class ForgotPasswordModelTests(SqlCatalogFixture fixture)
         var httpContext = new DefaultHttpContext();
         httpContext.Request.Scheme = "http";
         httpContext.Request.Host = new HostString("localhost");
-        var model = new ForgotPasswordModel(_users, _pendingLogins, email)
+        var model = new ForgotPasswordModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier())
         {
             PageContext = new PageContext { HttpContext = httpContext }
         };
