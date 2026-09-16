@@ -99,7 +99,26 @@ a:hover { color: var(--fleece); }
     gap: 0.55rem;
 }
 
-.brand svg { width: 38px; height: auto; display: block; }
+/* Popcorning - the little jump-and-twist a happy guinea pig does (see the
+   Pasningsguide's "reading a guinea pig" section) - as a short burst every
+   few seconds rather than constant motion, closer to how the real thing
+   actually looks than a continuous animation would. transform-origin sits
+   at the bottom so it reads as jumping up off the ground, not floating. */
+.brand svg {
+    width: 38px;
+    height: auto;
+    display: block;
+    transform-origin: 50% 100%;
+    animation: brand-popcorn 4.5s ease-in-out infinite;
+}
+@keyframes brand-popcorn {
+    0%, 78%, 100% { transform: translateY(0) rotate(0) scale(1); }
+    82%           { transform: translateY(2px) scale(1.06, 0.92); }
+    88%           { transform: translateY(-11px) rotate(-9deg) scale(1); }
+    92%           { transform: translateY(-13px) rotate(7deg) scale(1.03); }
+    96%           { transform: translateY(-2px) rotate(-2deg) scale(1); }
+    98.5%         { transform: translateY(0) rotate(0) scale(1.05, 0.93); }
+}
 
 .site-nav {
     display: flex;
