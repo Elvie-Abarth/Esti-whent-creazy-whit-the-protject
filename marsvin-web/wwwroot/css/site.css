@@ -298,9 +298,10 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .pair-label {
     background: var(--meadow);
     color: var(--hay);
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
     font-weight: 700;
-    padding: 0.45rem 1rem;
+    padding: 0.3rem 0.75rem;
 }
 
 .pair-body {
