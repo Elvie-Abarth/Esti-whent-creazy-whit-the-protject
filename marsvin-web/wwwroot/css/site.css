@@ -309,9 +309,15 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+/* A flex column, not just display:block, so .cavy-foot's margin-top: auto
+   below can push it down to the card's own bottom edge - otherwise two
+   cards side by side (a bonded pair, or two solo animals sharing a row)
+   land their price/status line at different heights whenever one has more
+   description text than the other. */
 .cavy {
     padding: 1.25rem 1.35rem 1.5rem;
-    display: block;
+    display: flex;
+    flex-direction: column;
     text-decoration: none;
     color: inherit;
 }
@@ -338,6 +344,7 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     gap: 1rem;
     border-top: 1px solid var(--line);
     padding-top: 0.6rem;
+    margin-top: auto;
 }
 
 .price { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
