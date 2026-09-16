@@ -26,11 +26,10 @@ public static class Totp
     public static string GenerateSecret() => Base32Encode(RandomNumberGenerator.GetBytes(20));
 
     /// <summary>
-    /// The otpauth:// URI an authenticator app can import - shown as text (and,
-    /// if the user's app supports it, pasted straight in) since generating an
-    /// actual scannable QR code image would mean either a new dependency or a
-    /// hand-rolled QR encoder; every authenticator app also accepts typing the
-    /// secret in manually, which this same value covers.
+    /// The otpauth:// URI an authenticator app can import - rendered as a
+    /// scannable QR code by QrCode.ToDataUri on the setup screen (see
+    /// Account/Profile), with the raw secret also shown as text for anyone
+    /// who'd rather type it in by hand.
     /// </summary>
     public static string BuildOtpAuthUri(string secret, string accountEmail) =>
         $"otpauth://totp/Marsvin:{Uri.EscapeDataString(accountEmail)}?secret={secret}&issuer=Marsvin&digits={Digits}&period={StepSeconds}";

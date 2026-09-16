@@ -52,6 +52,7 @@ public class ProfileModel(
         {
             PendingTotpSecret = user.TotpSecret;
             PendingTotpUri = Totp.BuildOtpAuthUri(user.TotpSecret, user.Email);
+            PendingTotpQrCodeDataUri = QrCode.ToDataUri(PendingTotpUri);
         }
 
         if (User.IsInRole("Customer"))
@@ -158,6 +159,7 @@ public class ProfileModel(
     // entry setup form only in that state.
     public string? PendingTotpSecret { get; private set; }
     public string? PendingTotpUri { get; private set; }
+    public string? PendingTotpQrCodeDataUri { get; private set; }
 
     public IActionResult OnPostStartTotpEnrollment()
     {
