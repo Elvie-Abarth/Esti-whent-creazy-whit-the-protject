@@ -17,25 +17,13 @@ namespace MarsvinWebExample.Pages.Account;
 // stopped one client from trying thousands of different emails per minute.
 [EnableRateLimiting("auth")]
 public class LoginModel(
-    IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender, IRecaptchaVerifier recaptcha)
+    IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender,
+    IRecaptchaVerifier recaptcha, LoginLockoutTracker lockout)
     : PageModel
 {
     // Long enough that "check your email" doesn't feel like a race against the
     // inbox, short enough that a link sitting unread stops being useful fast.
     private static readonly TimeSpan ConfirmationValidFor = TimeSpan.FromMinutes(15);
-
-    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(5);
-    private const int MaxFailedAttempts = 5;
-
-    // Demo-scale, in-memory login throttling keyed by email. A real
-    // deployment would persist this (or use a proper rate limiter) so it
-    // survives app restarts and works across multiple instances. Entries
-    // older than EntryTtl are swept out on every access below, so a flood of
-    // distinct throwaway emails can't grow this dictionary forever the way
-    // it could when entries never expired.
-    private static readonly TimeSpan EntryTtl = TimeSpan.FromHours(1);
-    private static readonly Dictionary<string, (int Attempts, DateTime? LockedUntil, DateTime LastSeenAt)> FailedAttempts = new();
-    private static readonly object FailedAttemptsLock = new();
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -63,10 +51,11 @@ public class LoginModel(
 
         var email = Input.Email.Trim().ToLowerInvariant();
 
-        if (IsLockedOut(email))
+        if (lockout.IsLockedOut(email))
         {
-            ModelState.AddModelError(string.Empty,
-                "For mange forkerte forsøg. Prøv igen om et par minutter.");
+            ModelState.AddModelError(string.Empty, lockout.RequiresManualReset(email)
+                ? "Din konto er låst efter flere mislykkede forsøg. Nulstil din adgangskode for at logge ind igen."
+                : "For mange forkerte forsøg. Prøv igen om lidt.");
             return Page();
         }
 
@@ -77,12 +66,32 @@ public class LoginModel(
 
         if (!verified)
         {
-            RegisterFailedAttempt(email);
+            var shouldNotify = lockout.RegisterFailedAttempt(email);
+            // Only ever reaches a real inbox if the email actually matches
+            // an account - an attacker probing random addresses never
+            // learns anything from whether this fires.
+            if (shouldNotify && user is not null)
+            {
+                await emailSender.SendAsync(user.Email, "Mistænkelig aktivitet på din Marsvin-konto",
+                    $"""
+                    Hej {user.DisplayName},
+
+                    Der har været flere mislykkede loginforsøg på din Marsvin-konto for nylig. Hvis det ikke var dig, bør du nulstille din adgangskode:
+
+                    {Request.Scheme}://{Request.Host}/Account/ForgotPassword
+
+                    Var det dig selv, der tastede forkert nogle gange? Så kan du roligt ignorere denne mail.
+
+                    Venlig hilsen
+                    Marsvin
+                    """);
+            }
+
             ModelState.AddModelError(string.Empty, "Forkert e-mail eller adgangskode.");
             return Page();
         }
 
-        ClearFailedAttempts(email);
+        lockout.Clear(email);
 
         // Password alone doesn't sign you in - a confirmation link goes to the
         // account's own email first (proof you also control the inbox, not
@@ -107,47 +116,6 @@ public class LoginModel(
             """);
 
         return RedirectToPage("CheckEmail", new { returnUrl = safeReturnUrl });
-    }
-
-    private static bool IsLockedOut(string email)
-    {
-        lock (FailedAttemptsLock)
-        {
-            PruneStaleEntries();
-            return FailedAttempts.TryGetValue(email, out var entry) &&
-                   entry.LockedUntil is DateTime until && until > DateTime.UtcNow;
-        }
-    }
-
-    private static void RegisterFailedAttempt(string email)
-    {
-        lock (FailedAttemptsLock)
-        {
-            PruneStaleEntries();
-            var (attempts, _, _) = FailedAttempts.GetValueOrDefault(email);
-            attempts++;
-            var lockedUntil = attempts >= MaxFailedAttempts ? DateTime.UtcNow.Add(LockoutDuration) : (DateTime?)null;
-            FailedAttempts[email] = (attempts, lockedUntil, DateTime.UtcNow);
-        }
-    }
-
-    private static void ClearFailedAttempts(string email)
-    {
-        lock (FailedAttemptsLock)
-        {
-            FailedAttempts.Remove(email);
-        }
-    }
-
-    // Called with FailedAttemptsLock already held. A stale entry (nothing
-    // seen from that email in over EntryTtl) is long past being locked out -
-    // removing it here, a little at a time on every real request, means the
-    // dictionary never needs its own background sweep.
-    private static void PruneStaleEntries()
-    {
-        var cutoff = DateTime.UtcNow - EntryTtl;
-        foreach (var key in FailedAttempts.Where(kv => kv.Value.LastSeenAt < cutoff).Select(kv => kv.Key).ToList())
-            FailedAttempts.Remove(key);
     }
 
     public sealed class InputModel

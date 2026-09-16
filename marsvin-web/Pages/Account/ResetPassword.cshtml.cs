@@ -9,7 +9,8 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace MarsvinWebExample.Pages.Account;
 
 [EnableRateLimiting("auth")]
-public class ResetPasswordModel(IUserAccountStore users, IPendingLoginStore pendingLogins) : PageModel
+public class ResetPasswordModel(IUserAccountStore users, IPendingLoginStore pendingLogins, LoginLockoutTracker lockout)
+    : PageModel
 {
     [BindProperty]
     public string Token { get; set; } = "";
@@ -48,6 +49,10 @@ public class ResetPasswordModel(IUserAccountStore users, IPendingLoginStore pend
 
         var hasher = new PasswordHasher<ApplicationUser>();
         users.UpdatePassword(user.UserId, hasher.HashPassword(user, Input.NewPassword));
+
+        // The only thing that can lift a RequiresManualReset lockout -
+        // choosing a new password here is what that escalation demanded.
+        lockout.Clear(user.Email.Trim().ToLowerInvariant());
 
         ToastMessage = new Bilingual(
             "Din adgangskode er ændret. Log ind med den nye.",

@@ -65,6 +65,11 @@ builder.Services.AddScoped<IShiftStore>(_ => new SqlShiftStore(connectionString)
 builder.Services.AddScoped<ITimeOffRequestStore>(_ => new SqlTimeOffRequestStore(connectionString));
 builder.Services.AddScoped<IAuditLogStore>(_ => new SqlAuditLogStore(connectionString));
 
+// Singleton, not Scoped - the whole point is tracking failed attempts
+// across requests. LoginModel and ResetPasswordModel share this one
+// instance (see LoginLockoutTracker's own doc comment for why).
+builder.Services.AddSingleton<LoginLockoutTracker>();
+
 // Host/Port/FromName are plain config; Username/Password are meant to come
 // from `dotnet user-secrets` (or real environment variables in production),
 // never from a file that gets committed. Without them set, SmtpEmailSender

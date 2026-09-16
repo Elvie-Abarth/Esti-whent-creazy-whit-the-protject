@@ -66,6 +66,14 @@ public class LoginModelTests(SqlCatalogFixture fixture)
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
 
+    // One tracker shared across every MakeModel() call *within a single
+    // test* (xUnit gives each test method its own fresh instance of this
+    // whole class, so this never leaks state between tests) - matching how
+    // the real app shares one Singleton LoginLockoutTracker across every
+    // request, which the "five wrong attempts across five separate model
+    // instances still locks out" test below depends on.
+    private readonly LoginLockoutTracker _lockout = new();
+
     private (LoginModel Model, RecordingAuthenticationService Auth, RecordingEmailSender Email) MakeModel()
     {
         var services = new ServiceCollection();
@@ -74,7 +82,7 @@ public class LoginModelTests(SqlCatalogFixture fixture)
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
         var email = new RecordingEmailSender();
-        var model = new LoginModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier())
+        var model = new LoginModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier(), _lockout)
             { PageContext = new PageContext { HttpContext = httpContext } };
         return (model, auth, email);
     }
@@ -157,6 +165,44 @@ public class LoginModelTests(SqlCatalogFixture fixture)
         Assert.Null(auth.SignedInAs);
         Assert.Empty(sentEmail.Sent);
         Assert.IsType<PageResult>(result);
+    }
+
+    /// <summary>
+    /// Reaches into the tracker's private per-email delay via reflection to
+    /// simulate the progressive delay having already elapsed - the real
+    /// tracker deliberately refuses a same-instant retry (LoginModel checks
+    /// IsLockedOut before ever touching credentials), so without this a test
+    /// driving three attempts back-to-back would only ever register the
+    /// first one and would need real multi-second Thread.Sleep calls to
+    /// observe the rest.
+    /// </summary>
+    private static void ExpireLockoutDelay(LoginLockoutTracker tracker, string email)
+    {
+        var entries = (System.Collections.IDictionary)typeof(LoginLockoutTracker)
+            .GetField("_entries", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(tracker)!;
+        var entry = entries[email]!;
+        entry.GetType().GetField("DelayedUntil")!.SetValue(entry, DateTime.UtcNow.AddSeconds(-1));
+    }
+
+    [Fact]
+    public async Task OnPostAsync_ThirdWrongAttempt_EmailsTheAccountOwner()
+    {
+        var email = NewCustomerWithPassword("CorrectPass123!");
+        RecordingEmailSender? thirdAttemptEmail = null;
+
+        for (var i = 0; i < 3; i++)
+        {
+            var (attempt, _, sent) = MakeModel();
+            attempt.Input = new LoginModel.InputModel { Email = email, Password = "WrongPassword!" };
+            await attempt.OnPostAsync(returnUrl: null);
+            ExpireLockoutDelay(_lockout, email.ToLowerInvariant());
+            if (i == 2) thirdAttemptEmail = sent;
+        }
+
+        var notification = Assert.Single(thirdAttemptEmail!.Sent);
+        Assert.Equal(email, notification.ToEmail);
+        Assert.Contains("Mistænkelig aktivitet", notification.Subject);
     }
 
     [Fact]

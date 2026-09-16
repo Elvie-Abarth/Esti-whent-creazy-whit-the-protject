@@ -14,7 +14,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
 
-    private ResetPasswordModel MakeModel() => new(_users, _pendingLogins);
+    private ResetPasswordModel MakeModel() => new(_users, _pendingLogins, new LoginLockoutTracker());
 
     private (int UserId, string Token) NewUserWithResetToken([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
     {
