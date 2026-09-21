@@ -729,7 +729,15 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
    this narrower form into two separate .wrap divs so the summary card
    isn't squeezed to .auth-page's 32rem - this one carries the page's own
    closing padding-bottom, the same amount .section normally would. */
-.payment-wrap { padding-bottom: clamp(2.5rem, 6vw, 4.5rem); }
+/* Wider than .auth-page's own 32rem (which Login/Register/Profile share) -
+   the form looked narrow and cramped sitting under the full-width order
+   summary above it. Overriding here rather than widening .auth-page itself,
+   which would also widen every plain login/signup form site-wide. */
+.payment-wrap { padding-bottom: clamp(2.5rem, 6vw, 4.5rem); max-width: 44rem; }
+/* Expiry and CVC are short fields - full-width at this card's new size
+   would leave them looking oddly stretched, so they share a row instead. */
+.payment-card .card-expiry-row { display: flex; flex-direction: row; gap: 1rem; }
+.payment-card .card-expiry-row > label { flex: 1; }
 
 .form-errors {
     color: #7A1F3D;

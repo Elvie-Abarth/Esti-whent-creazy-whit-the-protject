@@ -119,17 +119,19 @@
             <span asp-validation-for="Input.CardNumber" class="field-error"></span>
         </label>
 
-        <label>
-            <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
-            <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
-            <span asp-validation-for="Input.Expiry" class="field-error"></span>
-        </label>
+        <div class="card-expiry-row">
+            <label>
+                <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
+                <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
+                <span asp-validation-for="Input.Expiry" class="field-error"></span>
+            </label>
 
-        <label>
-            <span>CVC</span>
-            <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
-            <span asp-validation-for="Input.Cvc" class="field-error"></span>
-        </label>
+            <label>
+                <span>CVC</span>
+                <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
+                <span asp-validation-for="Input.Cvc" class="field-error"></span>
+            </label>
+        </div>
 
         <button type="submit" class="btn" data-en="Pay now (demo)">Betal nu (demo)</button>
     </form>
