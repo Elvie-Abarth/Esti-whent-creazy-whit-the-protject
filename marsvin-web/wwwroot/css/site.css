@@ -725,6 +725,12 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 }
 .payment-card .btn { align-self: stretch; text-align: center; margin-top: 0.5rem; }
 
+/* Cart/Payment split its order summary (full-width, like Cart/Index) and
+   this narrower form into two separate .wrap divs so the summary card
+   isn't squeezed to .auth-page's 32rem - this one carries the page's own
+   closing padding-bottom, the same amount .section normally would. */
+.payment-wrap { padding-bottom: clamp(2.5rem, 6vw, 4.5rem); }
+
 .form-errors {
     color: #7A1F3D;
     background: #FBE7EE;
