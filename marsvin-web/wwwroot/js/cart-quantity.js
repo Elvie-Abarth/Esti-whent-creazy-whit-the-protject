@@ -1,8 +1,8 @@
 // Auto-submits a cart line's quantity form as soon as it changes - typing a
 // new number and tabbing away, or clicking the spinner arrows, both fire the
-// native "change" event, so the separate "Update" button stops being
-// something you have to remember to click. The button itself stays in the
-// markup (Index.cshtml) as a fallback for anyone without JS.
+// native "change" event. There's no separate "Update" button any more (see
+// Index.cshtml) - without JS, the lone number field still submits on Enter
+// per the browser's own implicit-submission behaviour for a single-field form.
 (function () {
     "use strict";
 
