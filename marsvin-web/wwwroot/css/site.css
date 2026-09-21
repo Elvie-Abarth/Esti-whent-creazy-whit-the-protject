@@ -778,17 +778,35 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 /* ------------------------------ cart ------------------------------ */
 .goods-buy { margin-top: 0.5rem; }
 
-.cart-table {
-    width: 100%;
-    border-collapse: collapse;
+/* A plain borderless table read as a draft, not a real order summary -
+   the card container, shaded header, and its own footer bar give the cart
+   the same "this is a finished screen" weight the rest of the checkout
+   flow (Betaling) already has. */
+.cart-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
     margin: 1.5rem 0;
+    box-shadow: 0 1px 3px rgba(44, 67, 39, 0.08);
 }
+.cart-table { width: 100%; border-collapse: collapse; }
 .cart-table th, .cart-table td {
     text-align: left;
-    padding: 0.6rem 0.75rem;
+    padding: 0.85rem 1.1rem;
     border-bottom: 1px solid var(--line);
 }
-.cart-total { font-size: 1.1rem; margin-bottom: 1.5rem; }
+.cart-table th {
+    background: var(--hay);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bark);
+}
+.cart-table tbody tr:last-child td { border-bottom: none; }
+.cart-table tbody tr:hover { background: rgba(184, 60, 110, 0.04); }
 
 /* ------------------------------ admin ------------------------------ */
 .admin-links {
@@ -867,6 +885,63 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     max-width: 8rem;
 }
 .inline-form .btn { padding: 0.3rem 0.65rem; font-size: 0.82rem; }
+
+/* Cart quantity stepper and remove button - deliberately overriding
+   .inline-form's own input[type=number]/border-radius above (same
+   specificity, but this comes later in the file) rather than fighting it
+   with !important. */
+.qty-stepper { display: inline-flex; align-items: stretch; gap: 0; }
+.qty-stepper input[type="number"] {
+    width: 3rem;
+    max-width: none;
+    text-align: center;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    -moz-appearance: textfield;
+}
+.qty-stepper input[type="number"]::-webkit-inner-spin-button,
+.qty-stepper input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.qty-step {
+    width: 1.9rem;
+    font: inherit;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--meadow);
+    cursor: pointer;
+}
+.qty-step:first-child { border-radius: 5px 0 0 5px; }
+.qty-step:last-child { border-radius: 0 5px 5px 0; }
+.qty-step:hover { background: var(--hay); }
+
+.cart-remove {
+    width: 1.8rem;
+    height: 1.8rem;
+    line-height: 1;
+    border: none;
+    background: transparent;
+    color: var(--bark);
+    font-size: 1.2rem;
+    border-radius: 50%;
+    cursor: pointer;
+}
+.cart-remove:hover { background: rgba(184, 60, 110, 0.12); color: var(--fleece); }
+
+.cart-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.1rem 1.1rem;
+    background: var(--hay);
+}
+.cart-total { font-size: 1.15rem; font-weight: 700; }
 
 /* ------------------------------ care guide ---------------------- */
 .guide-intro { padding-top: clamp(2rem, 5vw, 3.5rem); }

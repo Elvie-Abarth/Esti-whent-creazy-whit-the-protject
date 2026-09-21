@@ -12,4 +12,21 @@
             input.form.requestSubmit();
         }
     });
+
+    // The +/- stepper buttons (type="button", so they never submit the form
+    // on their own) nudge the number field and fire "change" themselves -
+    // plain HTML doesn't dispatch that event for a script-driven value
+    // change, only for direct user interaction with the field.
+    document.addEventListener("click", function (event) {
+        var step = event.target.closest(".qty-step");
+        if (!step) return;
+
+        var input = step.parentElement.querySelector('input[type="number"][name="quantity"]');
+        if (!input) return;
+
+        var min = parseInt(input.min, 10) || 1;
+        var next = (parseInt(input.value, 10) || 0) + parseInt(step.dataset.step, 10);
+        input.value = Math.max(min, next);
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
 })();

@@ -22,50 +22,53 @@
     }
     else
     {
-        <table class="cart-table">
-            <thead>
-                <tr>
-                    <th data-en="Item">Vare</th>
-                    <th data-en="Quantity">Antal</th>
-                    <th data-en="Price">Pris</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var line in Model.Lines)
-                {
+        <div class="cart-card">
+            <table class="cart-table">
+                <thead>
                     <tr>
-                        <td>@line.ProductName</td>
-                        <td>
-                            @if (line.IsAnimal)
-                            {
-                                @line.Quantity
-                            }
-                            else
-                            {
-                                <form method="post" asp-page-handler="UpdateQuantity" class="inline-form">
-                                    <input type="hidden" name="productId" value="@line.ProductId" />
-                                    <input type="number" name="quantity" value="@line.Quantity" min="1" aria-label="Antal" data-en-aria-label="Quantity" />
-                                </form>
-                            }
-                        </td>
-                        <td>@line.LineTotal.ToString("N0") kr.</td>
-                        <td>
-                            <form method="post" asp-page-handler="Remove">
-                                <input type="hidden" name="productId" value="@line.ProductId" />
-                                <button type="submit" class="btn btn--quiet" data-en="Remove">Fjern</button>
-                            </form>
-                        </td>
+                        <th data-en="Item">Vare</th>
+                        <th data-en="Quantity">Antal</th>
+                        <th data-en="Price">Pris</th>
+                        <th></th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var line in Model.Lines)
+                    {
+                        <tr>
+                            <td>@line.ProductName</td>
+                            <td>
+                                @if (line.IsAnimal)
+                                {
+                                    @line.Quantity
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="UpdateQuantity" class="inline-form qty-stepper">
+                                        <input type="hidden" name="productId" value="@line.ProductId" />
+                                        <button type="button" class="qty-step" data-step="-1" aria-label="Færre" data-en-aria-label="Fewer">&minus;</button>
+                                        <input type="number" name="quantity" value="@line.Quantity" min="1" aria-label="Antal" data-en-aria-label="Quantity" />
+                                        <button type="button" class="qty-step" data-step="1" aria-label="Flere" data-en-aria-label="More">+</button>
+                                    </form>
+                                }
+                            </td>
+                            <td>@line.LineTotal.ToString("N0") kr.</td>
+                            <td>
+                                <form method="post" asp-page-handler="Remove">
+                                    <input type="hidden" name="productId" value="@line.ProductId" />
+                                    <button type="submit" class="cart-remove" aria-label="Fjern" data-en-aria-label="Remove">&times;</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
 
-        <p class="cart-total">
-            <strong data-en="Total">I alt</strong>: @Model.Total.ToString("N0") kr.
-        </p>
-
-        <a class="btn" asp-page="/Cart/Payment" data-en="Check out">Gennemfør køb</a>
+            <div class="cart-summary">
+                <span class="cart-total"><span data-en="Total">I alt</span>: @Model.Total.ToString("N0") kr.</span>
+                <a class="btn" asp-page="/Cart/Payment" data-en="Check out">Gennemfør køb</a>
+            </div>
+        </div>
     }
 </div>
 
