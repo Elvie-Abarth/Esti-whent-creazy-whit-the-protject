@@ -110,9 +110,38 @@ public class IndexModelTests(SqlCatalogFixture fixture)
         // partner, so no confirmNotAlone/companionNote is needed here.
         model.OnPostAdd(productId: 1, quantity: 1);
 
-        var line = Assert.Single(_cart.GetLines(userId));
+        var line = _cart.GetLines(userId).Single(l => l.ProductId == 1);
         Assert.True(line.IsAnimal);
         Assert.Equal(1, line.Quantity);
+    }
+
+    [Fact]
+    public void OnPostAdd_BondedAnimal_AlsoAddsItsPartnerToTheCart()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+
+        // Marsvin/Details promises "the two move in together - combined price"
+        // for a bonded pair, so adding Pelle (1) should bring Basse (2) along.
+        model.OnPostAdd(productId: 1, quantity: 1);
+
+        var lines = _cart.GetLines(userId);
+        Assert.Contains(lines, l => l.ProductId == 1);
+        Assert.Contains(lines, l => l.ProductId == 2);
+        Assert.Equal(2, lines.Count);
+    }
+
+    [Fact]
+    public void OnPostAdd_BondedAnimal_WhenPartnerAlreadyInCart_DoesNotDuplicateIt()
+    {
+        var userId = NewCustomerId();
+        var model = MakeModel(userId);
+
+        model.OnPostAdd(productId: 2, quantity: 1); // Basse first
+        model.OnPostAdd(productId: 1, quantity: 1); // then Pelle
+
+        var basseLine = _cart.GetLines(userId).Single(l => l.ProductId == 2);
+        Assert.Equal(1, basseLine.Quantity);
     }
 
     [Fact]
@@ -285,7 +314,7 @@ public class IndexModelTests(SqlCatalogFixture fixture)
 
         model.OnPostUpdateQuantity(productId: 1, quantity: 2);
 
-        var line = Assert.Single(_cart.GetLines(userId));
+        var line = _cart.GetLines(userId).Single(l => l.ProductId == 1);
         Assert.Equal(1, line.Quantity);
         Assert.NotNull(model.ErrorMessage);
     }

@@ -55,7 +55,25 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
                 return RedirectAfterAdd(returnUrl);
             }
             cart.AddOrIncrement(this.CurrentUserId(), productId, 1);
-            ToastMessage = new Bilingual($"{animal.Name} er lagt i kurven.", $"{animal.Name} has been added to the cart.");
+
+            // Marsvin/Details promises "the two move in together - combined price" for
+            // a bonded pair, but that was only ever true of the price shown there; the
+            // partner still had to be added to the cart separately by hand. Do it here
+            // instead, so the combined-price promise actually holds at checkout too.
+            var partner = animal.BondedWithId is int partnerId ? catalog.FindAnimal(partnerId) : null;
+            var partnerAlreadyInCart = partner is not null
+                && cart.GetLines(this.CurrentUserId()).Any(l => l.ProductId == partner.ProductId);
+            if (partner is not null && !partnerAlreadyInCart && partner.CanBeAddedToCart(1))
+            {
+                cart.AddOrIncrement(this.CurrentUserId(), partner.ProductId, 1);
+                ToastMessage = new Bilingual(
+                    $"{animal.Name} og {partner.Name} er lagt i kurven.",
+                    $"{animal.Name} and {partner.Name} have been added to the cart.");
+            }
+            else
+            {
+                ToastMessage = new Bilingual($"{animal.Name} er lagt i kurven.", $"{animal.Name} has been added to the cart.");
+            }
             return RedirectAfterAdd(returnUrl);
         }
 
