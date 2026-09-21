@@ -728,6 +728,12 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 }
 .payment-card label { gap: 0.5rem; }
 .payment-card fieldset { gap: 0.85rem; }
+/* Every label with asp-validation-for renders an empty .field-error span as
+   a third flex child even when there's no error - label's own gap still
+   reserved space around it, so the space after an input read as bigger
+   than the space before it (uneven rhythm down the whole form). Collapsing
+   it out of flow when it has nothing in it removes that phantom gap. */
+.payment-card label > .field-error:empty { display: none; }
 .payment-card .btn { align-self: stretch; text-align: center; margin-top: 0.5rem; }
 
 /* Delivery choice promoted from plain radio rows into selectable cards -
