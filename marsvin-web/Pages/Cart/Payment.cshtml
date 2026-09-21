@@ -61,7 +61,7 @@
             <legend data-en="Delivery">Levering</legend>
             @if (Model.CanShip)
             {
-                <label class="checkbox-label">
+                <label class="checkbox-label delivery-option">
                     <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" checked="checked" />
                     @if (Model.HasAnimal)
                     {
@@ -72,7 +72,7 @@
                         <span data-en="Pick up in store">Afhent i butikken</span>
                     }
                 </label>
-                <label class="checkbox-label">
+                <label class="checkbox-label delivery-option">
                     <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Shipping" />
                     @if (Model.HasAnimal)
                     {

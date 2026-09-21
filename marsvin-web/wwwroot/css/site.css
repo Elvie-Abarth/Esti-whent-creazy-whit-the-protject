@@ -722,8 +722,28 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     /* Sibling margins collapse to the larger one, not the sum - matches
        .cart-card's own 2rem margin above it, for a real 2rem gap either way. */
     margin-top: 2rem;
+    /* More room between each field group than the shared .auth-form's 1rem -
+       this card is wider now, and felt cramped at the tighter login-form spacing. */
+    gap: 1.75rem;
 }
+.payment-card label { gap: 0.5rem; }
+.payment-card fieldset { gap: 0.85rem; }
 .payment-card .btn { align-self: stretch; text-align: center; margin-top: 0.5rem; }
+
+/* Delivery choice promoted from plain radio rows into selectable cards -
+   both options (pick up, ship) get equal visual weight, and the one
+   currently chosen is clearly highlighted rather than just a small dot. */
+.payment-card .delivery-option {
+    /* .checkbox-label already sets flex-direction:row/align-items:center */
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+}
+.payment-card .delivery-option:has(input:checked) {
+    border-color: var(--fleece);
+    background: rgba(184, 60, 110, 0.06);
+}
 
 /* Cart/Payment split its order summary (full-width, like Cart/Index) and
    this narrower form into two separate .wrap divs so the summary card
