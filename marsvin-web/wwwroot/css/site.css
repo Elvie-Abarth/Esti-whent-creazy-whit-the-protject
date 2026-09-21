@@ -704,6 +704,11 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     font-size: 0.9rem;
     font-weight: 600;
     padding: 0;
+    /* <legend> isn't a real flex item even inside a display:flex fieldset,
+       so the fieldset's own gap never applies to the space right after it -
+       it sat flush against the first option with no room at all. Match the
+       fieldset's own gap value here so the rhythm continues without a break. */
+    margin: 0 0 1.25rem;
 }
 
 .auth-switch { font-size: 0.9rem; color: var(--bark); margin-top: 1.5rem; }
