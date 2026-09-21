@@ -19,5 +19,8 @@ public sealed class CartLine
     public required int Quantity { get; init; }
     public required bool IsAnimal { get; init; }
 
+    /// <summary>Null if the animal/accessory has never had one set - the cart row just shows no thumbnail then.</summary>
+    public string? PhotoUrl { get; init; }
+
     public decimal LineTotal => UnitPrice * Quantity;
 }

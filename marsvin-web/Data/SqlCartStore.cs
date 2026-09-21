@@ -11,10 +11,12 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
         using var command = new SqlCommand(
             """
             SELECT c.ProductId, c.Quantity, p.Name, p.NameEn, p.Price,
-                   CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal
+                   CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal,
+                   COALESCE(a.PhotoUrl, sp.PhotoUrl) AS PhotoUrl
             FROM dbo.CartItems c
             JOIN dbo.Products p ON p.ProductId = c.ProductId
             LEFT JOIN dbo.Animals a ON a.ProductId = p.ProductId
+            LEFT JOIN dbo.StockProducts sp ON sp.ProductId = p.ProductId
             WHERE c.UserId = @UserId
             ORDER BY c.CartItemId;
             """, connection);
@@ -25,6 +27,7 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
         while (reader.Read())
         {
             var nameEnOrdinal = reader.GetOrdinal("NameEn");
+            var photoUrlOrdinal = reader.GetOrdinal("PhotoUrl");
             lines.Add(new CartLine
             {
                 ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
@@ -32,7 +35,8 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
                 ProductNameEn = reader.IsDBNull(nameEnOrdinal) ? null : reader.GetString(nameEnOrdinal),
                 UnitPrice = reader.GetDecimal(reader.GetOrdinal("Price")),
                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
-                IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1
+                IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1,
+                PhotoUrl = reader.IsDBNull(photoUrlOrdinal) ? null : reader.GetString(photoUrlOrdinal)
             });
         }
         return lines;

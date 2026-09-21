@@ -706,7 +706,7 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     padding: 0;
 }
 
-.auth-switch { font-size: 0.9rem; color: var(--bark); }
+.auth-switch { font-size: 0.9rem; color: var(--bark); margin-top: 1.5rem; }
 
 /* Cart/Payment: the delivery + card form used to sit directly on the page
    background with no edge of its own, the same "where does this thing
@@ -718,9 +718,10 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     border: 1px solid var(--bark);
     border-radius: 10px;
     box-shadow: 0 4px 14px rgba(44, 67, 39, 0.14);
-    padding: 1.5rem 1.5rem 1.75rem;
-    /* .auth-form already sets margin-top: 1.5rem, which doubles as the gap
-       below the .cart-card above this form on the same page - no override needed. */
+    padding: 1.75rem 1.75rem 2rem;
+    /* Sibling margins collapse to the larger one, not the sum - matches
+       .cart-card's own 2rem margin above it, for a real 2rem gap either way. */
+    margin-top: 2rem;
 }
 .payment-card .btn { align-self: stretch; text-align: center; margin-top: 0.5rem; }
 
@@ -803,7 +804,7 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     border: 1px solid var(--bark);
     border-radius: 10px;
     overflow: hidden;
-    margin: 1.5rem 0;
+    margin: 2rem 0;
     box-shadow: 0 4px 14px rgba(44, 67, 39, 0.14);
 }
 .cart-table { width: 100%; border-collapse: collapse; }
@@ -826,6 +827,16 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 }
 .cart-table tbody tr:last-child td { border-bottom: none; }
 .cart-table tbody tr:hover { background: rgba(184, 60, 110, 0.04); }
+
+.cart-item { display: flex; align-items: center; gap: 0.75rem; }
+.cart-item-photo {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+}
 
 /* ------------------------------ admin ------------------------------ */
 .admin-links {

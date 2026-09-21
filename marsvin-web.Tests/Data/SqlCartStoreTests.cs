@@ -64,6 +64,39 @@ public class SqlCartStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void GetLines_AccessoryWithAPhoto_ResolvesPhotoUrlFromStockProducts()
+    {
+        var userId = NewCustomerId();
+
+        _cart.AddOrIncrement(userId, 101, 1); // Timothy-hø, 2 kg - has a real photo
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Equal("/img/products/hay-bag.jpg", line.PhotoUrl);
+    }
+
+    [Fact]
+    public void GetLines_AnimalWithAPhoto_ResolvesPhotoUrlFromAnimals()
+    {
+        var userId = NewCustomerId();
+
+        _cart.AddOrIncrement(userId, 7, 1); // Shelly - has a real photo
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Equal("/img/animals/shelly.jpg", line.PhotoUrl);
+    }
+
+    [Fact]
+    public void GetLines_AccessoryWithoutAPhoto_LeavesPhotoUrlNull()
+    {
+        var userId = NewCustomerId();
+
+        _cart.AddOrIncrement(userId, 113, 1); // Alfalfa-hø - never got a matching photo
+
+        var line = Assert.Single(_cart.GetLines(userId));
+        Assert.Null(line.PhotoUrl);
+    }
+
+    [Fact]
     public void SetQuantity_ExistingLine_ReplacesRatherThanAdds()
     {
         var userId = NewCustomerId();

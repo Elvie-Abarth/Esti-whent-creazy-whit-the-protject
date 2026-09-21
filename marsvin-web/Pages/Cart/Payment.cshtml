@@ -28,7 +28,15 @@
                 @foreach (var line in Model.Lines)
                 {
                     <tr>
-                        <td>@line.ProductName</td>
+                        <td>
+                            <div class="cart-item">
+                                @if (!string.IsNullOrEmpty(line.PhotoUrl))
+                                {
+                                    <img src="@line.PhotoUrl" alt="" class="cart-item-photo" />
+                                }
+                                <span>@line.ProductName</span>
+                            </div>
+                        </td>
                         <td>@line.Quantity</td>
                         <td>@line.LineTotal.ToString("N0") kr.</td>
                     </tr>
