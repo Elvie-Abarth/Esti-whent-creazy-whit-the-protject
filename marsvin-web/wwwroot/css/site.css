@@ -797,17 +797,16 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     border-bottom: 1px solid var(--line);
 }
 .cart-table th {
-    /* --hay is the page's own background - using it here made the header
-       (and with it, the card's top edge) disappear into the page instead
-       of reading as part of the card. --line is darker/tanner, so the
-       card's outline is visible against the page behind it. */
-    background: var(--line);
+    /* Same meadow green as .site-footer - bookends the card the same way
+       the header/footer bookend the whole page, instead of a tan that
+       still read as "not quite the page, not quite its own thing." */
+    background: var(--meadow);
     font-family: var(--font-body);
     font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--bark);
+    color: #DCE6D2;
 }
 .cart-table tbody tr:last-child td { border-bottom: none; }
 .cart-table tbody tr:hover { background: rgba(184, 60, 110, 0.04); }
@@ -947,7 +946,8 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     gap: 1rem;
     flex-wrap: wrap;
     padding: 1.1rem 1.1rem;
-    background: var(--line);
+    background: var(--meadow);
+    color: #DCE6D2;
 }
 .cart-total { font-size: 1.15rem; font-weight: 700; }
 
