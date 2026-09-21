@@ -15,30 +15,32 @@
         </div>
     </div>
 
-    <table class="cart-table">
-        <thead>
-            <tr>
-                <th data-en="Item">Vare</th>
-                <th data-en="Quantity">Antal</th>
-                <th data-en="Price">Pris</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var line in Model.Lines)
-            {
+    <div class="cart-card">
+        <table class="cart-table">
+            <thead>
                 <tr>
-                    <td>@line.ProductName</td>
-                    <td>@line.Quantity</td>
-                    <td>@line.LineTotal.ToString("N0") kr.</td>
+                    <th data-en="Item">Vare</th>
+                    <th data-en="Quantity">Antal</th>
+                    <th data-en="Price">Pris</th>
                 </tr>
-            }
-        </tbody>
-    </table>
-    <p class="cart-total">
-        <strong data-en="Total">I alt</strong>: @Model.Total.ToString("N0") kr.
-    </p>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.Lines)
+                {
+                    <tr>
+                        <td>@line.ProductName</td>
+                        <td>@line.Quantity</td>
+                        <td>@line.LineTotal.ToString("N0") kr.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="cart-summary">
+            <span class="cart-total"><span data-en="Total">I alt</span>: @Model.Total.ToString("N0") kr.</span>
+        </div>
+    </div>
 
-    <form method="post" class="auth-form">
+    <form method="post" class="auth-form payment-card">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
         <fieldset>

@@ -708,6 +708,22 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 
 .auth-switch { font-size: 0.9rem; color: var(--bark); }
 
+/* Cart/Payment: the delivery + card form used to sit directly on the page
+   background with no edge of its own, the same "where does this thing
+   actually start and end" problem the cart table had before its own card
+   treatment. Same materials (paper, border, shadow) as .cart-card just
+   above it on this page, so the two read as one consistent checkout flow. */
+.payment-card {
+    background: var(--paper);
+    border: 1px solid var(--bark);
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(44, 67, 39, 0.14);
+    padding: 1.5rem 1.5rem 1.75rem;
+    /* .auth-form already sets margin-top: 1.5rem, which doubles as the gap
+       below the .cart-card above this form on the same page - no override needed. */
+}
+.payment-card .btn { align-self: stretch; text-align: center; margin-top: 0.5rem; }
+
 .form-errors {
     color: #7A1F3D;
     background: #FBE7EE;
