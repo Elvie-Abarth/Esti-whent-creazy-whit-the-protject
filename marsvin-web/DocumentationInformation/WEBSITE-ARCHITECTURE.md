@@ -210,6 +210,18 @@ Real MitID integration isn't reachable for a local demo (it requires being
 a registered, certified Danish service provider with government-issued
 certificates), so this is an honest, working stand-in rather than a mock.
 
+The secret itself is encrypted at rest (`SqlUserAccountStore`, via ASP.NET
+Core's `IDataProtector`) rather than stored as plain text - unlike a
+password (hashed) or a login token (hashed), a TOTP secret has to be
+recovered in full to check a code against it, so encryption is the only
+option, but it means a leaked database alone doesn't also hand over
+working 2FA codes the way a plaintext column would. The protector is a
+static field keyed to a fixed directory under `LocalApplicationData`
+rather than taken via DI, since this class is constructed directly (no DI)
+in ~20 test files and `InactiveAccountCleanupService` - every instance has
+to land on the exact same key or decryption fails, and the key has to
+survive app restarts or every enrolled account's 2FA breaks.
+
 Enrollment (`ProfileModel`) is two steps on purpose: `OnPostStartTotpEnrollment`
 generates and stores a secret with `TotpEnabled` still false, then
 `OnPostConfirmTotp` only flips it true once the user proves they actually

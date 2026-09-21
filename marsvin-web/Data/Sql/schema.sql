@@ -119,11 +119,19 @@ END
 
 -- TOTP second factor (see Account/Profile, Account/VerifyTotp): TotpSecret is
 -- set as soon as enrollment starts, before TotpEnabled flips to 1 once the
--- user proves they've actually saved it by entering one valid code.
+-- user proves they've actually saved it by entering one valid code. Stored
+-- encrypted (SqlUserAccountStore, via IDataProtector), not plaintext - a
+-- leaked database shouldn't also hand over working 2FA codes - so the
+-- column has to be sized for an encrypted+base64 payload, not the raw
+-- 32-character Base32 secret.
 IF COL_LENGTH('dbo.Users', 'TotpSecret') IS NULL
 BEGIN
-    ALTER TABLE dbo.Users ADD TotpSecret NVARCHAR(64) NULL;
+    ALTER TABLE dbo.Users ADD TotpSecret NVARCHAR(500) NULL;
 END
+
+-- Safe to run every time (a no-op once already widened) - covers a
+-- database created before TotpSecret held encrypted rather than raw values.
+ALTER TABLE dbo.Users ALTER COLUMN TotpSecret NVARCHAR(500) NULL;
 
 IF COL_LENGTH('dbo.Users', 'TotpEnabled') IS NULL
 BEGIN

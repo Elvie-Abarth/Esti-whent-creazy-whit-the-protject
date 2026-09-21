@@ -1,10 +1,29 @@
 using MarsvinWebExample.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
 public sealed class SqlUserAccountStore(string connectionString) : IUserAccountStore
 {
+    // A leaked database shouldn't also hand over working 2FA codes - unlike
+    // a password (hashed) or a login token (hashed), the TOTP secret has to
+    // be recoverable in full to check a code against it, so encryption
+    // (not hashing) is the only option here. Self-contained rather than
+    // taking IDataProtector via DI/constructor: this class is constructed
+    // directly in ~20 test files and InactiveAccountCleanupService without
+    // DI, and every one of them needs to land on the exact same key or
+    // decryption fails - a static provider keyed to a fixed on-disk
+    // directory guarantees that regardless of who constructs this class.
+    // Keys must persist across app restarts (LocalApplicationData, not
+    // temp) or every previously-enrolled account's 2FA breaks the moment
+    // the server restarts.
+    private static readonly IDataProtector TotpProtector = DataProtectionProvider
+        .Create(new DirectoryInfo(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Marsvin", "DataProtection-Keys")))
+        .CreateProtector("Marsvin.TotpSecret.v1");
+
     public ApplicationUser? FindByEmail(string email)
     {
         using var connection = Open();
@@ -241,7 +260,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         // whether this is starting enrollment or disabling it outright.
         using var command = new SqlCommand(
             "UPDATE dbo.Users SET TotpSecret = @Secret, TotpEnabled = 0 WHERE UserId = @UserId;", connection);
-        command.Parameters.AddWithValue("@Secret", (object?)secret ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Secret", (object?)(secret is null ? null : TotpProtector.Protect(secret)) ?? DBNull.Value);
         command.Parameters.AddWithValue("@UserId", userId);
         command.ExecuteNonQuery();
     }
@@ -273,7 +292,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
         CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
         LastActiveAt = reader.GetDateTime(reader.GetOrdinal("LastActiveAt")),
-        TotpSecret = reader.IsDBNull(reader.GetOrdinal("TotpSecret")) ? null : reader.GetString(reader.GetOrdinal("TotpSecret")),
+        TotpSecret = reader.IsDBNull(reader.GetOrdinal("TotpSecret")) ? null : TotpProtector.Unprotect(reader.GetString(reader.GetOrdinal("TotpSecret"))),
         TotpEnabled = reader.GetBoolean(reader.GetOrdinal("TotpEnabled"))
     };
 }

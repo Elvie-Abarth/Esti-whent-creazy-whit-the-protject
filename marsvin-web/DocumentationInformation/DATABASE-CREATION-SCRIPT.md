@@ -132,8 +132,10 @@ END
 
 IF COL_LENGTH('dbo.Users', 'TotpSecret') IS NULL
 BEGIN
-    ALTER TABLE dbo.Users ADD TotpSecret NVARCHAR(64) NULL;
+    ALTER TABLE dbo.Users ADD TotpSecret NVARCHAR(500) NULL;
 END
+
+ALTER TABLE dbo.Users ALTER COLUMN TotpSecret NVARCHAR(500) NULL;
 
 IF COL_LENGTH('dbo.Users', 'TotpEnabled') IS NULL
 BEGIN

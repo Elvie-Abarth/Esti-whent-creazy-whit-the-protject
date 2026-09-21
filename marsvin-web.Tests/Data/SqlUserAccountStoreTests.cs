@@ -341,4 +341,60 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
         Assert.Contains(all, u => u.Email == "admin@marsvin.dk" && u.Role == UserRole.Admin);
         Assert.Contains(all, u => u.Email == "employee@marsvin.dk" && u.Role == UserRole.Employee);
     }
+
+    private string? ReadRawTotpSecret(int userId)
+    {
+        using var connection = new SqlConnection(fixture.ConnectionString);
+        connection.Open();
+        using var command = new SqlCommand(
+            "SELECT TotpSecret FROM dbo.Users WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@UserId", userId);
+        var value = command.ExecuteScalar();
+        return value is DBNull or null ? null : (string)value;
+    }
+
+    [Fact]
+    public void SetTotpSecret_StoresItEncryptedNotPlaintextInTheDatabase()
+    {
+        // A DB leak/breach shouldn't also hand over working 2FA codes - the
+        // raw column value must not be the Base32 secret itself.
+        var user = NewCustomer();
+        const string secret = "JBSWY3DPEHPK3PXP";
+
+        _users.SetTotpSecret(user.UserId, secret);
+
+        var rawColumnValue = ReadRawTotpSecret(user.UserId);
+        Assert.NotNull(rawColumnValue);
+        Assert.NotEqual(secret, rawColumnValue);
+    }
+
+    [Fact]
+    public void SetTotpSecret_ThenFindById_DecryptsBackToTheOriginalSecret()
+    {
+        var user = NewCustomer();
+        const string secret = "JBSWY3DPEHPK3PXP";
+
+        _users.SetTotpSecret(user.UserId, secret);
+
+        Assert.Equal(secret, _users.FindById(user.UserId)!.TotpSecret);
+    }
+
+    [Fact]
+    public void SetTotpSecret_Null_ClearsItAndLeavesTheRawColumnNull()
+    {
+        var user = NewCustomer();
+        _users.SetTotpSecret(user.UserId, "JBSWY3DPEHPK3PXP");
+
+        _users.SetTotpSecret(user.UserId, null);
+
+        Assert.Null(ReadRawTotpSecret(user.UserId));
+        Assert.Null(_users.FindById(user.UserId)!.TotpSecret);
+    }
+
+    private ApplicationUser NewCustomer([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    {
+        var email = $"{caller}-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", caller, UserRole.Customer);
+        return _users.FindByEmail(email)!;
+    }
 }
