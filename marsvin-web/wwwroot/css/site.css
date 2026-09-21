@@ -784,11 +784,11 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
    flow (Betaling) already has. */
 .cart-card {
     background: var(--paper);
-    border: 1px solid var(--line);
+    border: 1px solid var(--bark);
     border-radius: 10px;
     overflow: hidden;
     margin: 1.5rem 0;
-    box-shadow: 0 1px 3px rgba(44, 67, 39, 0.08);
+    box-shadow: 0 4px 14px rgba(44, 67, 39, 0.14);
 }
 .cart-table { width: 100%; border-collapse: collapse; }
 .cart-table th, .cart-table td {
@@ -797,7 +797,11 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     border-bottom: 1px solid var(--line);
 }
 .cart-table th {
-    background: var(--hay);
+    /* --hay is the page's own background - using it here made the header
+       (and with it, the card's top edge) disappear into the page instead
+       of reading as part of the card. --line is darker/tanner, so the
+       card's outline is visible against the page behind it. */
+    background: var(--line);
     font-family: var(--font-body);
     font-size: 0.78rem;
     font-weight: 700;
@@ -920,17 +924,21 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .qty-step:hover { background: var(--hay); }
 
 .cart-remove {
-    width: 1.8rem;
-    height: 1.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.3rem;
+    height: 2.3rem;
     line-height: 1;
-    border: none;
-    background: transparent;
+    border: 1px solid var(--line);
+    background: var(--paper);
     color: var(--bark);
-    font-size: 1.2rem;
+    font-size: 1.4rem;
+    font-weight: 700;
     border-radius: 50%;
     cursor: pointer;
 }
-.cart-remove:hover { background: rgba(184, 60, 110, 0.12); color: var(--fleece); }
+.cart-remove:hover { background: var(--fleece); border-color: var(--fleece); color: var(--paper); }
 
 .cart-summary {
     display: flex;
@@ -939,7 +947,7 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     gap: 1rem;
     flex-wrap: wrap;
     padding: 1.1rem 1.1rem;
-    background: var(--hay);
+    background: var(--line);
 }
 .cart-total { font-size: 1.15rem; font-weight: 700; }
 
