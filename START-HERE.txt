@@ -1,0 +1,128 @@
+HOW TO START THE MARSVIN PROJECT
+==================================
+A plain step-by-step guide. If you get stuck, the deeper reference docs
+are in marsvin-web\DocumentationInformation\ - but this file alone should
+be enough to get the site running.
+
+
+STEP 0 - WHAT YOU NEED INSTALLED (one-time check)
+----------------------------------------------------
+Open a terminal (PowerShell) and run these two commands:
+
+    dotnet --list-sdks
+    sqllocaldb info
+
+- The first should show a 9.x.x entry (the .NET 9 SDK). If the command
+  isn't found at all, install the .NET 9 SDK from https://dotnet.microsoft.com
+- The second should show "MSSQLLocalDB" listed. If the command isn't
+  found, install SQL Server LocalDB (it comes with Visual Studio, or is a
+  separate small download called "SQL Server Express LocalDB").
+
+If both commands work, you're ready - skip to Step 1.
+
+
+STEP 1 - OPEN A TERMINAL IN THE RIGHT FOLDER
+------------------------------------------------
+The project lives in the "marsvin-web" folder (NOT the repo root, NOT
+"marsvin-web.Tests"). In PowerShell:
+
+    cd "C:\Users\estib\OneDrive\Bureaublad\Zealand\4. Semester\Secure coding\ProjectMarvin\AI createt insperation exemple or compleat build\Webpage example build\marsvin-webpage-example\marsvin-web"
+
+(If you opened the project in VS Code, you can also just open a terminal
+inside VS Code with Ctrl+` and cd into marsvin-web the same way.)
+
+
+STEP 2 - START THE SITE
+----------------------------
+    dotnet run
+
+Wait for a line that says something like:
+
+    Now listening on: http://localhost:5080
+
+That means it's running. The FIRST time you do this, it will also take a
+few extra seconds to create the database and fill it with demo guinea
+pigs/products - that's normal and only happens once.
+
+Leave this terminal window open - closing it stops the site. To stop it
+on purpose, click into that terminal and press Ctrl+C.
+
+
+STEP 3 - OPEN IT IN YOUR BROWSER
+-------------------------------------
+Go to:
+
+    http://localhost:5080
+
+You should see the Marsvin homepage.
+
+
+STEP 4 - LOG IN (optional, if you want to see the admin/staff side)
+-------------------------------------------------------------------
+These demo accounts are created automatically the first time you run it:
+
+    Admin:    admin@marsvin.dk     / Admin123!
+    Employee: employee@marsvin.dk  / Employee123!
+
+Go to http://localhost:5080/Account/Login and sign in with one of those.
+
+IMPORTANT: logging in here is a TWO-STEP process on purpose (that's a
+security feature, not a bug) - after you enter the password, it does NOT
+immediately log you in. Instead:
+  1. Look back at your PowerShell terminal window (the one running
+     "dotnet run"). Real emails aren't sent unless you've set up SMTP
+     (see DocumentationInformation\DATABASE-NOTES.txt), so instead the
+     confirmation email gets printed straight into that terminal window.
+  2. Find the line that says "Bekræft login til Marsvin" and copy the
+     link right after it.
+  3. Paste that link into your browser and open it - THAT is what
+     actually signs you in.
+
+Want to create your own customer account instead? Just go to
+http://localhost:5080/Account/Register - same two-step confirmation
+process (check the terminal for the link).
+
+
+STEP 5 - WHEN YOU'RE DONE
+------------------------------
+Click into the terminal running "dotnet run" and press Ctrl+C. That's it
+- nothing else needs to be shut down or cleaned up.
+
+
+TROUBLESHOOTING
+--------------------
+"dotnet: command not found"
+    -> The .NET SDK isn't installed, or your terminal needs to be
+       restarted after installing it. Re-check Step 0.
+
+"A network-related or instance-specific error... (LocalDB)" or similar
+    -> LocalDB isn't running. Try:
+         sqllocaldb start MSSQLLocalDB
+       If that doesn't help, see the "IF THE DATABASE WON'T CONNECT"
+       section in DocumentationInformation\DATABASE-NOTES.txt.
+
+Port 5080 already in use / site won't start
+    -> Something else (maybe an old "dotnet run" you forgot about) is
+       already using that port. Find and close that terminal window, or
+       just close and reopen all your terminals and try again.
+
+Nothing happens when you open a confirmation link
+    -> Make sure you're pasting the WHOLE link from the terminal,
+       including the "?token=..." part at the end. Each link only works
+       once and expires after 15 minutes, so if it's old, just log in
+       again to get a fresh one.
+
+Want a completely fresh/empty database?
+    -> See "HOW TO RESET TO A FRESH DATABASE" in
+       DocumentationInformation\DATABASE-NOTES.txt.
+
+
+WANT MORE DETAIL?
+----------------------
+- README.md (repo root) - full feature list, page-by-page map, and how
+  the security features work.
+- marsvin-web\DocumentationInformation\DATABASE-NOTES.txt - everything
+  about the database: where it lives, demo credentials, resetting it,
+  fixing LocalDB connection problems.
+- marsvin-web\DocumentationInformation\WEBSITE-ARCHITECTURE.md - how the
+  app itself is built (request flow, login flow, testing).
