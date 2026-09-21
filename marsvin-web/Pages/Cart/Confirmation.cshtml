@@ -15,29 +15,30 @@
         </div>
     </div>
 
-    <table class="cart-table">
-        <thead>
-            <tr>
-                <th data-en="Item">Vare</th>
-                <th data-en="Quantity">Antal</th>
-                <th data-en="Price">Pris</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.Order.Items)
-            {
+    <div class="cart-card">
+        <table class="cart-table">
+            <thead>
                 <tr>
-                    <td>@item.ProductName</td>
-                    <td>@item.Quantity</td>
-                    <td>@item.LineTotal.ToString("N0") kr.</td>
+                    <th data-en="Item">Vare</th>
+                    <th data-en="Quantity">Antal</th>
+                    <th data-en="Price">Pris</th>
                 </tr>
-            }
-        </tbody>
-    </table>
-
-    <p class="cart-total">
-        <strong data-en="Total">I alt</strong>: @Model.Order.TotalPrice.ToString("N0") kr.
-    </p>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Order.Items)
+                {
+                    <tr>
+                        <td>@item.ProductName</td>
+                        <td>@item.Quantity</td>
+                        <td>@item.LineTotal.ToString("N0") kr.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="cart-summary">
+            <span class="cart-total"><span data-en="Total">I alt</span>: @Model.Order.TotalPrice.ToString("N0") kr.</span>
+        </div>
+    </div>
 
     @{
         var animalNames = Model.Order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName).ToList();
