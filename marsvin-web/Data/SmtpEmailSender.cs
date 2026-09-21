@@ -1,4 +1,3 @@
-using System.Net;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.AspNetCore.Hosting;
@@ -66,11 +65,7 @@ public sealed class SmtpEmailSender(
 
     private static string BuildHtmlBody(string plainTextBody, string? logoCid)
     {
-        // WebUtility.HtmlEncode first, <br> only afterwards - the body can
-        // contain a customer's own display name or reason text, so it has to
-        // be encoded the same way any other user-controlled text going into
-        // HTML would be, before any markup (the line breaks) is added back in.
-        var encodedBody = WebUtility.HtmlEncode(plainTextBody).Replace("\n", "<br>");
+        var encodedBody = EmailHtmlBody.Build(plainTextBody);
         var logoImg = logoCid is null
             ? ""
             : $"""<img src="{logoCid}" width="48" height="32" alt="Marsvin" style="display:block;border:0;">""";
