@@ -91,6 +91,10 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
 
         Assert.IsType<PageResult>(result);
         Assert.Null(auth.SignedInAs);
+        // Keyed to "Input.CurrentPassword" (matching asp-for's generated
+        // name) - nameof(Input.CurrentPassword) evaluates to the bare
+        // "CurrentPassword", which asp-validation-for would never match.
+        Assert.True(model.ModelState.ContainsKey("Input.CurrentPassword"));
         Assert.Equal(user.DisplayName, _users.FindById(user.UserId)!.DisplayName);
     }
 
@@ -268,6 +272,7 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
 
         Assert.IsType<PageResult>(result);
         Assert.Null(auth.SignedInAs);
+        Assert.True(model.ModelState.ContainsKey("Input.Email"));
         Assert.Equal(user.Email, _users.FindById(user.UserId)!.Email);
     }
 

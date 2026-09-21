@@ -51,7 +51,11 @@ public class EditModel(IPromotionStore promotions, ICatalog catalog, IAuditLogSt
         PromotionId = id;
         Products = catalog.Accessories;
         if (Input.EndDate < Input.StartDate)
-            ModelState.AddModelError(nameof(Input.EndDate), "Slutdato skal være efter startdato.");
+            // This page has no per-field error spans (see Edit.cshtml), only
+            // the ModelOnly summary - a field-keyed error here would silently
+            // never render, the same bug this fixes elsewhere on this page's
+            // siblings (Register/Profile/Payment, which do have per-field spans).
+            ModelState.AddModelError(string.Empty, "Slutdato skal være efter startdato.");
         if (!ModelState.IsValid) return Page();
 
         var promotion = new Promotion

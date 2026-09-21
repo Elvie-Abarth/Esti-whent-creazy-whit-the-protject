@@ -52,7 +52,7 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
             }
             else if (string.IsNullOrWhiteSpace(Input.ShippingAddress))
             {
-                ModelState.AddModelError(nameof(Input.ShippingAddress), "Angiv en leveringsadresse.");
+                ModelState.AddModelError("Input.ShippingAddress", "Angiv en leveringsadresse.");
             }
         }
         if (!ModelState.IsValid) return Page();

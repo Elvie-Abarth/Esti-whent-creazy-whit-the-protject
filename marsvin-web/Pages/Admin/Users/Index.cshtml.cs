@@ -107,7 +107,11 @@ public class IndexModel(IUserAccountStore users, IAuditLogStore audit) : PageMod
         var created = users.CreateUser(NewStaff.Email, passwordHash, NewStaff.DisplayName, NewStaff.Role);
         if (!created)
         {
-            ModelState.AddModelError(nameof(NewStaff.Email), "Der findes allerede en konto med den e-mail.");
+            // No per-field error span on this form (see Index.cshtml), only
+            // the ModelOnly summary - nameof(NewStaff.Email) also silently
+            // evaluated to just "Email", not "NewStaff.Email", so this error
+            // never rendered anywhere either way.
+            ModelState.AddModelError(string.Empty, "Der findes allerede en konto med den e-mail.");
             return Page();
         }
 

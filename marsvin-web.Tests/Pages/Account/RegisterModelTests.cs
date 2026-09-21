@@ -82,6 +82,11 @@ public class RegisterModelTests(SqlCatalogFixture fixture)
         Assert.IsType<PageResult>(result);
         Assert.Null(auth.SignedInAs);
         Assert.False(model.ModelState.IsValid);
+        // Keyed to "Input.Email" (matching asp-for="Input.Email"'s generated
+        // name), not just nameof(Input.Email) which C# evaluates to the bare
+        // "Email" - a mismatch here means the error is real but invisible,
+        // since asp-validation-for="Input.Email" would never find it.
+        Assert.True(model.ModelState.ContainsKey("Input.Email"));
         Assert.Equal("Existing", _users.FindByEmail(email)!.DisplayName);
         Assert.Empty(emailSender.Sent);
     }

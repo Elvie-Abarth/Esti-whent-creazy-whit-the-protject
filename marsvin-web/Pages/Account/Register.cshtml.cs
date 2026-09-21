@@ -53,7 +53,7 @@ public class RegisterModel(
         var created = users.CreateUser(Input.Email, passwordHash, Input.DisplayName, UserRole.Customer);
         if (!created)
         {
-            ModelState.AddModelError(nameof(Input.Email), "Der findes allerede en konto med den e-mail.");
+            ModelState.AddModelError("Input.Email", "Der findes allerede en konto med den e-mail.");
             return Page();
         }
 

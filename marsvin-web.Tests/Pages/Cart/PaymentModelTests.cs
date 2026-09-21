@@ -215,6 +215,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
 
         Assert.IsType<PageResult>(result);
         Assert.False(model.ModelState.IsValid);
+        Assert.True(model.ModelState.ContainsKey("Input.ShippingAddress"));
         Assert.Single(_cart.GetLines(userId));
     }
 

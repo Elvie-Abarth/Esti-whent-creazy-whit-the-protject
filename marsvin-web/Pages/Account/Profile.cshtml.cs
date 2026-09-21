@@ -84,7 +84,7 @@ public class ProfileModel(
         // bank or email provider would before letting you change account details.
         if (hasher.VerifyHashedPassword(user, user.PasswordHash, Input.CurrentPassword) == PasswordVerificationResult.Failed)
         {
-            ModelState.AddModelError(nameof(Input.CurrentPassword), "Forkert adgangskode.");
+            ModelState.AddModelError("Input.CurrentPassword", "Forkert adgangskode.");
             return Page();
         }
 
@@ -95,7 +95,7 @@ public class ProfileModel(
         var updated = users.UpdateProfile(this.CurrentUserId(), Input.DisplayName.Trim(), email);
         if (!updated)
         {
-            ModelState.AddModelError(nameof(Input.Email), "Der findes allerede en konto med den e-mail.");
+            ModelState.AddModelError("Input.Email", "Der findes allerede en konto med den e-mail.");
             return Page();
         }
 
