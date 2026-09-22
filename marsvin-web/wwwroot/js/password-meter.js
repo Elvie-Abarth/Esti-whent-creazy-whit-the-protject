@@ -12,19 +12,26 @@
 (function () {
     "use strict";
 
+    // var(--bark) reads as a muddy, indistinct middle step here (it's a
+    // muted brown meant for body text, not a signal colour) - a real amber
+    // between the site's pink and green makes weak -> strong read as a
+    // clear traffic-light gradient instead of two clear ends with a fuzzy
+    // middle. One-off hex rather than a new :root token since nothing else
+    // on the site needs an amber.
     var LEVELS = [
         { da: "Meget svag", en: "Very weak", color: "var(--fleece)" },
         { da: "Svag", en: "Weak", color: "var(--fleece)" },
-        { da: "Rimelig", en: "Fair", color: "var(--bark)" },
+        { da: "Rimelig", en: "Fair", color: "#C98A2E" },
         { da: "God", en: "Good", color: "var(--grass)" },
         { da: "Stærk", en: "Strong", color: "var(--meadow)" }
     ];
 
     var MASCOT_SVG =
-        '<svg class="password-meter-mascot" viewBox="0 0 32 20" aria-hidden="true">' +
-        '<ellipse cx="18" cy="12.5" rx="13" ry="7"/>' +
-        '<ellipse cx="7" cy="9" rx="6.5" ry="6"/>' +
-        '<circle class="password-meter-mascot-eye" cx="4.3" cy="8" r="1.1"/>' +
+        '<svg class="password-meter-mascot" viewBox="0 0 34 22" aria-hidden="true">' +
+        '<ellipse cx="19" cy="13.5" rx="14" ry="7.5"/>' +
+        '<ellipse cx="7.5" cy="9.5" rx="7" ry="6.5"/>' +
+        '<ellipse class="password-meter-mascot-ear" cx="5.5" cy="5" rx="3.2" ry="2.4" transform="rotate(-25 5.5 5)"/>' +
+        '<circle class="password-meter-mascot-eye" cx="4.6" cy="9" r="1.15"/>' +
         "</svg>";
 
     function score(password) {
@@ -83,6 +90,7 @@
             var step = meter.steps[i];
             var filled = i < s;
             step.style.background = filled ? level.color : "var(--line)";
+            step.classList.toggle("is-filled", filled);
             // Only the step that just filled in hops - re-triggering the
             // animation on every step on every keystroke reads as jittery
             // rather than a little walk forward.
