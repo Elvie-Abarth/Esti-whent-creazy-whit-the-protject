@@ -249,6 +249,11 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     font-family: var(--font-body);
     font-weight: 700;
     font-size: 1rem;
+    /* Without its own line-height, a <button class="btn"> uses the browser's
+       tight default for form controls while an <a class="btn"> inherits
+       body's 1.65 - same padding, but the <a> ends up visibly taller than
+       the <button> next to it. Pin it so both tags render identically. */
+    line-height: 1.2;
     padding: 0.7rem 1.4rem;
     border-radius: 3px;
     border: 2px solid var(--fleece);
