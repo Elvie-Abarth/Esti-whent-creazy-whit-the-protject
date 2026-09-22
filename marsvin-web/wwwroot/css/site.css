@@ -882,6 +882,20 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .form-errors.validation-summary-valid { display: none; }
 .field-error { color: #7A1F3D; font-size: 0.82rem; font-weight: 400; }
 
+/* Live password-strength meter (password-meter.js) - hidden until the
+   field has something typed into it, so it never shows an empty/grey bar
+   on first load. */
+.password-meter { display: flex; align-items: center; gap: 0.6rem; margin-top: -0.15rem; }
+.password-meter-bar { display: flex; gap: 0.3rem; flex: 1; }
+.password-meter-bar span {
+    height: 5px;
+    flex: 1;
+    border-radius: 3px;
+    background: var(--line);
+    transition: background-color 0.15s ease;
+}
+.password-meter-label { font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+
 /* ------------------------------ cart ------------------------------ */
 .goods-buy { margin-top: 0.5rem; }
 

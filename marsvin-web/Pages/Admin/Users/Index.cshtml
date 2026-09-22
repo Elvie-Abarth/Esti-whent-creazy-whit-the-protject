@@ -71,7 +71,7 @@
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
         <label><span data-en="Name">Navn</span><input asp-for="NewStaff.DisplayName" /></label>
         <label><span data-en="Email">E-mail</span><input asp-for="NewStaff.Email" /></label>
-        <label><span data-en="Password">Adgangskode</span><input asp-for="NewStaff.Password" /></label>
+        <label><span data-en="Password">Adgangskode</span><input asp-for="NewStaff.Password" data-password-meter /></label>
         <label>
             <span data-en="Role">Rolle</span>
             <select asp-for="NewStaff.Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
@@ -79,3 +79,5 @@
         <button type="submit" class="btn" data-en="Create account">Opret konto</button>
     </form>
 </div>
+
+<script src="~/js/password-meter.js" asp-append-version="true"></script>

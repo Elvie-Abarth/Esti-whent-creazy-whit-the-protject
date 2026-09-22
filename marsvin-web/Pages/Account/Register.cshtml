@@ -30,7 +30,7 @@
 
         <label>
             <span data-en="Password">Adgangskode</span>
-            <input asp-for="Input.Password" autocomplete="new-password" />
+            <input asp-for="Input.Password" autocomplete="new-password" data-password-meter />
             <span asp-validation-for="Input.Password" class="field-error"></span>
         </label>
 
@@ -50,3 +50,5 @@
         <a asp-page="/Account/Login" asp-route-returnUrl="@Model.ReturnUrl" data-en="Log in">Log ind</a>
     </p>
 </div>
+
+<script src="~/js/password-meter.js" asp-append-version="true"></script>

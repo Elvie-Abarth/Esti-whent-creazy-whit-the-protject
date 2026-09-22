@@ -49,7 +49,7 @@
 
         <label>
             <span data-en="New password (leave blank to keep your current one)">Ny adgangskode (lad stå tom for at beholde din nuværende)</span>
-            <input asp-for="Input.NewPassword" autocomplete="new-password" />
+            <input asp-for="Input.NewPassword" autocomplete="new-password" data-password-meter />
             <span asp-validation-for="Input.NewPassword" class="field-error"></span>
         </label>
 
@@ -296,3 +296,5 @@
         </div>
     </section>
 }
+
+<script src="~/js/password-meter.js" asp-append-version="true"></script>
