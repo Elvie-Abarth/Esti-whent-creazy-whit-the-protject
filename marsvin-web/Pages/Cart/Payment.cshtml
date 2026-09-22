@@ -96,6 +96,22 @@
                     <input asp-for="Input.ShippingAddress" autocomplete="street-address" />
                     <span asp-validation-for="Input.ShippingAddress" class="field-error"></span>
                 </label>
+
+                <fieldset class="carrier-fieldset">
+                    <legend data-en="Shipping carrier (only needed if you choose shipping above)">Fragtselskab (kun nødvendig hvis du vælger forsendelse ovenfor)</legend>
+                    <label class="checkbox-label">
+                        <input type="radio" asp-for="Input.ShippingCarrier" value="@ShippingCarrier.PostNord" checked="checked" />
+                        <span>PostNord</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="radio" asp-for="Input.ShippingCarrier" value="@ShippingCarrier.Gls" />
+                        <span>GLS</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="radio" asp-for="Input.ShippingCarrier" value="@ShippingCarrier.DaoPakkeshop" />
+                        <span data-en="DAO parcel shop">DAO Pakkeshop</span>
+                    </label>
+                </fieldset>
             }
             else
             {
@@ -107,36 +123,54 @@
             }
         </fieldset>
 
-        <label>
-            <span data-en="Name on card">Navn på kortet</span>
-            <input asp-for="Input.CardHolder" autocomplete="cc-name" />
-            <span asp-validation-for="Input.CardHolder" class="field-error"></span>
-        </label>
+        <fieldset>
+            <legend data-en="Payment method">Betalingsmetode</legend>
+            <label class="checkbox-label">
+                <input type="radio" asp-for="Input.PaymentMethod" value="@PaymentMethod.Card" checked="checked" />
+                <span data-en="Card">Kort</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="radio" asp-for="Input.PaymentMethod" value="@PaymentMethod.MobilePay" />
+                <span>MobilePay</span>
+            </label>
+        </fieldset>
 
-        <label>
-            <span data-en="Card number (demo)">Kortnummer (demo)</span>
-            <input asp-for="Input.CardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
-            <span asp-validation-for="Input.CardNumber" class="field-error"></span>
-        </label>
-
-        <div class="card-expiry-row">
+        <div class="card-fields">
             <label>
-                <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
-                <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
-                <span asp-validation-for="Input.Expiry" class="field-error"></span>
+                <span data-en="Name on card">Navn på kortet</span>
+                <input asp-for="Input.CardHolder" autocomplete="cc-name" />
+                <span asp-validation-for="Input.CardHolder" class="field-error"></span>
             </label>
 
             <label>
-                <span>CVC</span>
-                <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
-                <span asp-validation-for="Input.Cvc" class="field-error"></span>
+                <span data-en="Card number (demo)">Kortnummer (demo)</span>
+                <input asp-for="Input.CardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
+                <span asp-validation-for="Input.CardNumber" class="field-error"></span>
             </label>
+
+            <div class="card-expiry-row">
+                <label>
+                    <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
+                    <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
+                    <span asp-validation-for="Input.Expiry" class="field-error"></span>
+                </label>
+
+                <label>
+                    <span>CVC</span>
+                    <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
+                    <span asp-validation-for="Input.Cvc" class="field-error"></span>
+                </label>
+            </div>
         </div>
+
+        <p class="cavy-meta mobilepay-note" data-en="You'll get a payment request in the MobilePay app once you submit (demo only - nothing is actually sent or charged).">
+            Du får en betalingsanmodning i MobilePay-appen, når du bekræfter (kun demo - der sendes og trækkes intet i virkeligheden).
+        </p>
 
         <button type="submit" class="btn" data-en="Pay now (demo)">Betal nu (demo)</button>
     </form>
 
-    <p class="auth-switch">
-        <a asp-page="/Cart/Index" data-en="Back to cart">Tilbage til kurven</a>
-    </p>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Cart/Index" data-en="Back to cart">Tilbage til kurven</a>
+    </div>
 </div>

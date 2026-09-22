@@ -790,6 +790,31 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .payment-card .card-expiry-row { display: flex; flex-direction: row; gap: 1rem; }
 .payment-card .card-expiry-row > label { flex: 1; }
 
+/* The carrier choice is a secondary decision nested inside the Shipping
+   half of the delivery fieldset - plain checkbox-label rows (not the big
+   .delivery-option cards) keep it visually subordinate to Pickup/Shipping. */
+.carrier-fieldset { padding-left: 0.25rem; }
+
+/* .card-fields wraps the card labels/expiry-row in one block so the whole
+   group can be hidden together for MobilePay - needs its own flex column
+   with the same gap as everything else here, same reasoning as fieldset's
+   own gap two rules up (this one's just a <div>, not a <fieldset>). */
+.payment-card .card-fields { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* MobilePay needs no card details at all - hiding them when it's chosen
+   (rather than just leaving them optional) keeps the form from asking for
+   information it's about to ignore. No JS: the same :has() trick already
+   used for .delivery-option's own highlight, keyed off the radio's name/
+   value instead of an id, since asp-for gives every PaymentMethod radio
+   the same id. */
+.payment-card .mobilepay-note { display: none; }
+.payment-card:has(input[name="Input.PaymentMethod"][value="MobilePay"]:checked) .card-fields {
+    display: none;
+}
+.payment-card:has(input[name="Input.PaymentMethod"][value="MobilePay"]:checked) .mobilepay-note {
+    display: block;
+}
+
 .form-errors {
     color: #7A1F3D;
     background: #FBE7EE;

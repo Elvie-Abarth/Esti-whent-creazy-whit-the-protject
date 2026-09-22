@@ -55,7 +55,7 @@
                         <td>
                             @if (order.DeliveryMethod == DeliveryMethod.Shipping)
                             {
-                                <span data-en="@($"Shipping: {order.ShippingAddress}")">Fragt: @order.ShippingAddress</span>
+                                <span data-en="@($"Shipping: {order.ShippingAddress} ({order.ShippingCarrier?.DisplayName(english: true)})")">Fragt: @order.ShippingAddress (@order.ShippingCarrier?.DisplayName())</span>
                             }
                             else
                             {

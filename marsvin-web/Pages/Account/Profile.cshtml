@@ -249,8 +249,8 @@
                         }
                         @if (order.DeliveryMethod == DeliveryMethod.Shipping)
                         {
-                            <p class="cavy-meta" data-en="@($"Shipped to: {order.ShippingAddress}")">
-                                Sendt til: @order.ShippingAddress
+                            <p class="cavy-meta" data-en="@($"Shipped to: {order.ShippingAddress} ({order.ShippingCarrier?.DisplayName(english: true)})")">
+                                Sendt til: @order.ShippingAddress (@order.ShippingCarrier?.DisplayName())
                             </p>
                             @if (animalNamesInOrder.Count > 0)
                             {

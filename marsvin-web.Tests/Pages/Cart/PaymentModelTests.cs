@@ -83,13 +83,32 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         var userId = NewCustomerId();
         _cart.AddOrIncrement(userId, 104, 1);
         var model = MakeModel(userId);
-        model.Input = new PaymentModel.PaymentInputModel(); // all fields blank
-        model.ModelState.AddModelError("Input.CardNumber", "Udfyld kortnummeret.");
+        model.Input = new PaymentModel.PaymentInputModel(); // all fields blank, PaymentMethod defaults to Card
 
         var result = await model.OnPostAsync();
 
         Assert.IsType<PageResult>(result);
+        Assert.False(model.ModelState.IsValid);
+        Assert.True(model.ModelState.ContainsKey("Input.CardNumber"));
         Assert.Single(_cart.GetLines(userId)); // still in the cart - nothing was charged or checked out
+    }
+
+    [Fact]
+    public async Task OnPost_MobilePay_SkipsCardValidationAndChecksOut()
+    {
+        // Card fields aren't required (or even read) once MobilePay is the
+        // chosen method - the demo form hides them entirely for this reason.
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+        model.Input = new PaymentModel.PaymentInputModel { PaymentMethod = PaymentMethod.MobilePay };
+
+        var result = await model.OnPostAsync();
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("Confirmation", redirect.PageName);
+        var order = _orders.GetOrdersForUser(userId).Single();
+        Assert.Equal(PaymentMethod.MobilePay, order.PaymentMethod);
     }
 
     [Fact]
@@ -191,6 +210,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         var input = ValidInput();
         input.DeliveryMethod = DeliveryMethod.Shipping;
         input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
+        input.ShippingCarrier = ShippingCarrier.Gls;
         model.Input = input;
 
         var result = await model.OnPostAsync();
@@ -199,6 +219,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         var order = _orders.GetOrdersForUser(userId).Single();
         Assert.Equal(DeliveryMethod.Shipping, order.DeliveryMethod);
         Assert.Equal("Testvej 1, 6700 Esbjerg", order.ShippingAddress);
+        Assert.Equal(ShippingCarrier.Gls, order.ShippingCarrier);
     }
 
     [Fact]

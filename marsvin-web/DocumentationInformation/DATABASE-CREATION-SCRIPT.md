@@ -182,7 +182,9 @@ BEGIN
         TotalPrice      DECIMAL(10, 2) NOT NULL,
         CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
         DeliveryMethod  TINYINT NOT NULL DEFAULT 0,   -- 0 Pickup, 1 Shipping
-        ShippingAddress NVARCHAR(500) NULL            -- only set when DeliveryMethod = Shipping
+        ShippingAddress NVARCHAR(500) NULL,           -- only set when DeliveryMethod = Shipping
+        ShippingCarrier TINYINT NULL,                 -- 0 PostNord, 1 GLS, 2 DAO Pakkeshop; only set when DeliveryMethod = Shipping
+        PaymentMethod   TINYINT NOT NULL DEFAULT 0    -- 0 Card (demo), 1 MobilePay (demo)
     );
 END
 
@@ -196,6 +198,16 @@ END
 IF COL_LENGTH('dbo.Orders', 'ShippingAddress') IS NULL
 BEGIN
     ALTER TABLE dbo.Orders ADD ShippingAddress NVARCHAR(500) NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'ShippingCarrier') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD ShippingCarrier TINYINT NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'PaymentMethod') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD PaymentMethod TINYINT NOT NULL DEFAULT 0;
 END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Orders_UserId' AND object_id = OBJECT_ID('dbo.Orders'))

@@ -21,9 +21,13 @@ public interface IOrderStore
     /// animals); a mixed cart succeeds and still sells the animal. Checked
     /// here rather than trusted from whatever the submitted form claims.
     /// Defaults to Pickup with no address so every pre-existing call site
-    /// keeps working unchanged.
+    /// keeps working unchanged. A Shipping order with no carrier given
+    /// defaults to PostNord rather than failing - unlike the address, a
+    /// carrier is always presented pre-selected on the form, so a missing
+    /// one only ever happens from an old call site or a tampered POST.
     /// </summary>
-    CheckoutResult Checkout(int userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null);
+    CheckoutResult Checkout(int userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null,
+        ShippingCarrier? shippingCarrier = null, PaymentMethod paymentMethod = PaymentMethod.Card);
 
     /// <summary>Looks up an order, but only if it belongs to the given user (prevents one customer from viewing another's order by guessing an id).</summary>
     Order? FindForUser(int orderId, int userId);

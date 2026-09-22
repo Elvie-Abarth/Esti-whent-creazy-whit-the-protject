@@ -34,6 +34,11 @@ public sealed class Order
     /// <summary>Only set when <see cref="DeliveryMethod"/> is Shipping.</summary>
     public string? ShippingAddress { get; init; }
 
+    /// <summary>Only set when <see cref="DeliveryMethod"/> is Shipping.</summary>
+    public ShippingCarrier? ShippingCarrier { get; init; }
+
+    public PaymentMethod PaymentMethod { get; init; } = PaymentMethod.Card;
+
     /// <summary>
     /// Only populated by GetAllOrders (the admin order list) - null for
     /// FindForUser/GetOrdersForUser, where the caller already knows who they

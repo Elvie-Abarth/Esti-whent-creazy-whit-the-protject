@@ -40,6 +40,10 @@
         </div>
     </div>
 
+    <p data-en="@($"Paid with: {(Model.Order.PaymentMethod == PaymentMethod.Card ? "Card" : "MobilePay")} (demo)")">
+        Betalt med: @(Model.Order.PaymentMethod == PaymentMethod.Card ? "Kort" : "MobilePay") (demo)
+    </p>
+
     @{
         var animalNames = Model.Order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName).ToList();
     }
@@ -48,6 +52,12 @@
         <p data-en="@($"The accessories in this order will be shipped to: {Model.Order.ShippingAddress}")">
             Tilbehøret i denne ordre sendes til: @Model.Order.ShippingAddress
         </p>
+        @if (Model.Order.ShippingCarrier is ShippingCarrier carrier)
+        {
+            <p data-en="@($"Carrier: {carrier.DisplayName(english: true)}")">
+                Fragtselskab: @carrier.DisplayName()
+            </p>
+        }
         @if (animalNames.Count > 0)
         {
             <p class="cavy-meta" data-en="@($"{string.Join(" and ", animalNames)} still needs to be picked up in store - a guinea pig can't be shipped, regardless of the rest of the order.")">

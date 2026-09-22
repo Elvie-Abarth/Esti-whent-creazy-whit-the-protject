@@ -229,6 +229,69 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void Checkout_Shipping_WithACarrier_StoresIt()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1, 6700 Esbjerg", ShippingCarrier.Gls);
+
+        Assert.True(result.Success);
+        Assert.Equal(ShippingCarrier.Gls, result.Order!.ShippingCarrier);
+    }
+
+    [Fact]
+    public void Checkout_Shipping_NoCarrierGiven_DefaultsToPostNordRatherThanFailing()
+    {
+        // Every carrier radio on the payment form is pre-selected, so a null
+        // carrier only happens from an old call site or a tampered POST -
+        // that shouldn't block an otherwise-valid shipping order.
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, DeliveryMethod.Shipping, "Testvej 1, 6700 Esbjerg");
+
+        Assert.True(result.Success);
+        Assert.Equal(ShippingCarrier.PostNord, result.Order!.ShippingCarrier);
+    }
+
+    [Fact]
+    public void Checkout_Pickup_LeavesCarrierNullEvenIfOneWasPassedIn()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, DeliveryMethod.Pickup, shippingCarrier: ShippingCarrier.Gls);
+
+        Assert.True(result.Success);
+        Assert.Null(result.Order!.ShippingCarrier);
+    }
+
+    [Fact]
+    public void Checkout_DefaultsToCardPaymentMethod()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId);
+
+        Assert.True(result.Success);
+        Assert.Equal(PaymentMethod.Card, result.Order!.PaymentMethod);
+    }
+
+    [Fact]
+    public void Checkout_MobilePay_StoresThePaymentMethod()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+
+        var result = _orders.Checkout(userId, paymentMethod: PaymentMethod.MobilePay);
+
+        Assert.True(result.Success);
+        Assert.Equal(PaymentMethod.MobilePay, result.Order!.PaymentMethod);
+    }
+
+    [Fact]
     public void Checkout_Shipping_CartIsOnlyAnAnimal_FailsBecauseThereIsNothingToShip()
     {
         var userId = NewCustomerId();

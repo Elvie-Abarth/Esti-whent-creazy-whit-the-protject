@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -33,6 +34,10 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     [TempData]
     public string? ErrorMessage { get; set; }
 
+    private static readonly Regex CardNumberPattern = new(@"^[0-9 ]{12,19}$", RegexOptions.Compiled);
+    private static readonly Regex ExpiryPattern = new(@"^(0[1-9]|1[0-2])\/[0-9]{2}$", RegexOptions.Compiled);
+    private static readonly Regex CvcPattern = new(@"^[0-9]{3,4}$", RegexOptions.Compiled);
+
     public IActionResult OnGet()
     {
         Lines = cart.GetLines(this.CurrentUserId());
@@ -55,13 +60,31 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
                 ModelState.AddModelError("Input.ShippingAddress", "Angiv en leveringsadresse.");
             }
         }
+
+        // Card details only matter (and are only required) when Card is the
+        // chosen method - MobilePay needs nothing further from this form, the
+        // same way a real MobilePay checkout would just send a payment request
+        // to the buyer's phone instead of asking for card details at all.
+        if (Input.PaymentMethod == PaymentMethod.Card)
+        {
+            if (string.IsNullOrWhiteSpace(Input.CardHolder))
+                ModelState.AddModelError("Input.CardHolder", "Udfyld navnet på kortet.");
+            if (!CardNumberPattern.IsMatch(Input.CardNumber))
+                ModelState.AddModelError("Input.CardNumber", "Kortnummeret ser forkert ud.");
+            if (!ExpiryPattern.IsMatch(Input.Expiry))
+                ModelState.AddModelError("Input.Expiry", "Brug formatet MM/ÅÅ.");
+            if (!CvcPattern.IsMatch(Input.Cvc))
+                ModelState.AddModelError("Input.Cvc", "CVC skal være 3-4 cifre.");
+        }
+
         if (!ModelState.IsValid) return Page();
 
         // The "payment" above is never actually processed - the demo card details
         // aren't read past validating their shape. Checkout re-validates stock,
         // animal availability, and the shipping/animal rule itself (see
         // SqlOrderStore.Checkout), same as it did before this page existed.
-        var result = orders.Checkout(this.CurrentUserId(), Input.DeliveryMethod, Input.ShippingAddress);
+        var result = orders.Checkout(this.CurrentUserId(), Input.DeliveryMethod, Input.ShippingAddress,
+            Input.DeliveryMethod == DeliveryMethod.Shipping ? Input.ShippingCarrier : null, Input.PaymentMethod);
         if (!result.Success)
         {
             ErrorMessage = result.ErrorMessage;
@@ -81,7 +104,7 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         var itemLines = string.Join("\n", order.Items.Select(i =>
             $"- {i.ProductName} x{i.Quantity}: {i.LineTotal:N0} kr."));
         var deliveryLine = order.DeliveryMethod == DeliveryMethod.Shipping
-            ? $"Sendes til: {order.ShippingAddress}" +
+            ? $"Sendes til: {order.ShippingAddress} ({order.ShippingCarrier?.DisplayName()})" +
               (order.Items.Any(i => i.IsAnimal)
                   ? $"\n{string.Join(" og ", order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName))} afhentes i butikken separat."
                   : "")
@@ -113,20 +136,20 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         [StringLength(500)]
         public string? ShippingAddress { get; set; }
 
-        [Required(ErrorMessage = "Udfyld navnet på kortet.")]
+        public ShippingCarrier ShippingCarrier { get; set; } = ShippingCarrier.PostNord;
+
+        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Card;
+
+        // No [Required]/[RegularExpression] here - these only apply when
+        // PaymentMethod is Card, checked by hand in OnPostAsync, since
+        // DataAnnotations has no clean "required if" for a sibling property.
         [StringLength(200)]
         public string CardHolder { get; set; } = "";
 
-        [Required(ErrorMessage = "Udfyld kortnummeret.")]
-        [RegularExpression(@"^[0-9 ]{12,19}$", ErrorMessage = "Kortnummeret ser forkert ud.")]
         public string CardNumber { get; set; } = "";
 
-        [Required(ErrorMessage = "Udfyld udløbsdatoen.")]
-        [RegularExpression(@"^(0[1-9]|1[0-2])\/[0-9]{2}$", ErrorMessage = "Brug formatet MM/ÅÅ.")]
         public string Expiry { get; set; } = "";
 
-        [Required(ErrorMessage = "Udfyld CVC.")]
-        [RegularExpression(@"^[0-9]{3,4}$", ErrorMessage = "CVC skal være 3-4 cifre.")]
         public string Cvc { get; set; } = "";
     }
 }
