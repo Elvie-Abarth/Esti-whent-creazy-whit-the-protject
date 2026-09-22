@@ -279,7 +279,12 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     pointer-events: none;
 }
 
-.actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+/* align-items defaults to stretch, which grows every button to match its
+   tallest sibling's cross-axis size - if one .actions item is a <form>
+   wrapping a button vs. a plain <a> elsewhere, tiny natural-height
+   differences between them get stretched into a visibly oversized button.
+   flex-start keeps every button/link at its own natural content size. */
+.actions { display: flex; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
 
 /* The "save as PDF" half of the print button's promise lives inside the
    browser's own print dialog (a Destination/Printer dropdown), not
