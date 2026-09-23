@@ -887,11 +887,14 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
    on first load. Styled as a little trail of paw-print "footsteps"
    (the same oval feet _Cavy.cshtml draws under every guinea pig) instead
    of a generic progress bar, walking toward the label's own tiny cavy. */
-.password-meter { display: flex; align-items: center; gap: 0.6rem; margin-top: -0.15rem; }
-.password-meter-bar { display: flex; align-items: center; gap: 0.5rem; flex: 1; }
+/* flex-wrap on the outer element only (not the bar) - the trail of paws
+   stays intact as one unbroken row, but the label can drop to its own
+   line first if the field is ever too narrow for both. */
+.password-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: -0.15rem; }
+.password-meter-bar { display: flex; align-items: center; gap: 0.3rem; }
 .password-meter-step {
-    width: 17px;
-    height: 17px;
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
     /* currentColor, not a fixed value - password-meter.js sets each step's
        own `color` per keystroke (grey while unfilled, the level's colour
@@ -905,8 +908,8 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .password-meter-step-pad { stroke: var(--bark); stroke-width: 1; }
 .password-meter-step.is-filled .password-meter-step-pad { stroke: none; }
 /* Alternating up/down like left-right footprints, not a straight row. */
-.password-meter-step:nth-child(odd) { margin-top: 4px; }
-.password-meter-step:nth-child(even) { margin-top: -4px; }
+.password-meter-step:nth-child(odd) { margin-top: 3px; }
+.password-meter-step:nth-child(even) { margin-top: -3px; }
 .password-meter-step.is-new { animation: password-meter-hop 0.35s ease; }
 @keyframes password-meter-hop {
     0% { transform: scale(0.3) rotate(-15deg); opacity: 0.4; }

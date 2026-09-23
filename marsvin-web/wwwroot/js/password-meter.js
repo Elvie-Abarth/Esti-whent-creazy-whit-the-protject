@@ -5,10 +5,12 @@
 // enforced - this is guidance, not validation.
 //
 // Styled to match the rest of the site rather than a generic progress bar:
-// the four segments are little paw-print "footsteps" (the same oval-feet
-// shape _Cavy.cshtml draws under every guinea pig portrait) walking in a
-// trail, and the label carries a tiny cavy silhouette built the same way
-// _Cavy.cshtml's own placeholder drawing is - two overlapping ellipses.
+// the trail is little paw-print "footsteps" (the same oval-feet shape
+// _Cavy.cshtml draws under every guinea pig portrait), each one coloured
+// by its position along a weak -> strong gradient rather than jumping
+// between four flat colours, and the label carries a tiny cavy silhouette
+// built the same way _Cavy.cshtml's own placeholder drawing is - two
+// overlapping ellipses.
 (function () {
     "use strict";
 
@@ -18,13 +20,43 @@
     // clear traffic-light gradient instead of two clear ends with a fuzzy
     // middle. One-off hex rather than a new :root token since nothing else
     // on the site needs an amber.
-    var LEVELS = [
-        { da: "Meget svag", en: "Very weak", color: "var(--fleece)" },
-        { da: "Svag", en: "Weak", color: "var(--fleece)" },
-        { da: "Rimelig", en: "Fair", color: "#C98A2E" },
-        { da: "God", en: "Good", color: "var(--grass)" },
-        { da: "Stærk", en: "Strong", color: "var(--meadow)" }
+    var LABELS = [
+        { da: "Meget svag", en: "Very weak" },
+        { da: "Svag", en: "Weak" },
+        { da: "Rimelig", en: "Fair" },
+        { da: "God", en: "Good" },
+        { da: "Stærk", en: "Strong" }
     ];
+
+    // Anchor colours for the gradient the steps walk through - pink to
+    // amber to grass to dark meadow-green. Real hex rather than the site's
+    // CSS custom properties, since these get mixed channel-by-channel in
+    // JS (a var(--x) string can't be interpolated).
+    var ANCHORS = ["#B83C6E", "#C98A2E", "#74964A", "#2C4327"].map(function (hex) {
+        return [
+            parseInt(hex.slice(1, 3), 16),
+            parseInt(hex.slice(3, 5), 16),
+            parseInt(hex.slice(5, 7), 16)
+        ];
+    });
+
+    // Colour at position t (0..1) along the full weak -> strong gradient,
+    // linearly interpolated across the anchors above. More steps than
+    // score levels is what turns 4 flat colour blocks into an actual
+    // gradient the paw trail walks through.
+    function colorAt(t) {
+        var span = ANCHORS.length - 1;
+        var pos = Math.max(0, Math.min(1, t)) * span;
+        var i = Math.min(Math.floor(pos), span - 1);
+        var localT = pos - i;
+        var a = ANCHORS[i], b = ANCHORS[i + 1];
+        var r = Math.round(a[0] + (b[0] - a[0]) * localT);
+        var g = Math.round(a[1] + (b[1] - a[1]) * localT);
+        var bl = Math.round(a[2] + (b[2] - a[2]) * localT);
+        return "rgb(" + r + "," + g + "," + bl + ")";
+    }
+
+    var STEP_COUNT = 8;
 
     // Dark eye/mouth tone matches _Cavy.cshtml's own placeholder drawing
     // (#23301F) exactly, rather than the pale "eye" dot the first version
@@ -70,7 +102,7 @@
 
         var bar = document.createElement("div");
         bar.className = "password-meter-bar";
-        bar.innerHTML = PAW_SVG + PAW_SVG + PAW_SVG + PAW_SVG;
+        bar.innerHTML = new Array(STEP_COUNT + 1).join(PAW_SVG);
 
         var label = document.createElement("span");
         label.className = "password-meter-label";
@@ -86,38 +118,41 @@
             label: label,
             text: label.querySelector(".password-meter-text"),
             mascot: label.querySelector(".password-meter-mascot"),
-            lastScore: -1
+            lastFilled: -1
         };
     }
 
     function update(meter, password) {
         if (!password) {
             meter.wrap.hidden = true;
-            meter.lastScore = -1;
+            meter.lastFilled = -1;
             return;
         }
         meter.wrap.hidden = false;
 
         var s = score(password);
-        var level = LEVELS[s];
+        var t = s / 4; // 0..1 across the five score levels
+        var filledCount = Math.round(t * STEP_COUNT);
 
         for (var i = 0; i < meter.steps.length; i++) {
             var step = meter.steps[i];
-            var filled = i < s;
-            step.style.color = filled ? level.color : "var(--line)";
+            var filled = i < filledCount;
+            step.style.color = filled ? colorAt(i / (STEP_COUNT - 1)) : "var(--line)";
             step.classList.toggle("is-filled", filled);
-            // Only the step that just filled in hops - re-triggering the
-            // animation on every step on every keystroke reads as jittery
-            // rather than a little walk forward.
-            step.classList.toggle("is-new", filled && i === s - 1 && s > meter.lastScore);
+            // Every step that just filled in hops - jumping several score
+            // points in one keystroke (e.g. typing the char that both
+            // crosses 12 characters and adds the first digit) fills more
+            // than one paw at once, and all of them should hop together.
+            step.classList.toggle("is-new", filled && i >= meter.lastFilled);
         }
 
         var lang = document.documentElement.lang === "en" ? "en" : "da";
-        meter.text.textContent = level[lang];
-        meter.label.style.color = level.color;
+        var levelColor = colorAt(t);
+        meter.text.textContent = LABELS[s][lang];
+        meter.label.style.color = levelColor;
         meter.mascot.classList.toggle("is-chuffed", s === 4);
 
-        meter.lastScore = s;
+        meter.lastFilled = filledCount;
     }
 
     document.addEventListener("DOMContentLoaded", function () {
