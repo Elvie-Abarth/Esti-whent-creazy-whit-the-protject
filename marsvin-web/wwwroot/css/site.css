@@ -890,7 +890,7 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 /* flex-wrap on the outer element only (not the bar) - the trail of paws
    stays intact as one unbroken row, but the label can drop to its own
    line first if the field is ever too narrow for both. */
-.password-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: -0.15rem; }
+.password-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.5rem; }
 .password-meter-bar { display: flex; align-items: center; gap: 0.3rem; }
 .password-meter-step {
     width: 14px;
