@@ -26,12 +26,31 @@
         { da: "Stærk", en: "Strong", color: "var(--meadow)" }
     ];
 
+    // Dark eye/mouth tone matches _Cavy.cshtml's own placeholder drawing
+    // (#23301F) exactly, rather than the pale "eye" dot the first version
+    // used - a real dark pupil plus a small white sparkle and blushed
+    // cheek is what makes a face read as cute instead of just a shape with
+    // a hole in it.
     var MASCOT_SVG =
         '<svg class="password-meter-mascot" viewBox="0 0 34 22" aria-hidden="true">' +
         '<ellipse cx="19" cy="13.5" rx="14" ry="7.5"/>' +
-        '<ellipse cx="7.5" cy="9.5" rx="7" ry="6.5"/>' +
-        '<ellipse class="password-meter-mascot-ear" cx="5.5" cy="5" rx="3.2" ry="2.4" transform="rotate(-25 5.5 5)"/>' +
-        '<circle class="password-meter-mascot-eye" cx="4.6" cy="9" r="1.15"/>' +
+        '<ellipse cx="7.6" cy="9.3" rx="7.3" ry="6.9"/>' +
+        '<ellipse class="password-meter-mascot-ear" cx="5.1" cy="4" rx="3.1" ry="2.2" transform="rotate(-25 5.1 4)"/>' +
+        '<circle class="password-meter-mascot-cheek" cx="9.3" cy="11.8" r="1.7"/>' +
+        '<circle class="password-meter-mascot-eye" cx="4.5" cy="8.7" r="1.3"/>' +
+        '<circle class="password-meter-mascot-eye-shine" cx="4.95" cy="8.25" r="0.42"/>' +
+        '<path class="password-meter-mascot-mouth" d="M2.5 10.7 q1.9 1.7 3.8 0.2"/>' +
+        "</svg>";
+
+    // Each "footstep" is a real paw print (pad + three toes), not a plain
+    // dot - the toes are what makes it recognisable as a paw rather than
+    // just a coloured blob walking across the field.
+    var PAW_SVG =
+        '<svg class="password-meter-step" viewBox="0 0 20 20" aria-hidden="true">' +
+        '<ellipse class="password-meter-step-pad" cx="10" cy="13.6" rx="6" ry="4.3"/>' +
+        '<circle cx="4.2" cy="6.3" r="1.9"/>' +
+        '<circle cx="10" cy="3.5" r="2.1"/>' +
+        '<circle cx="15.8" cy="6.3" r="1.9"/>' +
         "</svg>";
 
     function score(password) {
@@ -51,11 +70,7 @@
 
         var bar = document.createElement("div");
         bar.className = "password-meter-bar";
-        for (var i = 0; i < 4; i++) {
-            var step = document.createElement("span");
-            step.className = "password-meter-step";
-            bar.appendChild(step);
-        }
+        bar.innerHTML = PAW_SVG + PAW_SVG + PAW_SVG + PAW_SVG;
 
         var label = document.createElement("span");
         label.className = "password-meter-label";
@@ -89,7 +104,7 @@
         for (var i = 0; i < meter.steps.length; i++) {
             var step = meter.steps[i];
             var filled = i < s;
-            step.style.background = filled ? level.color : "var(--line)";
+            step.style.color = filled ? level.color : "var(--line)";
             step.classList.toggle("is-filled", filled);
             // Only the step that just filled in hops - re-triggering the
             // animation on every step on every keystroke reads as jittery
