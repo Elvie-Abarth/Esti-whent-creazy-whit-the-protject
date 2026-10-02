@@ -95,7 +95,7 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register a Customer account — both require opening an emailed confirmation link before the session is signed in |
 | Glemt adgangskode | `/Account/ForgotPassword`, `/Account/ResetPassword` | Everyone | Request and complete a password reset by email link |
 | Min konto | `/Account/Profile` | Signed in | Update name/email/password, request time off (staff), order history + reorder (customers), delete account |
-| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Everyone (not staff) | View cart, remove lines, choose pickup or shipping (+ carrier), choose card or MobilePay (demo), check out — no account needed, a guest just gives a name and email |
+| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Everyone (not staff) | View cart, remove lines, choose pickup or shipping (+ carrier), choose card or MobilePay (demo), check out — no account needed, a guest just gives a name and email. Registering or logging in partway through carries the guest cart into the new session instead of losing it |
 | Kvittering | `/Cart/Confirmation/{orderId}` | Everyone (not staff) | Order summary with a confetti animation — only the buyer can view their own order (a guest's receipt is gated by a one-time id stamped into their own session at checkout, not an account) |
 | Personale | `/Admin/Index` | Employee, Admin | Dashboard with role-appropriate links |
 | Vagtplan | `/Admin/Schedule/Index` | Employee, Admin | See/assign shifts, approve or deny day-off requests |

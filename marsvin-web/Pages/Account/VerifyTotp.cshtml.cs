@@ -13,7 +13,9 @@ namespace MarsvinWebExample.Pages.Account;
 // only has a million possibilities, so it needs the same brute-force
 // protection a password does, arguably more.
 [EnableRateLimiting("auth")]
-public class VerifyTotpModel(IUserAccountStore users, IPendingLoginStore pendingLogins, LoginLockoutTracker lockout)
+public class VerifyTotpModel(
+    IUserAccountStore users, IPendingLoginStore pendingLogins, LoginLockoutTracker lockout,
+    ICartStore cart, SqlCartStore accountCart)
     : PageModel
 {
     [BindProperty]
@@ -63,6 +65,7 @@ public class VerifyTotpModel(IUserAccountStore users, IPendingLoginStore pending
         pendingLogins.Consume(Token);
         users.RecordActivity(user.UserId);
         await this.SignInAsync(user);
+        MergeGuestCartIntoAccount(cart, accountCart, user.UserId);
 
         return !string.IsNullOrEmpty(ticket.ReturnUrl) ? LocalRedirect(ticket.ReturnUrl) : RedirectToPage("/Index");
     }

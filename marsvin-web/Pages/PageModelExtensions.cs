@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -69,6 +70,39 @@ public static class PageModelExtensions
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await page.HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+    }
+
+    /// <summary>
+    /// Folds a just-signed-in user's guest cart into their account's real
+    /// one, so browsing as a guest and then logging in partway through
+    /// doesn't lose what was already added. Call right after SignInAsync,
+    /// in the two places a request actually goes from anonymous to signed
+    /// in mid-request (ConfirmLogin, VerifyTotp) - by then this request's
+    /// own ICartStore has already been resolved against the still-anonymous
+    /// HttpContext.User from before SignInAsync ran (see Program.cs), so it
+    /// IS the guest's SessionCartStore; accountCart is SqlCartStore,
+    /// injected separately and directly for exactly this reason.
+    /// A no-op (not even a Clear()) when the guest cart was already empty -
+    /// the common case, most people logging in weren't just shopping anonymously first.
+    /// </summary>
+    public static void MergeGuestCartIntoAccount(ICartStore guestCart, SqlCartStore accountCart, int userId)
+    {
+        var guestLines = guestCart.GetLines(0);
+        if (guestLines.Count == 0) return;
+
+        var existingProductIds = accountCart.GetLines(userId).Select(l => l.ProductId).ToHashSet();
+        foreach (var line in guestLines)
+        {
+            // AddOrIncrement blindly sums quantities, which is right for an
+            // accessory (5 already in the account's cart + 3 from the guest
+            // cart really is 8) but would be wrong for an animal - a guinea
+            // pig's "quantity" must stay 1 even in the rare case where the
+            // same one somehow ended up in both carts (the two carts were
+            // never meant to be shopped in at once, but nothing stops it).
+            if (line.IsAnimal && existingProductIds.Contains(line.ProductId)) continue;
+            accountCart.AddOrIncrement(userId, line.ProductId, line.Quantity);
+        }
+        guestCart.Clear(0);
     }
 
     // Deliberately not PageModel.Url.IsLocalUrl: that needs an IUrlHelper wired up

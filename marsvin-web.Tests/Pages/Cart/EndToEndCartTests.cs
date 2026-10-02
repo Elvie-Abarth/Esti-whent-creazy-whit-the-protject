@@ -170,4 +170,42 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
         var htmlAfter = await cartAfter.Content.ReadAsStringAsync();
         Assert.DoesNotContain("kurv er tom", htmlAfter, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task ShoppingAsAGuestThenRegistering_CarriesTheCartIntoTheNewAccount()
+    {
+        // The real end-to-end path for ConfirmLoginModel's merge logic -
+        // same browser session throughout (one CookieJar), going from
+        // SessionCartStore (anonymous) to SqlCartStore (signed in) exactly
+        // the way Program.cs's ICartStore registration would for a real
+        // visitor, not a hand-constructed FakeCartStore like the
+        // PaymentModelTests/ConfirmLoginModelTests unit tests use.
+        var client = MakeClient();
+        var jar = new CookieJar();
+
+        var tilbehorPage = await HttpTestHelpers.Get(client, jar, "/Tilbehor");
+        var addToken = CookieJar.ExtractAntiforgeryToken(await tilbehorPage.Content.ReadAsStringAsync());
+        await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
+        {
+            ["__RequestVerificationToken"] = addToken,
+            ["productId"] = "104",
+            ["quantity"] = "1"
+        });
+
+        var email = $"mergecart-{Guid.NewGuid():N}@example.com";
+        var (_, _, registerToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
+        await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
+        {
+            ["__RequestVerificationToken"] = registerToken,
+            ["Input.Email"] = email,
+            ["Input.DisplayName"] = "Merge Cart Test",
+            ["Input.Password"] = "SomePass123!",
+            ["Input.ConfirmPassword"] = "SomePass123!"
+        });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
+
+        var cartAfterLogin = await HttpTestHelpers.Get(client, jar, "/Cart/Index");
+        var html = await cartAfterLogin.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("kurv er tom", html, StringComparison.OrdinalIgnoreCase);
+    }
 }

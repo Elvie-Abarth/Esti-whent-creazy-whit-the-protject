@@ -17,16 +17,25 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
 {
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
+    private readonly SqlCartStore _accountCart = new(fixture.ConnectionString);
 
-    private (ConfirmLoginModel Model, RecordingAuthenticationService Auth) MakeModel()
+    // A fresh one per call, not a shared field - a real request only ever
+    // has one guest cart (its own session's), but two MakeModel() calls in
+    // the same test (see the single-use-token test below) must not somehow
+    // share one, the way two different browsers never would.
+    private (ConfirmLoginModel Model, RecordingAuthenticationService Auth, FakeCartStore GuestCart) MakeModel()
     {
         var services = new ServiceCollection();
         var auth = new RecordingAuthenticationService();
         services.AddSingleton<IAuthenticationService>(auth);
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
-        var model = new ConfirmLoginModel(_users, _pendingLogins) { PageContext = new PageContext { HttpContext = httpContext } };
-        return (model, auth);
+        var guestCart = new FakeCartStore();
+        var model = new ConfirmLoginModel(_users, _pendingLogins, guestCart, _accountCart)
+        {
+            PageContext = new PageContext { HttpContext = httpContext }
+        };
+        return (model, auth, guestCart);
     }
 
     private ApplicationUser NewCustomer([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
@@ -42,7 +51,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
     {
         var user = NewCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(15));
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
 
         var result = await model.OnGetAsync(token);
 
@@ -57,7 +66,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
     {
         var user = NewCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(15));
-        var (model, _) = MakeModel();
+        var (model, _, _) = MakeModel();
 
         await model.OnGetAsync(token);
 
@@ -70,7 +79,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
     {
         var user = NewCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: "/Marsvin", TimeSpan.FromMinutes(15));
-        var (model, _) = MakeModel();
+        var (model, _, _) = MakeModel();
 
         var result = await model.OnGetAsync(token);
 
@@ -83,10 +92,10 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
     {
         var user = NewCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(15));
-        var (first, _) = MakeModel();
+        var (first, _, _) = MakeModel();
         await first.OnGetAsync(token);
 
-        var (second, auth2) = MakeModel();
+        var (second, auth2, _) = MakeModel();
         var result = await second.OnGetAsync(token);
 
         Assert.Null(auth2.SignedInAs);
@@ -99,7 +108,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
         var user = NewCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMilliseconds(1));
         await Task.Delay(20);
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
 
         var result = await model.OnGetAsync(token);
 
@@ -110,7 +119,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
     [Fact]
     public async Task OnGetAsync_UnknownToken_DoesNotSignIn()
     {
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
 
         var result = await model.OnGetAsync("not-a-real-token");
 
@@ -121,12 +130,31 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
     [Fact]
     public async Task OnGetAsync_NullToken_DoesNotSignIn()
     {
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
 
         var result = await model.OnGetAsync(null);
 
         Assert.Null(auth.SignedInAs);
         Assert.IsType<PageResult>(result);
+    }
+
+    [Fact]
+    public async Task OnGetAsync_ValidToken_MergesWhateverWasInTheGuestCartIntoTheAccount()
+    {
+        var user = NewCustomer();
+        var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(15));
+        var (model, _, guestCart) = MakeModel();
+        guestCart.Add(new CartLine
+        {
+            ProductId = 101, ProductName = "Timothy-hø, 2 kg", UnitPrice = 89m, Quantity = 2, IsAnimal = false
+        });
+
+        await model.OnGetAsync(token);
+
+        var line = Assert.Single(_accountCart.GetLines(user.UserId));
+        Assert.Equal(101, line.ProductId);
+        Assert.Equal(2, line.Quantity);
+        Assert.Empty(guestCart.GetLines(0)); // the guest cart itself is cleared once merged
     }
 
     [Fact]
@@ -137,7 +165,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
         try
         {
             var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(15));
-            var (model, auth) = MakeModel();
+            var (model, auth, _) = MakeModel();
 
             var result = await model.OnGetAsync(token);
 

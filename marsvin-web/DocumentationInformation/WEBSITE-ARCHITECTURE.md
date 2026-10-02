@@ -358,6 +358,22 @@ only trusts `IOrderStore.FindById` (no ownership check at all) when the
 requested `orderId` matches that stamp - nobody else's session ever has
 it, so nobody else can view that order just by guessing its id.
 
+**Guest cart → account merge**: shopping anonymously and then logging in
+or registering partway through doesn't lose what was already added.
+`ConfirmLoginModel` and `VerifyTotpModel` - the two places a request
+actually goes from anonymous to signed in mid-request, since
+`SignInAsync` doesn't retroactively change what `HttpContext.User` already
+was when this request's `ICartStore` got resolved - both take a second,
+directly-injected `SqlCartStore` (registered under its own concrete type
+in `Program.cs`, not just behind `ICartStore`) alongside the normal
+`ICartStore cart`, which by then *is* the guest's `SessionCartStore`.
+Right after `SignInAsync`, `PageModelExtensions.MergeGuestCartIntoAccount`
+folds the guest cart's lines into the real one and clears the guest cart -
+a no-op when it was already empty, which is the common case. An animal
+already present in both carts isn't quantity-summed (a guinea pig's
+quantity must stay 1); an accessory is, the same way merging two real
+carts naturally would be expected to work.
+
 ### Staff area - `/Admin` ("Personale")
 
 Restricted to Admin + Employee. Deliberately holds **only** staff/people

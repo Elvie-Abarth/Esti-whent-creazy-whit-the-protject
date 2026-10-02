@@ -103,12 +103,22 @@ builder.Services.AddScoped<IUserAccountStore>(_ => new SqlUserAccountStore(conne
 // page model just asks for ICartStore and calls cart.GetLines(...) exactly
 // the same way either way; which implementation it actually gets is
 // decided once, here, per request, off whether anyone's signed in.
+//
+// SqlCartStore is also registered under its own concrete type, not just
+// behind ICartStore - ConfirmLogin/VerifyTotp (the two places a request
+// goes from anonymous to signed in mid-request) need it directly to merge
+// a just-signed-in user's guest cart into their account's real one (see
+// PageModelExtensions.MergeGuestCartIntoAccount), since by then the
+// request's ICartStore has already been resolved against the
+// still-anonymous HttpContext.User from before SignInAsync ran, and would
+// hand back the very SessionCartStore being merged *from*, not into.
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped(_ => new SqlCartStore(connectionString));
 builder.Services.AddScoped<ICartStore>(sp =>
 {
     var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext!;
     return httpContext.User.Identity?.IsAuthenticated == true
-        ? new SqlCartStore(connectionString)
+        ? sp.GetRequiredService<SqlCartStore>()
         : new SessionCartStore(httpContext.Session, sp.GetRequiredService<ICatalog>());
 });
 

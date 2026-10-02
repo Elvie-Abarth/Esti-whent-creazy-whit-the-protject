@@ -17,17 +17,19 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
     private readonly SqlUserAccountStore _users = new(fixture.ConnectionString);
     private readonly SqlPendingLoginStore _pendingLogins = new(fixture.ConnectionString);
     private readonly LoginLockoutTracker _lockout = new();
+    private readonly SqlCartStore _accountCart = new(fixture.ConnectionString);
 
-    private (VerifyTotpModel Model, RecordingAuthenticationService Auth) MakeModel()
+    private (VerifyTotpModel Model, RecordingAuthenticationService Auth, FakeCartStore GuestCart) MakeModel()
     {
         var services = new ServiceCollection();
         var auth = new RecordingAuthenticationService();
         services.AddSingleton<IAuthenticationService>(auth);
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
-        var model = new VerifyTotpModel(_users, _pendingLogins, _lockout)
+        var guestCart = new FakeCartStore();
+        var model = new VerifyTotpModel(_users, _pendingLogins, _lockout, guestCart, _accountCart)
             { PageContext = new PageContext { HttpContext = httpContext } };
-        return (model, auth);
+        return (model, auth, guestCart);
     }
 
     private (ApplicationUser User, string Secret) NewTotpEnrolledCustomer(
@@ -46,7 +48,7 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
     [Fact]
     public void OnGet_InvalidToken_RedirectsToLogin()
     {
-        var (model, _) = MakeModel();
+        var (model, _, _) = MakeModel();
 
         var result = model.OnGet("not-a-real-token");
 
@@ -59,7 +61,7 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
     {
         var (user, _) = NewTotpEnrolledCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(5));
-        var (model, _) = MakeModel();
+        var (model, _, _) = MakeModel();
 
         var result = model.OnGet(token);
 
@@ -71,7 +73,7 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
     {
         var (user, secret) = NewTotpEnrolledCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(5));
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
         model.Token = token;
         model.Code = TotpTestHelper.CurrentCode(secret);
 
@@ -83,11 +85,31 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPostAsync_CorrectCode_MergesWhateverWasInTheGuestCartIntoTheAccount()
+    {
+        var (user, secret) = NewTotpEnrolledCustomer();
+        var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(5));
+        var (model, _, guestCart) = MakeModel();
+        model.Token = token;
+        model.Code = TotpTestHelper.CurrentCode(secret);
+        guestCart.Add(new CartLine
+        {
+            ProductId = 101, ProductName = "Timothy-hø, 2 kg", UnitPrice = 89m, Quantity = 1, IsAnimal = false
+        });
+
+        await model.OnPostAsync();
+
+        var line = Assert.Single(_accountCart.GetLines(user.UserId));
+        Assert.Equal(101, line.ProductId);
+        Assert.Empty(guestCart.GetLines(0));
+    }
+
+    [Fact]
     public async Task OnPostAsync_WrongCode_DoesNotSignInAndTokenStaysValidForRetry()
     {
         var (user, _) = NewTotpEnrolledCustomer();
         var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(5));
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
         model.Token = token;
         model.Code = "000000";
 
@@ -106,14 +128,14 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
         for (var i = 0; i < 5; i++)
         {
             var token = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(5));
-            var (attempt, _) = MakeModel();
+            var (attempt, _, _) = MakeModel();
             attempt.Token = token;
             attempt.Code = "000000";
             await attempt.OnPostAsync();
         }
 
         var finalToken = _pendingLogins.Create(user.UserId, returnUrl: null, TimeSpan.FromMinutes(5));
-        var (finalTry, auth) = MakeModel();
+        var (finalTry, auth, _) = MakeModel();
         finalTry.Token = finalToken;
         finalTry.Code = TotpTestHelper.CurrentCode(secret); // even the *correct* code, now locked out
 
@@ -126,7 +148,7 @@ public class VerifyTotpModelTests(SqlCatalogFixture fixture)
     [Fact]
     public async Task OnPostAsync_ExpiredToken_ShowsErrorWithoutThrowing()
     {
-        var (model, auth) = MakeModel();
+        var (model, auth, _) = MakeModel();
         model.Token = "not-a-real-token";
         model.Code = "123456";
 
