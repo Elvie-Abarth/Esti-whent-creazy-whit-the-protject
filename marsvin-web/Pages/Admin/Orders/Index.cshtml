@@ -45,6 +45,10 @@
                             {
                                 @order.BuyerDisplayName <br /><span class="cavy-meta">@order.BuyerEmail</span>
                             }
+                            else if (order.GuestName is not null)
+                            {
+                                @order.GuestName <span class="cavy-meta" data-en="(guest)">(gæst)</span><br /><span class="cavy-meta">@order.GuestEmail</span>
+                            }
                             else
                             {
                                 <span class="cavy-meta" data-en="Account deleted">Konto slettet</span>

@@ -29,6 +29,34 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         PageContext = TestAuth.ContextFor(userId, "Customer")
     };
 
+    // Unit-test stand-in for guest checkout: a real anonymous request gets
+    // SessionCartStore instead of SqlCartStore (see Program.cs's ICartStore
+    // registration - EndToEndCartTests covers that real path end to end).
+    // SqlCartStore itself can't stand in here the way it does for a
+    // signed-in customer: CartItems.UserId is a real FK to Users, and a
+    // guest - by definition - has no Users row for userId 0 (what
+    // this.CurrentUserIdOrZero() produces when anonymous) to point at.
+    // FakeCartStore sidesteps that entirely - PaymentModel only ever talks
+    // to the ICartStore interface, so it can't tell the difference.
+    private PaymentModel MakeGuestModel(FakeCartStore guestCart) => new(guestCart, _orders, _users, _email)
+    {
+        PageContext = TestAuth.Anonymous()
+    };
+
+    private CartLine CartLineFor(int productId, int quantity)
+    {
+        var product = _catalog.Accessories.Single(p => p.ProductId == productId);
+        return new CartLine
+        {
+            ProductId = product.ProductId,
+            ProductName = product.Name,
+            ProductNameEn = product.NameEn,
+            UnitPrice = product.Price,
+            Quantity = quantity,
+            IsAnimal = false
+        };
+    }
+
     private static PaymentModel.PaymentInputModel ValidInput() => new()
     {
         CardHolder = "Test Testesen",
@@ -295,6 +323,64 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         {
             _catalog.DeleteAnimal(animal.ProductId);
         }
+    }
+
+    [Fact]
+    public async Task OnPost_GuestWithoutNameOrEmail_ShowsFieldErrorsAndDoesNotCheckOut()
+    {
+        var guestCart = new FakeCartStore();
+        guestCart.Add(CartLineFor(104, 1));
+        var model = MakeGuestModel(guestCart);
+        var input = ValidInput();
+        model.Input = input; // GuestName/GuestEmail left unset
+
+        var result = await model.OnPostAsync();
+
+        Assert.IsType<PageResult>(result);
+        Assert.False(model.ModelState.IsValid);
+        Assert.True(model.ModelState.ContainsKey("Input.GuestName"));
+        Assert.True(model.ModelState.ContainsKey("Input.GuestEmail"));
+        Assert.Single(guestCart.GetLines(0)); // still in the cart - nothing was checked out
+    }
+
+    [Fact]
+    public async Task OnPost_GuestWithMalformedEmail_ShowsFieldErrorAndDoesNotCheckOut()
+    {
+        var guestCart = new FakeCartStore();
+        guestCart.Add(CartLineFor(104, 1));
+        var model = MakeGuestModel(guestCart);
+        var input = ValidInput();
+        input.GuestName = "Guest Buyer";
+        input.GuestEmail = "not-an-email";
+        model.Input = input;
+
+        var result = await model.OnPostAsync();
+
+        Assert.IsType<PageResult>(result);
+        Assert.True(model.ModelState.ContainsKey("Input.GuestEmail"));
+    }
+
+    [Fact]
+    public async Task OnPost_GuestWithValidNameAndEmail_ChecksOutAndStoresGuestInfoOnTheOrder()
+    {
+        var guestCart = new FakeCartStore();
+        guestCart.Add(CartLineFor(104, 1));
+        var model = MakeGuestModel(guestCart);
+        var input = ValidInput();
+        input.GuestName = "Guest Buyer";
+        input.GuestEmail = $"guest-{Guid.NewGuid():N}@example.com";
+        model.Input = input;
+
+        var result = await model.OnPostAsync();
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("Confirmation", redirect.PageName);
+        Assert.Empty(guestCart.GetLines(0)); // checkout cleared it, same as a signed-in customer's cart
+        var orderId = (int)redirect.RouteValues!["orderId"]!;
+        var order = _orders.FindById(orderId)!;
+        Assert.Null(order.UserId);
+        Assert.Equal("Guest Buyer", order.GuestName);
+        Assert.Equal(input.GuestEmail, order.GuestEmail);
     }
 
     private Animal NewThrowawayAnimal([System.Runtime.CompilerServices.CallerMemberName] string caller = "")

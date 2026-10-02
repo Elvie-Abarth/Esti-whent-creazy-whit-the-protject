@@ -5,8 +5,9 @@ namespace MarsvinWebExample.Data;
 
 public sealed class SqlOrderStore(string connectionString) : IOrderStore
 {
-    public CheckoutResult Checkout(int userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null,
-        ShippingCarrier? shippingCarrier = null, PaymentMethod paymentMethod = PaymentMethod.Card)
+    public CheckoutResult Checkout(int? userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null,
+        ShippingCarrier? shippingCarrier = null, PaymentMethod paymentMethod = PaymentMethod.Card,
+        string? guestName = null, string? guestEmail = null, IReadOnlyList<CartLine>? guestLines = null)
     {
         using var connection = new SqlConnection(connectionString);
         connection.Open();
@@ -14,9 +15,29 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
         try
         {
-            var lines = LoadCartLines(connection, transaction, userId);
+            // A logged-in checkout's cart lives in dbo.CartItems, loaded (and
+            // later cleared) inside this same transaction - atomic with the
+            // order itself. A guest has no CartItems row at all (their cart
+            // lives in the caller's own session-backed ICartStore instance,
+            // not SQL) - the lines it already resolved are passed straight in
+            // instead, and the caller clears its own session cart afterward,
+            // since there's no SQL row here for this transaction to protect.
+            var lines = userId is int realUserId
+                ? LoadCartLines(connection, transaction, realUserId)
+                : guestLines ?? [];
             if (lines.Count == 0)
+            {
+                transaction.Rollback();
                 return CheckoutResult.Fail(new Bilingual("Din kurv er tom.", "Your cart is empty."));
+            }
+
+            if (userId is null && (string.IsNullOrWhiteSpace(guestName) || string.IsNullOrWhiteSpace(guestEmail)))
+            {
+                transaction.Rollback();
+                return CheckoutResult.Fail(new Bilingual(
+                    "Angiv navn og e-mail for at gennemføre købet som gæst.",
+                    "Enter a name and email to check out as a guest."));
+            }
 
             // A guinea pig can't go in a parcel, but an order can still mix an
             // animal with accessories - Shipping then means "ship whatever's
@@ -59,16 +80,17 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
             var orderId = InsertOrder(connection, transaction, userId, lines, deliveryMethod,
                 deliveryMethod == DeliveryMethod.Shipping ? shippingAddress!.Trim() : null,
-                effectiveCarrier, paymentMethod);
+                effectiveCarrier, paymentMethod, guestName?.Trim(), guestEmail?.Trim());
 
             foreach (var line in lines)
                 ApplyStockChange(connection, transaction, line);
 
-            ClearCart(connection, transaction, userId);
+            if (userId is int ownerUserId)
+                ClearCart(connection, transaction, ownerUserId);
 
             transaction.Commit();
 
-            var order = FindForUser(orderId, userId)
+            var order = FindById(orderId)
                 ?? throw new InvalidOperationException("Order vanished immediately after being created.");
             return CheckoutResult.Ok(order);
         }
@@ -81,14 +103,19 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
     public Order? FindForUser(int orderId, int userId)
     {
+        var order = FindById(orderId);
+        return order is not null && order.UserId == userId ? order : null;
+    }
+
+    public Order? FindById(int orderId)
+    {
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
         using var orderCommand = new SqlCommand(
-            "SELECT OrderId, UserId, TotalPrice, CreatedAt, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod FROM dbo.Orders " +
-            "WHERE OrderId = @OrderId AND UserId = @UserId;", connection);
+            "SELECT OrderId, UserId, TotalPrice, CreatedAt, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod, GuestName, GuestEmail " +
+            "FROM dbo.Orders WHERE OrderId = @OrderId;", connection);
         orderCommand.Parameters.AddWithValue("@OrderId", orderId);
-        orderCommand.Parameters.AddWithValue("@UserId", userId);
 
         int? foundUserId;
         decimal totalPrice;
@@ -97,6 +124,8 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         string? shippingAddress;
         ShippingCarrier? shippingCarrier;
         PaymentMethod paymentMethod;
+        string? guestName;
+        string? guestEmail;
         using (var reader = orderCommand.ExecuteReader())
         {
             if (!reader.Read()) return null;
@@ -110,27 +139,10 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             var shippingCarrierOrdinal = reader.GetOrdinal("ShippingCarrier");
             shippingCarrier = reader.IsDBNull(shippingCarrierOrdinal) ? null : (ShippingCarrier)reader.GetByte(shippingCarrierOrdinal);
             paymentMethod = (PaymentMethod)reader.GetByte(reader.GetOrdinal("PaymentMethod"));
-        }
-
-        using var itemsCommand = new SqlCommand(
-            "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
-            "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
-        itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
-
-        var items = new List<OrderItem>();
-        using (var reader = itemsCommand.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                items.Add(new OrderItem
-                {
-                    ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                    ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                    UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                    Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
-                    IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
-                });
-            }
+            var guestNameOrdinal = reader.GetOrdinal("GuestName");
+            guestName = reader.IsDBNull(guestNameOrdinal) ? null : reader.GetString(guestNameOrdinal);
+            var guestEmailOrdinal = reader.GetOrdinal("GuestEmail");
+            guestEmail = reader.IsDBNull(guestEmailOrdinal) ? null : reader.GetString(guestEmailOrdinal);
         }
 
         return new Order
@@ -139,11 +151,13 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             UserId = foundUserId,
             TotalPrice = totalPrice,
             CreatedAt = createdAt,
-            Items = items,
+            Items = LoadOrderItems(connection, null, orderId),
             DeliveryMethod = deliveryMethod,
             ShippingAddress = shippingAddress,
             ShippingCarrier = shippingCarrier,
-            PaymentMethod = paymentMethod
+            PaymentMethod = paymentMethod,
+            GuestName = guestName,
+            GuestEmail = guestEmail
         };
     }
 
@@ -184,34 +198,13 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
         foreach (var (orderId, totalPrice, createdAt, deliveryMethod, shippingAddress, shippingCarrier, paymentMethod) in headers)
         {
-            using var itemsCommand = new SqlCommand(
-                "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
-                "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
-            itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
-
-            var items = new List<OrderItem>();
-            using (var reader = itemsCommand.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    items.Add(new OrderItem
-                    {
-                        ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                        UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                        Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
-                        IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
-                    });
-                }
-            }
-
             orders.Add(new Order
             {
                 OrderId = orderId,
                 UserId = userId,
                 TotalPrice = totalPrice,
                 CreatedAt = createdAt,
-                Items = items,
+                Items = LoadOrderItems(connection, null, orderId),
                 DeliveryMethod = deliveryMethod,
                 ShippingAddress = shippingAddress,
                 ShippingCarrier = shippingCarrier,
@@ -230,16 +223,18 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         var orders = new List<Order>();
         using var orderCommand = new SqlCommand(
             // LEFT JOIN, not JOIN: UserId is nullable (see Order.UserId) once
-            // the buyer's account has been deleted, and the order itself is
-            // still kept - BuyerDisplayName/BuyerEmail just come back null then.
+            // the buyer's account has been deleted, or always for a guest
+            // order - BuyerDisplayName/BuyerEmail just come back null then
+            // (GuestName/GuestEmail are what the admin list falls back to,
+            // to tell "guest" apart from "account since deleted").
             "SELECT o.OrderId, o.UserId, o.TotalPrice, o.CreatedAt, o.DeliveryMethod, o.ShippingAddress, o.ShippingCarrier, o.PaymentMethod, " +
-            "       u.DisplayName AS BuyerDisplayName, u.Email AS BuyerEmail " +
+            "       o.GuestName, o.GuestEmail, u.DisplayName AS BuyerDisplayName, u.Email AS BuyerEmail " +
             "FROM dbo.Orders o LEFT JOIN dbo.Users u ON u.UserId = o.UserId " +
             "ORDER BY o.CreatedAt DESC, o.OrderId DESC;", connection);
 
         var headers = new List<(int OrderId, int? UserId, decimal TotalPrice, DateTime CreatedAt,
             DeliveryMethod DeliveryMethod, string? ShippingAddress, ShippingCarrier? ShippingCarrier, PaymentMethod PaymentMethod,
-            string? BuyerDisplayName, string? BuyerEmail)>();
+            string? GuestName, string? GuestEmail, string? BuyerDisplayName, string? BuyerEmail)>();
         using (var reader = orderCommand.ExecuteReader())
         {
             while (reader.Read())
@@ -247,6 +242,8 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
                 var userIdOrdinal = reader.GetOrdinal("UserId");
                 var shippingAddressOrdinal = reader.GetOrdinal("ShippingAddress");
                 var shippingCarrierOrdinal = reader.GetOrdinal("ShippingCarrier");
+                var guestNameOrdinal = reader.GetOrdinal("GuestName");
+                var guestEmailOrdinal = reader.GetOrdinal("GuestEmail");
                 var buyerNameOrdinal = reader.GetOrdinal("BuyerDisplayName");
                 var buyerEmailOrdinal = reader.GetOrdinal("BuyerEmail");
                 headers.Add((
@@ -258,6 +255,8 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
                     reader.IsDBNull(shippingAddressOrdinal) ? null : reader.GetString(shippingAddressOrdinal),
                     reader.IsDBNull(shippingCarrierOrdinal) ? null : (ShippingCarrier)reader.GetByte(shippingCarrierOrdinal),
                     (PaymentMethod)reader.GetByte(reader.GetOrdinal("PaymentMethod")),
+                    reader.IsDBNull(guestNameOrdinal) ? null : reader.GetString(guestNameOrdinal),
+                    reader.IsDBNull(guestEmailOrdinal) ? null : reader.GetString(guestEmailOrdinal),
                     reader.IsDBNull(buyerNameOrdinal) ? null : reader.GetString(buyerNameOrdinal),
                     reader.IsDBNull(buyerEmailOrdinal) ? null : reader.GetString(buyerEmailOrdinal)));
             }
@@ -265,44 +264,48 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 
         foreach (var header in headers)
         {
-            using var itemsCommand = new SqlCommand(
-                "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
-                "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection);
-            itemsCommand.Parameters.AddWithValue("@OrderId", header.OrderId);
-
-            var items = new List<OrderItem>();
-            using (var reader = itemsCommand.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    items.Add(new OrderItem
-                    {
-                        ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                        UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                        Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
-                        IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
-                    });
-                }
-            }
-
             orders.Add(new Order
             {
                 OrderId = header.OrderId,
                 UserId = header.UserId,
                 TotalPrice = header.TotalPrice,
                 CreatedAt = header.CreatedAt,
-                Items = items,
+                Items = LoadOrderItems(connection, null, header.OrderId),
                 DeliveryMethod = header.DeliveryMethod,
                 ShippingAddress = header.ShippingAddress,
                 ShippingCarrier = header.ShippingCarrier,
                 PaymentMethod = header.PaymentMethod,
+                GuestName = header.GuestName,
+                GuestEmail = header.GuestEmail,
                 BuyerDisplayName = header.BuyerDisplayName,
                 BuyerEmail = header.BuyerEmail
             });
         }
 
         return orders;
+    }
+
+    private static List<OrderItem> LoadOrderItems(SqlConnection connection, SqlTransaction? transaction, int orderId)
+    {
+        using var itemsCommand = new SqlCommand(
+            "SELECT ProductId, ProductName, UnitPrice, Quantity, IsAnimal FROM dbo.OrderItems " +
+            "WHERE OrderId = @OrderId ORDER BY OrderItemId;", connection, transaction);
+        itemsCommand.Parameters.AddWithValue("@OrderId", orderId);
+
+        var items = new List<OrderItem>();
+        using var reader = itemsCommand.ExecuteReader();
+        while (reader.Read())
+        {
+            items.Add(new OrderItem
+            {
+                ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
+                IsAnimal = reader.GetBoolean(reader.GetOrdinal("IsAnimal"))
+            });
+        }
+        return items;
     }
 
     private static List<CartLine> LoadCartLines(SqlConnection connection, SqlTransaction transaction, int userId)
@@ -396,23 +399,26 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
     }
 
     private static int InsertOrder(
-        SqlConnection connection, SqlTransaction transaction, int userId, IReadOnlyList<CartLine> lines,
-        DeliveryMethod deliveryMethod, string? shippingAddress, ShippingCarrier? shippingCarrier, PaymentMethod paymentMethod)
+        SqlConnection connection, SqlTransaction transaction, int? userId, IReadOnlyList<CartLine> lines,
+        DeliveryMethod deliveryMethod, string? shippingAddress, ShippingCarrier? shippingCarrier, PaymentMethod paymentMethod,
+        string? guestName, string? guestEmail)
     {
         var total = lines.Sum(l => l.LineTotal);
 
         using var orderCommand = new SqlCommand(
             """
-            INSERT INTO dbo.Orders (UserId, TotalPrice, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod)
+            INSERT INTO dbo.Orders (UserId, TotalPrice, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod, GuestName, GuestEmail)
             OUTPUT INSERTED.OrderId
-            VALUES (@UserId, @TotalPrice, @DeliveryMethod, @ShippingAddress, @ShippingCarrier, @PaymentMethod);
+            VALUES (@UserId, @TotalPrice, @DeliveryMethod, @ShippingAddress, @ShippingCarrier, @PaymentMethod, @GuestName, @GuestEmail);
             """, connection, transaction);
-        orderCommand.Parameters.AddWithValue("@UserId", userId);
+        orderCommand.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
         orderCommand.Parameters.AddWithValue("@TotalPrice", total);
         orderCommand.Parameters.AddWithValue("@DeliveryMethod", (byte)deliveryMethod);
         orderCommand.Parameters.AddWithValue("@ShippingAddress", (object?)shippingAddress ?? DBNull.Value);
         orderCommand.Parameters.AddWithValue("@ShippingCarrier", shippingCarrier is null ? DBNull.Value : (byte)shippingCarrier.Value);
         orderCommand.Parameters.AddWithValue("@PaymentMethod", (byte)paymentMethod);
+        orderCommand.Parameters.AddWithValue("@GuestName", (object?)guestName ?? DBNull.Value);
+        orderCommand.Parameters.AddWithValue("@GuestEmail", (object?)guestEmail ?? DBNull.Value);
         var orderId = (int)orderCommand.ExecuteScalar()!;
 
         foreach (var line in lines)

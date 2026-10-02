@@ -154,6 +154,14 @@ of a shared page needs restricting (e.g. `/Admin/Schedule` is reachable by
 both roles, but only an Admin may create/delete a shift or decide a day-off
 request).
 
+**`Cart/*` is the one deliberate exception**: no `[Authorize]` at all, so
+an anonymous visitor can shop and check out as a guest (see §5). Staff
+accounts still can't buy - checked by hand in the handler instead
+(`if (User.IsInRole("Employee") || User.IsInRole("Admin")) ...`), the same
+"check inside the handler" pattern as the Admin/Schedule case above, just
+for the opposite reason - keeping a *narrower* group out of an otherwise
+wide-open page rather than carving out a stricter corner of a protected one.
+
 ### The login flow: password *and* an email link
 
 This is more involved than typical cookie auth, and worth walking through
@@ -316,13 +324,39 @@ name instead of waiting for the next login.
 | `/Account/Logout` | Signs out |
 | `/Account/AccessDenied` | Shown on a role mismatch |
 
-### Cart & checkout (Customer only)
+### Cart & checkout (Customer *or* guest)
 
 | Route | What it is |
 |---|---|
 | `/Cart` | Cart contents, quantity updates. Adding one half of a bonded animal pair (e.g. Pelle, bonded to Basse) automatically adds the other too - buying one alone was never actually offered |
-| `/Cart/Payment` | Delivery choice (pickup, or ship whatever's shippable + carrier: PostNord/GLS/DAO Pakkeshop) + payment method choice (demo Card or demo MobilePay - no real processing either way; MobilePay hides the card fields entirely) |
+| `/Cart/Payment` | Guest-only Name/Email fields, then delivery choice (pickup, or ship whatever's shippable + carrier: PostNord/GLS/DAO Pakkeshop) + payment method choice (demo Card or demo MobilePay - no real processing either way; MobilePay hides the card fields entirely) |
 | `/Cart/Confirmation` | Order receipt after checkout, with a one-shot confetti animation on load |
+
+**Guest checkout**: no account required - see §4's note on `Cart/*` having
+no `[Authorize]`. `ICartStore` resolves to one of two implementations per
+request (`Program.cs`, based on `HttpContext.User.Identity.IsAuthenticated`):
+`SqlCartStore` (signed in, `dbo.CartItems`) or `SessionCartStore` (guest,
+ASP.NET Core session - `AddSession`/`UseSession` in `Program.cs`, only
+storing `(ProductId, Quantity)` pairs and resolving name/price against
+`ICatalog` fresh on every read, the same reason `SqlCartStore` joins
+instead of snapshotting). Every `Cart/*` page model just calls
+`cart.GetLines(...)` etc. the same way regardless of which it got.
+
+A guest checkout has no `dbo.CartItems` row for `SqlOrderStore.Checkout` to
+load itself inside the order's own transaction, so `PaymentModel` passes
+its already-resolved `Lines` straight in (`IOrderStore.Checkout`'s
+`guestLines` parameter) instead. The order itself gets `UserId = NULL` and
+`GuestName`/`GuestEmail` instead of a `Users` row to pull a name/email
+from (see `DATABASE-ARCHITECTURE.md` §3).
+
+Viewing the receipt afterward needs its own IDOR guard, since
+`IOrderStore.FindForUser`'s ownership check needs a real `UserId` a guest
+doesn't have: `PaymentModel.OnPostAsync` stamps the new order's id into
+that same browser's own session (`HttpContext.Session.SetInt32("GuestOrderId", ...)`)
+right after a successful guest checkout, and `ConfirmationModel.OnGet`
+only trusts `IOrderStore.FindById` (no ownership check at all) when the
+requested `orderId` matches that stamp - nobody else's session ever has
+it, so nobody else can view that order just by guessing its id.
 
 ### Staff area - `/Admin` ("Personale")
 

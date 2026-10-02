@@ -185,7 +185,9 @@ BEGIN
         DeliveryMethod  TINYINT NOT NULL DEFAULT 0,   -- 0 Pickup, 1 Shipping
         ShippingAddress NVARCHAR(500) NULL,           -- only set when DeliveryMethod = Shipping; never collected for an order containing an animal
         ShippingCarrier TINYINT NULL,                 -- 0 PostNord, 1 GLS, 2 DAO Pakkeshop; only set when DeliveryMethod = Shipping
-        PaymentMethod   TINYINT NOT NULL DEFAULT 0    -- 0 Card (demo), 1 MobilePay (demo)
+        PaymentMethod   TINYINT NOT NULL DEFAULT 0,   -- 0 Card (demo), 1 MobilePay (demo)
+        GuestName       NVARCHAR(200) NULL,           -- only set for a guest checkout (UserId NULL, never had an account)
+        GuestEmail      NVARCHAR(256) NULL
     );
 END
 
@@ -219,6 +221,16 @@ END
 IF COL_LENGTH('dbo.Orders', 'PaymentMethod') IS NULL
 BEGIN
     ALTER TABLE dbo.Orders ADD PaymentMethod TINYINT NOT NULL DEFAULT 0;
+END
+
+IF COL_LENGTH('dbo.Orders', 'GuestName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD GuestName NVARCHAR(200) NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'GuestEmail') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD GuestEmail NVARCHAR(256) NULL;
 END
 
 -- Orders has no index covering UserId (only the OrderId primary key) -

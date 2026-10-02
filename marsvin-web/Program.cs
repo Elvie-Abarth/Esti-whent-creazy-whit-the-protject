@@ -26,6 +26,32 @@ builder.Services.AddHsts(options =>
     options.Preload = true;
 });
 
+// Only used for a guest's cart (SessionCartStore below) - a signed-in
+// customer's cart lives in dbo.CartItems instead, keyed by their real
+// UserId, which survives far longer than this 60-minute idle window and
+// works across devices. IsEssential: true is what it sounds like under
+// the GDPR ePrivacy rules covered elsewhere in this app's own security
+// write-up - this cookie carries no tracking/preference data, just "which
+// session", so it's exempt from needing cookie-consent like an analytics
+// cookie would. Same dev/prod Secure split as the auth cookie just below,
+// and the same __Host- prefix outside Development for the same reason
+// (ASVS 3.4.4) - both need an actually-secure connection to work at all,
+// which the plain-HTTP local launch profile isn't.
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(60);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.Path = "/";
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    if (!builder.Environment.IsDevelopment())
+        options.Cookie.Name = "__Host-MarsvinSession";
+});
+
 // Applied via [EnableRateLimiting("auth")] to Login/Register/ForgotPassword -
 // caps how many attempts one client can make per minute, independent of
 // (and in addition to) LoginModel's own per-email lockout: that alone can't
@@ -70,7 +96,22 @@ builder.Services.AddScoped<ICatalog>(sp => sp.GetRequiredService<SqlCatalog>());
 builder.Services.AddScoped<ICatalogAdmin>(sp => sp.GetRequiredService<SqlCatalog>());
 
 builder.Services.AddScoped<IUserAccountStore>(_ => new SqlUserAccountStore(connectionString));
-builder.Services.AddScoped<ICartStore>(_ => new SqlCartStore(connectionString));
+
+// A signed-in customer's cart lives in dbo.CartItems, keyed by their real
+// UserId - a guest has no UserId at all, so their cart lives in session
+// instead (SessionCartStore, backed by AddSession below). Every Cart/*
+// page model just asks for ICartStore and calls cart.GetLines(...) exactly
+// the same way either way; which implementation it actually gets is
+// decided once, here, per request, off whether anyone's signed in.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICartStore>(sp =>
+{
+    var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext!;
+    return httpContext.User.Identity?.IsAuthenticated == true
+        ? new SqlCartStore(connectionString)
+        : new SessionCartStore(httpContext.Session, sp.GetRequiredService<ICatalog>());
+});
+
 builder.Services.AddScoped<IOrderStore>(_ => new SqlOrderStore(connectionString));
 builder.Services.AddScoped<IPromotionStore>(_ => new SqlPromotionStore(connectionString));
 builder.Services.AddScoped<IPendingLoginStore>(_ => new SqlPendingLoginStore(connectionString));
@@ -201,6 +242,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseRateLimiter();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();

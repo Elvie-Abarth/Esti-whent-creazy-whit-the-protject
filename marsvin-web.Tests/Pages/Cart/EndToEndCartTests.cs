@@ -1,17 +1,15 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace MarsvinWebExample.Tests.Pages.Cart;
 
 /// <summary>
-/// Regression coverage for a real bug: an anonymous visitor clicking
-/// "add to cart" got redirected to login, and the add silently vanished -
-/// [Authorize]'s redirect-to-login only replays the original request as a
-/// GET, so a POST's form body (productId, quantity) never survives the
-/// round trip. Every earlier cart test called OnPostAdd directly on an
-/// already-"logged in" PageModel, so none of them could have caught this -
-/// it only shows up when driving the real HTTP redirect.
+/// Guest checkout: an anonymous visitor can add to cart, pay, and see their
+/// own receipt, with no account at all - their cart lives in session
+/// (SessionCartStore) rather than dbo.CartItems. These replace two older
+/// tests that asserted the opposite (anonymous add-to-cart redirected to
+/// login and silently lost the POST body) from back when guest checkout
+/// wasn't supported at all.
 /// </summary>
 [Collection("WebApp collection")]
 public class EndToEndCartTests(MarsvinWebAppFactory factory)
@@ -23,76 +21,118 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
     });
 
     [Fact]
-    public async Task AnonymousVisitor_PostingAddToCart_IsRedirectedToLoginRatherThanSilentlyDroppingTheItem()
+    public async Task AnonymousVisitor_PostingAddToCart_ActuallyAddsIt()
     {
         var client = MakeClient();
         var jar = new CookieJar();
 
-        // No login first - this is the exact click an anonymous visitor makes.
-        var response = await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
-        {
-            ["productId"] = "104",
-            ["quantity"] = "1"
-        });
+        // No login at any point - establishes the session (and its
+        // antiforgery cookie/token) the same way a real first visit would.
+        var tilbehorPage = await HttpTestHelpers.Get(client, jar, "/Tilbehor");
+        var token = CookieJar.ExtractAntiforgeryToken(await tilbehorPage.Content.ReadAsStringAsync());
 
-        // [Authorize] intercepts before the handler ever runs, so this never
-        // reaches OnPostAdd - the item is never silently "added and lost".
-        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
-        Assert.Contains("/Account/Login", response.Headers.Location!.ToString());
-    }
-
-    [Fact]
-    public async Task AfterLoggingInFromThatRedirect_TheReturnUrlDoesNotReplayTheAddAsAPost()
-    {
-        // Documents the actual failure mode, not just the redirect: the
-        // ReturnUrl the login page receives is the original request's path
-        // and query only. Even a well-behaved login flow that honours it
-        // lands on a GET to that URL, which cannot re-trigger OnPostAdd
-        // (a POST-only handler) or resupply productId/quantity. This is
-        // exactly why the UI now shows a "log in to buy" link instead of a
-        // real add-to-cart form for anonymous visitors, rather than trying
-        // to make the POST survive the redirect.
-        var client = MakeClient();
-        var jar = new CookieJar();
-
-        var addAttempt = await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
-        {
-            ["productId"] = "104",
-            ["quantity"] = "1"
-        });
-        var returnUrl = QueryHelpers.ParseQuery(addAttempt.Headers.Location!.Query)["ReturnUrl"].ToString();
-
-        Assert.Equal("/Cart/Index?handler=Add", returnUrl);
-
-        // Register through that exact return URL, the way a real login would.
-        // Registering no longer signs in immediately - it redirects to
-        // CheckEmail, and the returnUrl travels along inside the emailed
-        // confirmation link instead (the same as Login already does), landing
-        // back on returnUrl only once that link is opened.
-        var (_, _, token) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register?returnUrl=" + Uri.EscapeDataString(returnUrl));
-        var email = $"anon-cart-{Guid.NewGuid():N}@example.com";
-        var registerResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
+        var addResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
         {
             ["__RequestVerificationToken"] = token,
-            ["returnUrl"] = returnUrl,
-            ["Input.Email"] = email,
-            ["Input.DisplayName"] = "Anon Cart",
-            ["Input.Password"] = "SomePass123!",
-            ["Input.ConfirmPassword"] = "SomePass123!"
+            ["productId"] = "104",
+            ["quantity"] = "1"
         });
-        Assert.Equal(
-            "/Account/CheckEmail?purpose=register&returnUrl=" + Uri.EscapeDataString(returnUrl),
-            registerResponse.Headers.Location!.ToString());
-
-        // Opening the confirmation link is what actually signs the session in
-        // and lands on returnUrl - a GET, per HTTP, which cannot carry the
-        // original POST body, so the cart ends up empty.
-        var landingPage = await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
-        Assert.Equal(returnUrl, landingPage.Headers.Location!.ToString());
+        Assert.Equal(HttpStatusCode.Found, addResponse.StatusCode);
+        Assert.DoesNotContain("/Account/Login", addResponse.Headers.Location!.ToString());
 
         var cartPage = await HttpTestHelpers.Get(client, jar, "/Cart/Index");
         var cartHtml = await cartPage.Content.ReadAsStringAsync();
-        Assert.Contains("kurv er tom", cartHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("kurv er tom", cartHtml, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GuestCheckout_WithNameAndEmail_CompletesAndShowsOwnReceipt()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+
+        var tilbehorPage = await HttpTestHelpers.Get(client, jar, "/Tilbehor");
+        var addToken = CookieJar.ExtractAntiforgeryToken(await tilbehorPage.Content.ReadAsStringAsync());
+        await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
+        {
+            ["__RequestVerificationToken"] = addToken,
+            ["productId"] = "104",
+            ["quantity"] = "1"
+        });
+
+        var paymentPage = await HttpTestHelpers.Get(client, jar, "/Cart/Payment");
+        var paymentHtml = await paymentPage.Content.ReadAsStringAsync();
+        Assert.Contains("Input.GuestName", paymentHtml); // the guest-details fields actually rendered
+        var payToken = CookieJar.ExtractAntiforgeryToken(paymentHtml);
+
+        var checkoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Guest Buyer",
+            ["Input.GuestEmail"] = $"guest-{Guid.NewGuid():N}@example.com",
+            ["Input.DeliveryMethod"] = "Pickup",
+            ["Input.PaymentMethod"] = "Card",
+            ["Input.CardHolder"] = "Guest Buyer",
+            ["Input.CardNumber"] = "4242 4242 4242 4242",
+            ["Input.Expiry"] = "12/29",
+            ["Input.Cvc"] = "123"
+        });
+        Assert.Equal(HttpStatusCode.Found, checkoutResponse.StatusCode);
+        Assert.Contains("/Cart/Confirmation/", checkoutResponse.Headers.Location!.ToString());
+
+        // The guest can see the receipt for the order they just placed...
+        var receiptUrl = checkoutResponse.Headers.Location!.ToString();
+        var receiptResponse = await HttpTestHelpers.Get(client, jar, receiptUrl);
+        Assert.Equal(HttpStatusCode.OK, receiptResponse.StatusCode);
+        var receiptHtml = await receiptResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Tak for din bestilling", receiptHtml);
+
+        // ...but the cart that order came from is now empty (cleared on checkout).
+        var cartAfter = await HttpTestHelpers.Get(client, jar, "/Cart/Index");
+        Assert.Contains("kurv er tom", await cartAfter.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GuestCheckout_AnotherAnonymousSessionCannotViewTheReceiptByGuessingTheOrderId()
+    {
+        // IDOR check for the guest path specifically: FindForUser's ownership
+        // check doesn't exist for a guest (no account to own anything with) -
+        // ConfirmationModel falls back to a one-time id stamped into the
+        // buyer's own session instead (see Payment.OnPostAsync). A second,
+        // unrelated anonymous visitor must not be able to read it just by
+        // knowing or guessing the orderId.
+        var buyerClient = MakeClient();
+        var buyerJar = new CookieJar();
+        var tilbehorPage = await HttpTestHelpers.Get(buyerClient, buyerJar, "/Tilbehor");
+        var addToken = CookieJar.ExtractAntiforgeryToken(await tilbehorPage.Content.ReadAsStringAsync());
+        await HttpTestHelpers.PostForm(buyerClient, buyerJar, "/Cart/Index?handler=Add", new()
+        {
+            ["__RequestVerificationToken"] = addToken,
+            ["productId"] = "104",
+            ["quantity"] = "1"
+        });
+        var paymentPage = await HttpTestHelpers.Get(buyerClient, buyerJar, "/Cart/Payment");
+        var payToken = CookieJar.ExtractAntiforgeryToken(await paymentPage.Content.ReadAsStringAsync());
+        var checkoutResponse = await HttpTestHelpers.PostForm(buyerClient, buyerJar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Real Buyer",
+            ["Input.GuestEmail"] = $"realbuyer-{Guid.NewGuid():N}@example.com",
+            ["Input.DeliveryMethod"] = "Pickup",
+            ["Input.PaymentMethod"] = "Card",
+            ["Input.CardHolder"] = "Real Buyer",
+            ["Input.CardNumber"] = "4242 4242 4242 4242",
+            ["Input.Expiry"] = "12/29",
+            ["Input.Cvc"] = "123"
+        });
+        var receiptUrl = checkoutResponse.Headers.Location!.ToString();
+
+        // A different anonymous visitor, same server, no session overlap at all.
+        var snooperClient = MakeClient();
+        var snooperJar = new CookieJar();
+        var snooperResponse = await HttpTestHelpers.Get(snooperClient, snooperJar, receiptUrl);
+
+        Assert.Equal(HttpStatusCode.NotFound, snooperResponse.StatusCode);
     }
 
     [Fact]

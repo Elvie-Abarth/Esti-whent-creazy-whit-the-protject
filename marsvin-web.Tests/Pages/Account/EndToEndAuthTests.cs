@@ -107,15 +107,18 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
         var authCookieHeader = Assert.Single(authCookies!, c => c.StartsWith(".AspNetCore.Cookies", StringComparison.Ordinal));
         Assert.Contains("httponly", authCookieHeader, StringComparison.OrdinalIgnoreCase);
 
-        // 2. Now authenticated - a Customer-only page should be reachable.
-        var cartRequest = new HttpRequestMessage(HttpMethod.Get, "/Cart/Index");
-        jar.Apply(cartRequest);
-        var cartResponse = await client.SendAsync(cartRequest);
-        Assert.Equal(HttpStatusCode.OK, cartResponse.StatusCode);
+        // 2. Now authenticated - a page requiring login should be reachable.
+        // Profile, not Cart/Index - the cart allows guests too (see
+        // EndToEndCartTests), so it's no longer a useful "protected page"
+        // example for this test's purpose.
+        var profileRequest = new HttpRequestMessage(HttpMethod.Get, "/Account/Profile");
+        jar.Apply(profileRequest);
+        var profileResponse = await client.SendAsync(profileRequest);
+        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
 
-        // 3. Log out (with a valid antiforgery token from that same cart page).
-        var cartHtml = await cartResponse.Content.ReadAsStringAsync();
-        var logoutToken = CookieJar.ExtractAntiforgeryToken(cartHtml);
+        // 3. Log out (with a valid antiforgery token from that same page).
+        var profileHtml = await profileResponse.Content.ReadAsStringAsync();
+        var logoutToken = CookieJar.ExtractAntiforgeryToken(profileHtml);
         var logoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Account/Logout", new()
         {
             ["__RequestVerificationToken"] = logoutToken
@@ -126,7 +129,7 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
         Assert.Contains("1970", clearedAuthCookie); // expired in the past - browsers delete it
 
         // 4. The auth cookie value is now cleared - the same protected page must redirect to login again.
-        var afterLogoutRequest = new HttpRequestMessage(HttpMethod.Get, "/Cart/Index");
+        var afterLogoutRequest = new HttpRequestMessage(HttpMethod.Get, "/Account/Profile");
         jar.Apply(afterLogoutRequest);
         var afterLogoutResponse = await client.SendAsync(afterLogoutRequest);
         Assert.Equal(HttpStatusCode.Found, afterLogoutResponse.StatusCode);

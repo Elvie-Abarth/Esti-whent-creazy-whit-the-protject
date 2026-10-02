@@ -1,15 +1,15 @@
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Cart;
 
-// Buying is a Customer action - employees and admins have their own area
-// (/Admin) and aren't meant to be shopping through the storefront.
-[Authorize(Roles = "Customer")]
+// No [Authorize] - guests can shop too (ICartStore resolves to a
+// session-backed cart for them; see Program.cs). Staff accounts still
+// can't buy, same as before, just checked by hand in OnPostAdd now instead
+// of leaning on [Authorize(Roles = "Customer")] to keep them out entirely.
 public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
 {
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
@@ -26,12 +26,24 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
     [TempData]
     public string? ToastMessage { get; set; }
 
-    public void OnGet() => Lines = cart.GetLines(this.CurrentUserId());
+    public void OnGet() => Lines = cart.GetLines(this.CurrentUserIdOrZero());
 
     public IActionResult OnPostAdd(
         int productId, int quantity = 1, string? returnUrl = null,
         bool confirmNotAlone = false, string? companionNote = null)
     {
+        // The listing pages already hide "Add to cart" from staff accounts
+        // (see Marsvin/Details.cshtml, Tilbehor/Index.cshtml) - checked again
+        // here since removing [Authorize(Roles = "Customer")] to let guests
+        // through means a signed-in Employee/Admin could otherwise still
+        // POST here directly.
+        if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+        {
+            ErrorMessage = new Bilingual(
+                "Personalekonti kan ikke købe.", "Staff accounts can't buy.");
+            return RedirectAfterAdd(returnUrl);
+        }
+
         var animal = catalog.FindAnimal(productId);
         if (animal is not null)
         {
@@ -54,7 +66,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
                     $"{animal.Name} is only sold alone if you confirm it won't be living alone.");
                 return RedirectAfterAdd(returnUrl);
             }
-            cart.AddOrIncrement(this.CurrentUserId(), productId, 1);
+            cart.AddOrIncrement(this.CurrentUserIdOrZero(), productId, 1);
 
             // Marsvin/Details promises "the two move in together - combined price" for
             // a bonded pair, but that was only ever true of the price shown there; the
@@ -62,10 +74,10 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             // instead, so the combined-price promise actually holds at checkout too.
             var partner = animal.BondedWithId is int partnerId ? catalog.FindAnimal(partnerId) : null;
             var partnerAlreadyInCart = partner is not null
-                && cart.GetLines(this.CurrentUserId()).Any(l => l.ProductId == partner.ProductId);
+                && cart.GetLines(this.CurrentUserIdOrZero()).Any(l => l.ProductId == partner.ProductId);
             if (partner is not null && !partnerAlreadyInCart && partner.CanBeAddedToCart(1))
             {
-                cart.AddOrIncrement(this.CurrentUserId(), partner.ProductId, 1);
+                cart.AddOrIncrement(this.CurrentUserIdOrZero(), partner.ProductId, 1);
                 ToastMessage = new Bilingual(
                     $"{animal.Name} og {partner.Name} er lagt i kurven.",
                     $"{animal.Name} and {partner.Name} have been added to the cart.");
@@ -89,7 +101,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         // something with 6 in stock when 5 are already in the cart passes
         // this check (5 <= 6) and leaves 10 in the cart, which then only
         // fails much later, at checkout, with no obvious way to fix it from there.
-        var alreadyInCart = cart.GetLines(this.CurrentUserId()).FirstOrDefault(l => l.ProductId == productId)?.Quantity ?? 0;
+        var alreadyInCart = cart.GetLines(this.CurrentUserIdOrZero()).FirstOrDefault(l => l.ProductId == productId)?.Quantity ?? 0;
         if (!product.CanBeAddedToCart(alreadyInCart + quantity))
         {
             ErrorMessage = new Bilingual(
@@ -98,7 +110,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             return RedirectAfterAdd(returnUrl);
         }
 
-        cart.AddOrIncrement(this.CurrentUserId(), productId, quantity);
+        cart.AddOrIncrement(this.CurrentUserIdOrZero(), productId, quantity);
         ToastMessage = new Bilingual(
             $"{product.Name} er lagt i kurven.",
             $"{product.NameEn ?? product.Name} has been added to the cart.");
@@ -140,7 +152,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
 
         if (quantity < 1)
         {
-            cart.RemoveLine(this.CurrentUserId(), productId);
+            cart.RemoveLine(this.CurrentUserIdOrZero(), productId);
             return RedirectToPage();
         }
 
@@ -152,13 +164,13 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             return RedirectToPage();
         }
 
-        cart.SetQuantity(this.CurrentUserId(), productId, quantity);
+        cart.SetQuantity(this.CurrentUserIdOrZero(), productId, quantity);
         return RedirectToPage();
     }
 
     public IActionResult OnPostRemove(int productId)
     {
-        cart.RemoveLine(this.CurrentUserId(), productId);
+        cart.RemoveLine(this.CurrentUserIdOrZero(), productId);
         return RedirectToPage();
     }
 }

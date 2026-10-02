@@ -181,14 +181,14 @@ product was called and cost *at the moment of purchase*. If an admin later
 renames or deletes that product, an old receipt still reads correctly
 instead of showing a broken reference or today's (possibly different) price.
 
-Four more columns exist for the accessory-shipping and demo-payment
-features. `Orders` has `DeliveryMethod` (`0` Pickup, `1` Shipping) and
-`ShippingAddress` (only ever set when shipping), plus `ShippingCarrier`
-(`0` PostNord, `1` GLS, `2` DAO Pakkeshop - also only set when shipping;
-a `NULL` carrier on an otherwise-valid Shipping checkout defaults to
-PostNord rather than failing, since every carrier radio on the payment
-form is pre-selected) and `PaymentMethod` (`0` Card, `1` MobilePay - both
-demo-only, no real processing either way). Shipping ships whatever's
+Six more columns exist for the accessory-shipping, demo-payment, and
+guest-checkout features. `Orders` has `DeliveryMethod` (`0` Pickup, `1`
+Shipping) and `ShippingAddress` (only ever set when shipping), plus
+`ShippingCarrier` (`0` PostNord, `1` GLS, `2` DAO Pakkeshop - also only set
+when shipping; a `NULL` carrier on an otherwise-valid Shipping checkout
+defaults to PostNord rather than failing, since every carrier radio on the
+payment form is pre-selected) and `PaymentMethod` (`0` Card, `1` MobilePay
+- both demo-only, no real processing either way). Shipping ships whatever's
 shippable in the order - a guinea pig always still needs a separate
 in-store pickup no matter what's chosen, so `OrderItems` also has its own
 `IsAnimal` snapshot column (same idea as `ProductName`/`UnitPrice`): it's
@@ -198,6 +198,14 @@ shipped order still need picking up, without needing to re-join back to
 `SqlOrderStore.Checkout` only rejects `Shipping` outright when the order
 is *entirely* animals - a mixed cart ships the accessory half and still
 sells the animal in the same transaction.
+
+`GuestName`/`GuestEmail` are the guest-checkout counterpart to `UserId`
+being `NULL` - unlike a deleted account's order (`UserId` also `NULL`,
+but it *used to* point at a real Users row), a guest checkout never had
+one to begin with, so there's no name/email to join back to at all; these
+two columns are what the admin order list, the confirmation email, and
+the receipt itself fall back to instead. A guest's cart was never in
+`CartItems` either - see `SessionCartStore` below.
 
 ### `Promotions`
 
@@ -272,7 +280,7 @@ and one SQL implementation in `Data/`:
 | `ICatalog` / `ICatalogAdmin` | `SqlCatalog` | Products, Animals, StockProducts |
 | `IUserAccountStore` | `SqlUserAccountStore` | Users |
 | `IPendingLoginStore` | `SqlPendingLoginStore` | PendingLogins |
-| `ICartStore` | `SqlCartStore` | CartItems |
+| `ICartStore` | `SqlCartStore` (signed in) / `SessionCartStore` (guest) | CartItems, or nothing at all - a guest's cart lives in session instead, see §4 of WEBSITE-ARCHITECTURE.md |
 | `IOrderStore` | `SqlOrderStore` | Orders, OrderItems |
 | `IPromotionStore` | `SqlPromotionStore` | Promotions |
 | `IShiftStore` | `SqlShiftStore` | Shifts |

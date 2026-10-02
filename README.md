@@ -95,8 +95,8 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register a Customer account — both require opening an emailed confirmation link before the session is signed in |
 | Glemt adgangskode | `/Account/ForgotPassword`, `/Account/ResetPassword` | Everyone | Request and complete a password reset by email link |
 | Min konto | `/Account/Profile` | Signed in | Update name/email/password, request time off (staff), order history + reorder (customers), delete account |
-| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Customer | View cart, remove lines, choose pickup or shipping (+ carrier), choose card or MobilePay (demo), check out |
-| Kvittering | `/Cart/Confirmation/{orderId}` | Customer | Order summary with a confetti animation — only the buyer can view their own order |
+| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Everyone (not staff) | View cart, remove lines, choose pickup or shipping (+ carrier), choose card or MobilePay (demo), check out — no account needed, a guest just gives a name and email |
+| Kvittering | `/Cart/Confirmation/{orderId}` | Everyone (not staff) | Order summary with a confetti animation — only the buyer can view their own order (a guest's receipt is gated by a one-time id stamped into their own session at checkout, not an account) |
 | Personale | `/Admin/Index` | Employee, Admin | Dashboard with role-appropriate links |
 | Vagtplan | `/Admin/Schedule/Index` | Employee, Admin | See/assign shifts, approve or deny day-off requests |
 | Butiksstyring | `/Admin/Shop/Index` | Employee, Admin | Hub for stock, orders, and (Admin) the catalog/promotions pages |
@@ -169,7 +169,10 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 - **IDOR guard on orders**: `/Cart/Confirmation/{orderId}` looks up the order
   *and* checks it belongs to the logged-in user in the same query
   (`IOrderStore.FindForUser`) — you can't view someone else's order by
-  guessing the ID.
+  guessing the ID. A guest checkout has no account for that ownership check
+  to use, so it's gated a different way instead: the new order's id is
+  stamped into that same browser's own session right after checkout, and
+  only an exact match is ever trusted — not just "any guest order".
 - **Checkout re-validates inside a transaction, with row locks.** The cart
   can go stale between "add to cart" and "check out" (someone else buys the
   last unit, an animal gets marked not-for-sale); `SqlOrderStore.Checkout`

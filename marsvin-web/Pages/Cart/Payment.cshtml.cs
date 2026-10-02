@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using static MarsvinWebExample.Pages.PageModelExtensions;
@@ -10,10 +9,10 @@ using static MarsvinWebExample.Pages.PageModelExtensions;
 namespace MarsvinWebExample.Pages.Cart;
 
 // A demo-only stand-in for a real payment step (see the note on Payment.cshtml
-// for why this project can't and shouldn't take real card details). Buying is a
-// Customer action - employees and admins have their own area (/Admin) and
-// aren't meant to be shopping through the storefront.
-[Authorize(Roles = "Customer")]
+// for why this project can't and shouldn't take real card details). No
+// [Authorize] - guest checkout is allowed (see Input.GuestName/GuestEmail,
+// only required when not signed in); staff accounts still can't buy, checked
+// by hand below since [Authorize(Roles = "Customer")] no longer does it.
 public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore users, IEmailSender emailSender) : PageModel
 {
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
@@ -37,16 +36,23 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     private static readonly Regex CardNumberPattern = new(@"^[0-9 ]{12,19}$", RegexOptions.Compiled);
     private static readonly Regex ExpiryPattern = new(@"^(0[1-9]|1[0-2])\/[0-9]{2}$", RegexOptions.Compiled);
     private static readonly Regex CvcPattern = new(@"^[0-9]{3,4}$", RegexOptions.Compiled);
+    private static readonly Regex GuestEmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+
+    public bool IsGuest => User.Identity?.IsAuthenticated != true;
 
     public IActionResult OnGet()
     {
-        Lines = cart.GetLines(this.CurrentUserId());
+        if (User.IsInRole("Employee") || User.IsInRole("Admin")) return RedirectToPage("/Index");
+
+        Lines = cart.GetLines(this.CurrentUserIdOrZero());
         return Lines.Count == 0 ? RedirectToPage("Index") : Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        Lines = cart.GetLines(this.CurrentUserId());
+        if (User.IsInRole("Employee") || User.IsInRole("Admin")) return RedirectToPage("/Index");
+
+        Lines = cart.GetLines(this.CurrentUserIdOrZero());
         if (Lines.Count == 0) return RedirectToPage("Index");
 
         if (Input.DeliveryMethod == DeliveryMethod.Shipping)
@@ -77,18 +83,47 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
                 ModelState.AddModelError("Input.Cvc", "CVC skal være 3-4 cifre.");
         }
 
+        // Name/email only matter (and are only required) for a guest - a
+        // signed-in customer's own account already has both.
+        if (IsGuest)
+        {
+            if (string.IsNullOrWhiteSpace(Input.GuestName))
+                ModelState.AddModelError("Input.GuestName", "Udfyld dit navn.");
+            if (string.IsNullOrWhiteSpace(Input.GuestEmail))
+                ModelState.AddModelError("Input.GuestEmail", "Udfyld din e-mail.");
+            else if (!GuestEmailPattern.IsMatch(Input.GuestEmail))
+                ModelState.AddModelError("Input.GuestEmail", "E-mailadressen ser forkert ud.");
+        }
+
         if (!ModelState.IsValid) return Page();
 
         // The "payment" above is never actually processed - the demo card details
         // aren't read past validating their shape. Checkout re-validates stock,
         // animal availability, and the shipping/animal rule itself (see
         // SqlOrderStore.Checkout), same as it did before this page existed.
-        var result = orders.Checkout(this.CurrentUserId(), Input.DeliveryMethod, Input.ShippingAddress,
-            Input.DeliveryMethod == DeliveryMethod.Shipping ? Input.ShippingCarrier : null, Input.PaymentMethod);
+        // guestLines is the guest's already-resolved session cart, passed
+        // straight through since a guest checkout has no dbo.CartItems row
+        // for Checkout to load itself (see IOrderStore.Checkout's own doc
+        // comment) - ignored (and harmless to pass) for a signed-in customer.
+        var result = orders.Checkout(this.CurrentUserIdOrNull(), Input.DeliveryMethod, Input.ShippingAddress,
+            Input.DeliveryMethod == DeliveryMethod.Shipping ? Input.ShippingCarrier : null, Input.PaymentMethod,
+            IsGuest ? Input.GuestName : null, IsGuest ? Input.GuestEmail : null, Lines);
         if (!result.Success)
         {
             ErrorMessage = result.ErrorMessage;
             return RedirectToPage("Index");
+        }
+
+        cart.Clear(this.CurrentUserIdOrZero());
+
+        if (IsGuest)
+        {
+            // The one-time "receipt pass" Cart/Confirmation checks for a guest:
+            // proves it's really this same browser that just placed this exact
+            // order, without needing any account to look the order up by.
+            // Nothing else in this session is ever allowed to read any other
+            // order just by guessing its id - see ConfirmationModel.OnGet.
+            HttpContext.Session.SetInt32("GuestOrderId", result.Order!.OrderId);
         }
 
         await SendConfirmationEmailAsync(result.Order!);
@@ -98,8 +133,24 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
 
     private async Task SendConfirmationEmailAsync(Order order)
     {
-        var buyer = users.FindById(this.CurrentUserId());
-        if (buyer is null) return;
+        // A signed-in customer's name/email come from their account; a
+        // guest's are exactly what they just typed into Input.GuestName/
+        // GuestEmail (already copied onto the order itself by Checkout -
+        // read back from there rather than from Input, so this always
+        // reflects what was actually saved).
+        string toEmail, toName;
+        if (IsGuest)
+        {
+            toEmail = order.GuestEmail!;
+            toName = order.GuestName!;
+        }
+        else
+        {
+            var buyer = users.FindById(this.CurrentUserId());
+            if (buyer is null) return;
+            toEmail = buyer.Email;
+            toName = buyer.DisplayName;
+        }
 
         var itemLines = string.Join("\n", order.Items.Select(i =>
             $"- {i.ProductName} x{i.Quantity}: {i.LineTotal:N0} kr."));
@@ -109,10 +160,16 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
                   ? $"\n{string.Join(" og ", order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName))} afhentes i butikken separat."
                   : "")
             : "Afhentes i butikken.";
+        // A guest has no "Min konto" order history to point back to - this
+        // email (and, for as long as the browser session lasts, the
+        // confirmation page itself) is the only receipt they get.
+        var seeOrderLine = IsGuest
+            ? "Gem denne mail som din kvittering."
+            : "Se ordren under Min konto.";
 
-        await emailSender.SendAsync(buyer.Email, $"Ordrebekræftelse #{order.OrderId}",
+        await emailSender.SendAsync(toEmail, $"Ordrebekræftelse #{order.OrderId}",
             $"""
-            Hej {buyer.DisplayName},
+            Hej {toName},
 
             Tak for din ordre #{order.OrderId}:
 
@@ -122,7 +179,7 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
 
             {deliveryLine}
 
-            Se ordren under Min konto.
+            {seeOrderLine}
 
             Venlig hilsen
             Marsvin
@@ -132,6 +189,14 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     public sealed class PaymentInputModel
     {
         public DeliveryMethod DeliveryMethod { get; set; } = DeliveryMethod.Pickup;
+
+        // No [Required] here either, same reasoning as the card fields below -
+        // only required for a guest, checked by hand in OnPostAsync.
+        [StringLength(200)]
+        public string? GuestName { get; set; }
+
+        [StringLength(256)]
+        public string? GuestEmail { get; set; }
 
         [StringLength(500)]
         public string? ShippingAddress { get; set; }

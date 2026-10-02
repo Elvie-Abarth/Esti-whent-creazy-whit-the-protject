@@ -22,7 +22,7 @@ public sealed class Order
 {
     public int OrderId { get; init; }
 
-    /// <summary>Null once the buyer's account has been deleted - the order itself is kept as a historical record.</summary>
+    /// <summary>Null once the buyer's account has been deleted, or always for a guest checkout - the order itself is kept either way.</summary>
     public int? UserId { get; init; }
 
     public required decimal TotalPrice { get; init; }
@@ -43,9 +43,19 @@ public sealed class Order
     /// Only populated by GetAllOrders (the admin order list) - null for
     /// FindForUser/GetOrdersForUser, where the caller already knows who they
     /// are. Reflects UserId: null once the buyer's account has been deleted,
-    /// the same as UserId itself.
+    /// the same as UserId itself (and always null for a guest order - see
+    /// GuestName/GuestEmail instead).
     /// </summary>
     public string? BuyerDisplayName { get; init; }
 
     public string? BuyerEmail { get; init; }
+
+    /// <summary>
+    /// Only set for a guest checkout (UserId is null and this app never had
+    /// an account to delete) - collected directly on the payment form
+    /// instead of looked up from Users, since there's no account to look up.
+    /// </summary>
+    public string? GuestName { get; init; }
+
+    public string? GuestEmail { get; init; }
 }

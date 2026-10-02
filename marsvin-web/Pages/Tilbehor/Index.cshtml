@@ -62,25 +62,16 @@
                             @item.StockLevelText
                         </span>
                     </span>
+                    @* Guests can buy too (no [Authorize] on Cart/Index - see its
+                       own PageModel) - no login gate needed here anymore. *@
                     @if (item.StockLevel != StockLevel.OutOfStock && !User.IsInRole("Employee") && !User.IsInRole("Admin"))
                     {
-                        if (User.Identity?.IsAuthenticated != true)
-                        {
-                            @* A POST to add-to-cart can't survive a login redirect (the form
-                               body is lost, so the add would silently fail after logging in).
-                               Send the customer to log in and back to this exact page instead. *@
-                            <a class="goods-action" asp-page="/Account/Login"
-                               asp-route-returnUrl="@(Request.Path + Request.QueryString)" data-en="Log in to buy">Log ind for at købe</a>
-                        }
-                        else
-                        {
-                            <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
-                                <input type="hidden" name="productId" value="@item.ProductId" />
-                                <input type="hidden" name="quantity" value="1" />
-                                <input type="hidden" name="returnUrl" value="@(Request.Path + Request.QueryString)#product-@item.ProductId" />
-                                <button type="submit" class="goods-action" data-en="Add to cart">Læg i kurv</button>
-                            </form>
-                        }
+                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
+                            <input type="hidden" name="productId" value="@item.ProductId" />
+                            <input type="hidden" name="quantity" value="1" />
+                            <input type="hidden" name="returnUrl" value="@(Request.Path + Request.QueryString)#product-@item.ProductId" />
+                            <button type="submit" class="goods-action" data-en="Add to cart">Læg i kurv</button>
+                        </form>
                     }
                 </li>
             }

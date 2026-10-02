@@ -291,6 +291,65 @@ public class SqlOrderStoreTests(SqlCatalogFixture fixture)
         Assert.Equal(PaymentMethod.MobilePay, result.Order!.PaymentMethod);
     }
 
+    private CartLine GuestLineFor(int productId, int quantity)
+    {
+        var product = _catalog.Accessories.Single(p => p.ProductId == productId);
+        return new CartLine
+        {
+            ProductId = product.ProductId,
+            ProductName = product.Name,
+            ProductNameEn = product.NameEn,
+            UnitPrice = product.Price,
+            Quantity = quantity,
+            IsAnimal = false
+        };
+    }
+
+    [Fact]
+    public void Checkout_Guest_WithNameAndEmail_SucceedsWithNoUserIdAndStoresGuestInfo()
+    {
+        // No NewCustomerId() at all - this is the whole point of a guest
+        // checkout. guestLines stands in for what a real guest's
+        // SessionCartStore.GetLines would have resolved (see
+        // IOrderStore.Checkout's own doc comment on why a guest's lines are
+        // passed in rather than loaded from dbo.CartItems).
+        var result = _orders.Checkout(
+            userId: null, guestName: "Guest Buyer", guestEmail: "guest@example.com",
+            guestLines: [GuestLineFor(104, 1)]);
+
+        Assert.True(result.Success);
+        Assert.Null(result.Order!.UserId);
+        Assert.Equal("Guest Buyer", result.Order.GuestName);
+        Assert.Equal("guest@example.com", result.Order.GuestEmail);
+    }
+
+    [Fact]
+    public void Checkout_Guest_WithoutNameOrEmail_Fails()
+    {
+        // Defense in depth, same reasoning as the shipping-address and
+        // carrier checks above: the form always requires these for a guest,
+        // but nothing stops a tampered POST from omitting them anyway.
+        var result = _orders.Checkout(userId: null, guestLines: [GuestLineFor(104, 1)]);
+
+        Assert.False(result.Success);
+    }
+
+    [Fact]
+    public void FindById_ReturnsTheOrderRegardlessOfWhoOwnsIt()
+    {
+        // Unlike FindForUser, no ownership check at all - callers (Cart/
+        // Confirmation's guest branch) are responsible for verifying access
+        // some other way before calling this.
+        var result = _orders.Checkout(
+            userId: null, guestName: "Guest Buyer", guestEmail: "guest@example.com",
+            guestLines: [GuestLineFor(104, 1)]);
+
+        var found = _orders.FindById(result.Order!.OrderId);
+
+        Assert.NotNull(found);
+        Assert.Equal(result.Order.OrderId, found!.OrderId);
+    }
+
     [Fact]
     public void Checkout_Shipping_CartIsOnlyAnAnimal_FailsBecauseThereIsNothingToShip()
     {

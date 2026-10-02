@@ -22,6 +22,27 @@ public static class PageModelExtensions
         int.Parse(page.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     /// <summary>
+    /// CurrentUserId, but safe to call on a page a guest can also reach
+    /// (Cart/*): null rather than throwing when nobody's signed in. Pass
+    /// straight through to IOrderStore.Checkout's own nullable userId -
+    /// never used as a real id anywhere, since nothing is actually "the
+    /// guest's account".
+    /// </summary>
+    public static int? CurrentUserIdOrNull(this PageModel page) =>
+        page.User.Identity?.IsAuthenticated == true ? page.CurrentUserId() : null;
+
+    /// <summary>
+    /// CurrentUserId, but 0 rather than throwing when nobody's signed in -
+    /// for ICartStore calls specifically, where the int userId parameter is
+    /// meaningless anyway once the actual implementation turns out to be
+    /// SessionCartStore (see Program.cs's ICartStore registration): it never
+    /// reads the value, only SqlCartStore does, and only ever for a real
+    /// signed-in customer.
+    /// </summary>
+    public static int CurrentUserIdOrZero(this PageModel page) =>
+        page.CurrentUserIdOrNull() ?? 0;
+
+    /// <summary>
     /// The signed-in user's display name, straight from the same claim
     /// SignInAsync below sets - cheaper than a round trip through
     /// IUserAccountStore.FindById just to label an IAuditLogStore entry with

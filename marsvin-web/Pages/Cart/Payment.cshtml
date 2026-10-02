@@ -57,6 +57,26 @@
     <form method="post" class="auth-form payment-card">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
+        @if (Model.IsGuest)
+        {
+            <fieldset>
+                <legend data-en="Your details">Dine oplysninger</legend>
+                <p class="cavy-meta" data-en="Checking out as a guest - no account needed. Only used for your receipt.">
+                    Køber som gæst - ingen konto nødvendig. Bruges kun til din kvittering.
+                </p>
+                <label>
+                    <span data-en="Name">Navn</span>
+                    <input asp-for="Input.GuestName" autocomplete="name" />
+                    <span asp-validation-for="Input.GuestName" class="field-error"></span>
+                </label>
+                <label>
+                    <span data-en="Email">E-mail</span>
+                    <input asp-for="Input.GuestEmail" autocomplete="email" type="email" />
+                    <span asp-validation-for="Input.GuestEmail" class="field-error"></span>
+                </label>
+            </fieldset>
+        }
+
         <fieldset>
             <legend data-en="Delivery">Levering</legend>
             @if (Model.CanShip)
