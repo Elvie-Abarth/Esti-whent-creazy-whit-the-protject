@@ -127,6 +127,7 @@ builder.Services
         options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.Path = "/";
         // Always-Secure would also block the cookie over the plain-HTTP
         // "http" launch profile this project runs under locally - SameAsRequest
         // only in Development keeps that working, while a real (non-Development)
@@ -136,6 +137,18 @@ builder.Services
         options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
+        // The __Host- prefix (ASVS 3.4.4) makes the browser itself refuse to
+        // ever set this cookie unless Secure is set, Path is "/", and no
+        // Domain attribute is present (true above - Domain is never set at
+        // all) - it's what stops a subdomain, or another app sharing this
+        // domain, from being able to plant or read a same-named cookie that
+        // this app would then trust. Only outside Development: the prefix
+        // requires an actually-secure (HTTPS) connection to work at all,
+        // which the "http" localhost launch profile isn't, and the browser
+        // would silently refuse to store the cookie - breaking login - if
+        // this were applied there too.
+        if (!builder.Environment.IsDevelopment())
+            options.Cookie.Name = "__Host-MarsvinAuth";
     });
 builder.Services.AddAuthorization();
 

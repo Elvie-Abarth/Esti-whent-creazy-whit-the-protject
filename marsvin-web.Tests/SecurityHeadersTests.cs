@@ -60,4 +60,41 @@ public class SecurityHeadersTests(MarsvinWebAppFactory factory)
         Assert.Contains("includeSubDomains", hsts);
         Assert.Contains("preload", hsts);
     }
+
+    [Fact]
+    public async Task OutsideDevelopment_AuthCookieUsesTheHostPrefix()
+    {
+        // Same reasoning as the HSTS test above: the __Host- prefix (ASVS
+        // 3.4.4) is also only applied outside Development (it requires an
+        // actually-secure connection, which the plain-HTTP dev profile isn't),
+        // so this needs its own Production-environment instance and an HTTPS
+        // base address to actually see it on the wire.
+        using var prodFactory = factory.WithWebHostBuilder(builder => builder.UseEnvironment("Production"));
+        // AllowAutoRedirect: false, same as every other cookie-inspecting
+        // test (see EndToEndAuthTests.MakeClient) - ConfirmLogin signs in
+        // and then redirects; following that redirect automatically would
+        // discard the 302's own Set-Cookie header before this ever sees it.
+        var client = prodFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://marsvin.example/"),
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+        var jar = new CookieJar();
+        var email = $"hostprefix-{Guid.NewGuid():N}@example.com";
+
+        var (_, _, token) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
+        await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Input.DisplayName"] = "Host Prefix Test",
+            ["Input.Email"] = email,
+            ["Input.Password"] = "Sup3rSecret!23",
+            ["Input.ConfirmPassword"] = "Sup3rSecret!23"
+        });
+        var confirmResponse = await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
+
+        Assert.True(confirmResponse.Headers.TryGetValues("Set-Cookie", out var cookies));
+        Assert.Contains(cookies!, c => c.StartsWith("__Host-MarsvinAuth", StringComparison.Ordinal));
+    }
 }
