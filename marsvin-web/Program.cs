@@ -13,6 +13,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
 
+// Framework defaults are max-age=30 days, no includeSubDomains, no preload -
+// tightened to the standard recommendation (2 years, cover subdomains too,
+// eligible for browsers' built-in HSTS preload lists) so a user's very first
+// visit over a stale HTTP link/bookmark can't be downgrade-attacked once this
+// is deployed for real. Only takes effect outside Development (see UseHsts()
+// below) - HSTS can't work against http://localhost without a real cert anyway.
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(730);
+    options.IncludeSubDomains = true;
+    options.Preload = true;
+});
+
 // Applied via [EnableRateLimiting("auth")] to Login/Register/ForgotPassword -
 // caps how many attempts one client can make per minute, independent of
 // (and in addition to) LoginModel's own per-email lockout: that alone can't
