@@ -50,7 +50,7 @@
                     <a asp-page="/Admin/Index" data-en="Staff">Personale</a>
                     <a asp-page="/Admin/Shop/Index" data-en="Shop management">Butiksstyring</a>
                 }
-                if (User.IsInRole("Customer"))
+                else
                 {
                     var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
                     var cartCount = CartStoreForNav.GetLines(userId).Sum(l => l.Quantity);
@@ -64,6 +64,12 @@
             }
             else
             {
+                @* A guest can shop and check out too (see Cart/* having no
+                   [Authorize]) - CartStoreForNav resolves to SessionCartStore
+                   here, the same ICartStore every Cart/* page model gets, so
+                   this reads whatever's actually in the guest's own cart. *@
+                var cartCount = CartStoreForNav.GetLines(0).Sum(l => l.Quantity);
+                <a asp-page="/Cart/Index" data-en="@($"Cart ({cartCount})")">Kurv (@cartCount)</a>
                 <a class="header-btn" asp-page="/Account/Login" data-en="Log in">Log ind</a>
                 <a class="header-btn" asp-page="/Account/Register" data-en="Sign up">Opret konto</a>
             }
