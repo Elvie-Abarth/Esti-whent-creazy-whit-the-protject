@@ -95,8 +95,8 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register a Customer account — both require opening an emailed confirmation link before the session is signed in |
 | Glemt adgangskode | `/Account/ForgotPassword`, `/Account/ResetPassword` | Everyone | Request and complete a password reset by email link |
 | Min konto | `/Account/Profile` | Signed in | Update name/email/password, request time off (staff), order history + reorder (customers), delete account |
-| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Customer | View cart, remove lines, choose pickup or shipping, check out |
-| Kvittering | `/Cart/Confirmation/{orderId}` | Customer | Order summary — only the buyer can view their own order |
+| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Customer | View cart, remove lines, choose pickup or shipping (+ carrier), choose card or MobilePay (demo), check out |
+| Kvittering | `/Cart/Confirmation/{orderId}` | Customer | Order summary with a confetti animation — only the buyer can view their own order |
 | Personale | `/Admin/Index` | Employee, Admin | Dashboard with role-appropriate links |
 | Vagtplan | `/Admin/Schedule/Index` | Employee, Admin | See/assign shifts, approve or deny day-off requests |
 | Butiksstyring | `/Admin/Shop/Index` | Employee, Admin | Hub for stock, orders, and (Admin) the catalog/promotions pages |
@@ -141,7 +141,10 @@ Pages/Shared/    _Layout.cshtml, _Cavy.cshtml (the drawn guinea pig)
 Pages/           PageModelExtensions.cs — CurrentUserId/SignInAsync/IsSafeLocalUrl,
                  shared across every page model that needs them
 wwwroot/css/     site.css — all the design tokens live at the top
-wwwroot/js/      lang-toggle.js (the DA/EN switch), confirm-delete.js (safe confirm() dialogs)
+wwwroot/js/      lang-toggle.js (the DA/EN switch), confirm-delete.js (safe confirm() dialogs),
+                 cart-quantity.js (auto-submit qty changes), password-meter.js (live strength
+                 meter), confetti.js (order confirmation), mascot-pet.js, print-button.js,
+                 check-email.js, stock-tabs.js
 marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 ```
 

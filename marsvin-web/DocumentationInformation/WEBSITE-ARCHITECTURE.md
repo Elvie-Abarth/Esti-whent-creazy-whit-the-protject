@@ -320,9 +320,9 @@ name instead of waiting for the next login.
 
 | Route | What it is |
 |---|---|
-| `/Cart` | Cart contents, quantity updates |
-| `/Cart/Payment` | Delivery choice (pickup, or ship whatever's shippable) + demo payment form (no real card processing) |
-| `/Cart/Confirmation` | Order receipt after checkout |
+| `/Cart` | Cart contents, quantity updates. Adding one half of a bonded animal pair (e.g. Pelle, bonded to Basse) automatically adds the other too - buying one alone was never actually offered |
+| `/Cart/Payment` | Delivery choice (pickup, or ship whatever's shippable + carrier: PostNord/GLS/DAO Pakkeshop) + payment method choice (demo Card or demo MobilePay - no real processing either way; MobilePay hides the card fields entirely) |
+| `/Cart/Confirmation` | Order receipt after checkout, with a one-shot confetti animation on load |
 
 ### Staff area - `/Admin` ("Personale")
 
@@ -605,6 +605,15 @@ A few reusable patterns worth knowing before touching a page's markup:
   above: read by `confirm-delete.js` (see §9) to show a `confirm()` dialog
   before a destructive form submits, without ever building that dialog's
   text as an interpolated JavaScript string.
+- **`data-password-meter`** - opt a password `<input>` into the live
+  strength meter (`password-meter.js`): a trail of paw-print "footsteps"
+  (matching `_Cavy.cshtml`'s own foot-ellipse shape) coloured along a
+  continuous weak → strong gradient, plus a bilingual DA/EN label with a
+  tiny cavy mascot. Client-side guidance only, not validation - set on
+  every *new*-password field (Register, Profile's change-password,
+  ResetPassword, admin staff creation), deliberately not on any
+  *current*-password field, which is confirming a password rather than
+  choosing one.
 
 There is no CSS framework (no Bootstrap/Tailwind) - `site.css` is one
 hand-written file, organised by page/section with a comment above each
