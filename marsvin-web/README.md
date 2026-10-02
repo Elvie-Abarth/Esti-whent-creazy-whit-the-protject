@@ -1,52 +1,59 @@
 # Marsvin — webpage example build
 
-A working ASP.NET Core 9 Razor Pages front end for the guinea pig shop.
-Built as **visual and structural inspiration only** — it is deliberately not a
-solution to the graded assignment.
+A working ASP.NET Core 9 Razor Pages webshop for a guinea pig store, backed
+by real ADO.NET + SQL Server (no ORM). This folder is the whole app — the
+earlier "inspiration-only, no cart/checkout/login/admin/database" starter
+scaffold this project began as has since grown into a complete build with
+all of that. For the full picture (every route, the security write-up, how
+the tests are laid out, the documentation index), see the
+[top-level README](../README.md) one folder up; this file is just the
+quick-start for working inside `marsvin-web/` itself.
 
 ## Run it
 
-Open the folder in VS Code (`File → Open Folder…`), then in the terminal:
+Open this folder in VS Code (`File → Open Folder…`), then in the terminal:
 
 ```
 dotnet run
 ```
 
-Open <https://localhost:7080>. Press Ctrl+C to stop.
+Open <http://localhost:5080>. Press Ctrl+C to stop.
 
-You need the **.NET 9 SDK** and, for VS Code, the **C# Dev Kit** extension.
-`dotnet --list-sdks` tells you what you have.
+On first run this creates a `MarsvinDb` database on
+`(localdb)\MSSQLLocalDB`, runs the schema, and seeds it with demo data — see
+`DocumentationInformation/DATABASE-NOTES.txt` for where the files live, how
+to browse the database, and how to recover if LocalDB gets disconnected.
+
+You need the **.NET 9 SDK**, for VS Code the **C# Dev Kit** extension, and
+**SQL Server LocalDB** (ships with Visual Studio, or install separately).
+`dotnet --list-sdks` and `sqllocaldb info` tell you what you have.
 
 ## What's in it
 
-| Page | Route | What it shows |
-|---|---|---|
-| Front page | `/` | Hero, bonded pairs, the four welfare questions, three essentials |
-| Marsvinene | `/Marsvin` | All animals, grouped into the pairs they're sold as |
-| Profil | `/Marsvin/3` | One animal: breed, sex, age, colour, status, partner |
-| Tilbehør | `/Tilbehor` | Accessories with category filtering via query string |
+| Page | Route | Who | What it shows |
+|---|---|---|---|
+| Front page | `/` | Everyone | Hero, bonded pairs, the four welfare questions, three essentials |
+| Marsvinene | `/Marsvin` | Everyone | All animals, grouped into the pairs they're sold as |
+| Profil | `/Marsvin/Details/{id}` | Everyone | One animal: breed, sex, age, colour, status, partner, buy button |
+| Tilbehør | `/Tilbehor` | Everyone | Accessories, search + category filter, stock shown as Available/Low/Out |
+| Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register — both require an emailed confirmation link |
+| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Customer | Cart, pickup-or-shipping (+ carrier), demo Card/MobilePay checkout |
+| Kvittering | `/Cart/Confirmation/{orderId}` | Customer | Order receipt, with a confetti animation on load |
+| Personale / admin | `/Admin/*` | Employee, Admin | Schedule, stock, orders, catalog/promotions CRUD, accounts, audit log |
+
+(The full route table with every admin sub-page lives in the top-level
+README and in `DocumentationInformation/WEBSITE-ARCHITECTURE.md`.)
 
 ```
-Models/         Product (abstract) → StockProduct, Animal
-Data/           DemoCatalog — hard-coded data, no database
-Pages/          Razor Pages + PageModels
-Pages/Shared/   _Layout.cshtml, _Cavy.cshtml (the drawn guinea pig)
-wwwroot/css/    site.css — all the design tokens live at the top
+Models/          Product → StockProduct, Animal; ApplicationUser, CartLine, Order,
+                 Promotion, Shift, TimeOffRequest, AuditLogEntry, Bilingual
+Data/            ICatalog / IUserAccountStore / ICartStore / IOrderStore / ... —
+                 each with a Sql* ADO.NET implementation; DbInitializer, Sql/schema.sql
+Pages/           Razor Pages + PageModels (Account/, Cart/, Admin/, Marsvin/, Tilbehor/)
+Pages/Shared/    _Layout.cshtml, _Cavy.cshtml (the drawn guinea pig)
+wwwroot/css/     site.css — all the design tokens live at the top
+wwwroot/js/      lang-toggle, confirm-delete, cart-quantity, password-meter, confetti, ...
 ```
-
-## What is deliberately missing
-
-**No cart, no checkout, no login, no admin, no database.** Those are your
-assignment — user stories 1 to 11 — and you learn nothing from me handing them
-over. This example stops at the point where your own work starts.
-
-There is also **no ORM**, in line with the assignment. `DemoCatalog` returns
-hard-coded lists; in your real project that class becomes an ADO.NET repository
-running parameterised `SqlCommand` against SQL Server. The `Product` /
-`StockProduct` / `Animal` hierarchy is already shaped for the `ProductType`
-discriminator column in the ER diagram, so the models port across unchanged.
-
-Buttons that would need a back end are marked `aria-disabled` and say so.
 
 ## Design notes
 
@@ -61,13 +68,14 @@ and its own profile because it is an individual; a bag of hay gets a hairline
 rule because it's stock. The visual difference carries the same information as
 the class hierarchy.
 
-**Bonded pairs are drawn as one unit** with a shared header strip. The rule that
-guinea pigs are sold in pairs is the shop's whole character, so the layout states
-it rather than burying it in a paragraph.
+**Bonded pairs are drawn as one unit** with a shared header strip, and adding
+one half of a pair to the cart automatically adds the other — the rule that
+guinea pigs are sold in pairs is the shop's whole character, so both the
+layout and the checkout state it rather than burying it in a paragraph.
 
-Each animal is drawn as inline SVG tinted from its own `CoatPrimary` and
-`CoatSecondary` values, so no photographs are needed and nothing looks like stock
-imagery. Swap in real photos when you have them.
+Each animal without an uploaded photo is drawn as inline SVG tinted from its
+own `CoatPrimary` and `CoatSecondary` values, so a missing photo never looks
+like a broken image or generic stock art.
 
 Responsive down to mobile, visible keyboard focus, and `prefers-reduced-motion`
 respected.
