@@ -214,6 +214,7 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
             ["Input.DeliveryMethod"] = "Shipping",
             ["Input.ShippingAddress"] = "Testvej 1, 4000 Roskilde",
             ["Input.ShippingCarrier"] = "DaoPakkeshop",
+            ["Input.Phone"] = "12 34 56 78",
             ["Input.PaymentMethod"] = "MobilePay"
         });
         Assert.Equal(HttpStatusCode.Found, checkoutResponse.StatusCode);
@@ -222,14 +223,55 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
             await (await HttpTestHelpers.Get(client, jar, checkoutResponse.Headers.Location!.ToString()))
                 .Content.ReadAsStringAsync());
         // 45 kr. for the item + 39 kr. DAO shipping for 120 g.
-        Assert.Contains("fragt: 39 kr.", receiptHtml);
+        Assert.Contains("<dd>39 kr.</dd>", receiptHtml);
         Assert.Contains("84 kr.", receiptHtml);
-        Assert.Contains("DAO Pakkeshop nærmest Testvej 1, 4000 Roskilde", receiptHtml);
+        Assert.Contains("Sendes med DAO Pakkeshop", receiptHtml);
+        Assert.Contains("Udleveringssted nær Testvej 1, 4000 Roskilde", receiptHtml);
         Assert.Contains("Forventet levering", receiptHtml);
-        Assert.Contains("Samlet vægt: 120 g, sendes som 1 pakke", receiptHtml);
-        Assert.Contains("Status: Ordre modtaget", receiptHtml);
+        Assert.Contains("120 g i 1 pakke", receiptHtml);
+        Assert.Contains(">Ordre modtaget</li>", receiptHtml);
+        Assert.Contains("<dd>12 34 56 78</dd>", receiptHtml);
+        Assert.Contains("<dd>Guest Buyer</dd>", receiptHtml);
         // Still a guest - offered an account to keep the order under.
         Assert.Contains("Vil du følge denne ordre?", receiptHtml);
+    }
+
+    [Theory]
+    [InlineData("", "Angiv et telefonnummer")]          // shipping needs one
+    [InlineData("call me maybe", "Telefonnummeret ser forkert ud.")]
+    [InlineData("1234", "Telefonnummeret ser forkert ud.")]
+    public async Task Shipping_WithoutAUsablePhoneNumber_RedisplaysTheFormWithAnError(string phone, string expectedError)
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var payToken = await AddToCartAndOpenPayment(client, jar);
+
+        var response = await HttpTestHelpers.PostForm(client, jar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Guest Buyer",
+            ["Input.GuestEmail"] = $"guest-{Guid.NewGuid():N}@example.com",
+            ["Input.DeliveryMethod"] = "Shipping",
+            ["Input.ShippingAddress"] = "Testvej 1, 4000 Roskilde",
+            ["Input.ShippingCarrier"] = "PostNord",
+            ["Input.Phone"] = phone,
+            ["Input.PaymentMethod"] = "MobilePay"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(expectedError, WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()));
+    }
+
+    [Fact]
+    public async Task Pickup_WithoutAPhoneNumber_IsFine()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+
+        // CheckOutAsGuest posts a pickup order with no Input.Phone at all.
+        var orderId = await CheckOutAsGuest(client, jar, $"guest-{Guid.NewGuid():N}@example.com");
+
+        Assert.Null(new SqlOrderStore(MarsvinWebAppFactory.ConnectionString).FindById(orderId)!.ContactPhone);
     }
 
     [Fact]
@@ -266,6 +308,107 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
         var profileHtml = await (await HttpTestHelpers.Get(client, jar, "/Account/Profile")).Content.ReadAsStringAsync();
         Assert.DoesNotContain($"Ordre #{orderId}", profileHtml);
         Assert.Null(new SqlOrderStore(MarsvinWebAppFactory.ConnectionString).FindById(orderId)!.UserId);
+    }
+
+    private static SqlOrderStore Orders => new(MarsvinWebAppFactory.ConnectionString);
+
+    private static int StockOf(int productId) =>
+        new SqlCatalog(MarsvinWebAppFactory.ConnectionString).Accessories.Single(p => p.ProductId == productId).StockQuantity;
+
+    [Fact]
+    public async Task CartPage_ShowsDeliveryCostFreeShippingProgressAndThatNothingIsReserved()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        await AddToCartAndOpenPayment(client, jar); // one of product 104: 45 kr., 120 g
+
+        var html = WebUtility.HtmlDecode(await (await HttpTestHelpers.Get(client, jar, "/Cart/Index")).Content.ReadAsStringAsync());
+
+        Assert.Contains("fra 39 kr.", html);                 // cheapest carrier for 120 g
+        Assert.Contains("for 454 kr. mere", html);           // 499 - 45 to free shipping
+        Assert.Contains("ikke reserveret", html);
+        Assert.Contains("14 dage på tilbehør", html);
+    }
+
+    [Fact]
+    public async Task GuestCanCancelTheirOwnOrder_WhileItIsOnlyReceived_AndTheStockComesBackOnce()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var stockBefore = StockOf(104);
+        var orderId = await CheckOutAsGuest(client, jar, $"guest-{Guid.NewGuid():N}@example.com");
+        Assert.Equal(stockBefore - 1, StockOf(104));
+
+        var (_, receiptHtml, token) = await HttpTestHelpers.GetWithToken(client, jar, $"/Cart/Confirmation/{orderId}");
+        Assert.Contains("Annullér denne ordre", receiptHtml);
+        var cancelResponse = await HttpTestHelpers.PostForm(client, jar, $"/Cart/Confirmation/{orderId}?handler=Cancel", new()
+        {
+            ["__RequestVerificationToken"] = token
+        });
+        Assert.Equal(HttpStatusCode.Found, cancelResponse.StatusCode);
+
+        Assert.Equal(OrderStatus.Cancelled, Orders.FindById(orderId)!.Status);
+        Assert.Equal(stockBefore, StockOf(104));
+
+        // A second cancel (double click, replayed request) changes nothing more.
+        await HttpTestHelpers.PostForm(client, jar, $"/Cart/Confirmation/{orderId}?handler=Cancel", new()
+        {
+            ["__RequestVerificationToken"] = token
+        });
+        Assert.Equal(stockBefore, StockOf(104));
+
+        var afterHtml = await (await HttpTestHelpers.Get(client, jar, $"/Cart/Confirmation/{orderId}")).Content.ReadAsStringAsync();
+        Assert.Contains("Denne ordre er annulleret", afterHtml);
+        Assert.DoesNotContain("Annullér denne ordre", afterHtml);
+    }
+
+    [Fact]
+    public async Task AnotherSession_CannotCancelSomeoneElsesGuestOrder()
+    {
+        var client = MakeClient();
+        var ownerJar = new CookieJar();
+        var orderId = await CheckOutAsGuest(client, ownerJar, $"guest-{Guid.NewGuid():N}@example.com");
+
+        var strangerJar = new CookieJar();
+        var (_, _, strangerToken) = await HttpTestHelpers.GetWithToken(client, strangerJar, "/Account/Register");
+        var response = await HttpTestHelpers.PostForm(client, strangerJar, $"/Cart/Confirmation/{orderId}?handler=Cancel", new()
+        {
+            ["__RequestVerificationToken"] = strangerToken
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(OrderStatus.Placed, Orders.FindById(orderId)!.Status);
+    }
+
+    [Fact]
+    public async Task OnceStaffHaveStartedOnIt_TheBuyerCanNoLongerCancel_ButStaffStillCanUntilItIsSent()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var stockBefore = StockOf(104);
+        var orderId = await CheckOutAsGuest(client, jar, $"guest-{Guid.NewGuid():N}@example.com");
+
+        Assert.True(Orders.UpdateStatus(orderId, OrderStatus.Processing));
+        Assert.False(Orders.Cancel(orderId, OrderStatus.Placed));      // the buyer's limit
+        Assert.Equal(OrderStatus.Processing, Orders.FindById(orderId)!.Status);
+
+        Assert.True(Orders.UpdateStatus(orderId, OrderStatus.Sent, "AB123456789DK"));
+        Assert.Equal("AB123456789DK", Orders.FindById(orderId)!.TrackingNumber);
+        Assert.False(Orders.Cancel(orderId, OrderStatus.Processing));  // staff's limit - it's with the carrier now
+        Assert.Equal(stockBefore - 1, StockOf(104));
+    }
+
+    [Fact]
+    public async Task ACancelledOrder_CanNeverBeMovedToAnotherStatusAgain()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var orderId = await CheckOutAsGuest(client, jar, $"guest-{Guid.NewGuid():N}@example.com");
+        Assert.True(Orders.Cancel(orderId, OrderStatus.Processing));
+
+        Assert.False(Orders.UpdateStatus(orderId, OrderStatus.Sent));
+        Assert.False(Orders.UpdateStatus(orderId, OrderStatus.Cancelled)); // never through UpdateStatus at all
+        Assert.Equal(OrderStatus.Cancelled, Orders.FindById(orderId)!.Status);
     }
 
     private static async Task<int> CheckOutAsGuest(HttpClient client, CookieJar jar, string email)

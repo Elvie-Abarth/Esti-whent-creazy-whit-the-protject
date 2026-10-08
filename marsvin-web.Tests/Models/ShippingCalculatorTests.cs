@@ -86,6 +86,26 @@ public class ShippingCalculatorTests
     }
 
     [Theory]
+    [InlineData(498.99, 55)]
+    [InlineData(499, 0)]
+    [InlineData(1299, 0)]
+    public void Quote_IsFree_OnceTheShippedItemsReachTheThreshold(decimal shippableItemsTotal, decimal expectedCost)
+    {
+        var quote = ShippingCalculator.Quote(ShippingCarrier.PostNord, 800, new DateOnly(2026, 10, 5), shippableItemsTotal);
+
+        Assert.Equal(expectedCost, quote.Cost);
+    }
+
+    [Fact]
+    public void ShippableTotal_LeavesTheAnimalsOut()
+    {
+        // 2 x 10 kr. of accessories; the animal's price must not buy free shipping.
+        var lines = new[] { Line(500, 2), Line(900, 1, isAnimal: true) };
+
+        Assert.Equal(20, ShippingCalculator.ShippableTotal(lines));
+    }
+
+    [Theory]
     [InlineData(120, false, "120 g")]
     [InlineData(3_200, false, "3,2 kg")]
     [InlineData(3_200, true, "3.2 kg")]

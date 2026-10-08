@@ -239,12 +239,14 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
         input.DeliveryMethod = DeliveryMethod.Shipping;
         input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
         input.ShippingCarrier = ShippingCarrier.Gls;
+        input.Phone = "12 34 56 78";
         model.Input = input;
 
         var result = await model.OnPostAsync();
 
         Assert.IsType<RedirectToPageResult>(result);
         var order = _orders.GetOrdersForUser(userId).Single();
+        Assert.Equal("12 34 56 78", order.ContactPhone);
         Assert.Equal(DeliveryMethod.Shipping, order.DeliveryMethod);
         Assert.Equal("Testvej 1, 6700 Esbjerg", order.ShippingAddress);
         Assert.Equal(ShippingCarrier.Gls, order.ShippingCarrier);
@@ -298,6 +300,47 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPost_CartWithAnAnimal_WithoutConfirmingAge16_IsRejectedAndNothingIsSold()
+    {
+        var userId = NewCustomerId();
+        var animal = NewThrowawayAnimal();
+        try
+        {
+            _cart.AddOrIncrement(userId, animal.ProductId, 1);
+            var model = MakeModel(userId);
+            model.Input = ValidInput(); // ConfirmAge16 left unticked
+
+            var result = await model.OnPostAsync();
+
+            Assert.IsType<PageResult>(result);
+            Assert.True(model.ModelState.ContainsKey("Input.ConfirmAge16"));
+            Assert.Empty(_orders.GetOrdersForUser(userId));
+        }
+        finally
+        {
+            _cart.RemoveLine(userId, animal.ProductId);
+            _catalog.DeleteAnimal(animal.ProductId);
+        }
+    }
+
+    [Fact]
+    public async Task OnPost_OnlyAccessories_NeverAsksForTheAgeConfirmation()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+        var input = ValidInput();
+        // Ticked anyway (a tampered POST) - not recorded when there's no animal to need it for.
+        input.ConfirmAge16 = true;
+        model.Input = input;
+
+        var result = await model.OnPostAsync();
+
+        Assert.IsType<RedirectToPageResult>(result);
+        Assert.False(_orders.GetOrdersForUser(userId).Single().AgeConfirmed);
+    }
+
+    [Fact]
     public async Task OnPost_ShippingWithMixedCart_ChecksOutAndStillSellsTheAnimal()
     {
         var userId = NewCustomerId();
@@ -310,6 +353,8 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
             var input = ValidInput();
             input.DeliveryMethod = DeliveryMethod.Shipping;
             input.ShippingAddress = "Testvej 1, 6700 Esbjerg";
+            input.Phone = "+45 12345678";
+            input.ConfirmAge16 = true;
             model.Input = input;
 
             var result = await model.OnPostAsync();
@@ -317,6 +362,7 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
             Assert.IsType<RedirectToPageResult>(result);
             var order = _orders.GetOrdersForUser(userId).Single();
             Assert.Equal(DeliveryMethod.Shipping, order.DeliveryMethod);
+            Assert.True(order.AgeConfirmed);
             Assert.Contains(order.Items, i => i.ProductId == animal.ProductId && i.IsAnimal);
         }
         finally

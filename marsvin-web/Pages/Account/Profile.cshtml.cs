@@ -204,6 +204,33 @@ public class ProfileModel(
     // order contents. Guinea pigs are never actually re-orderable (the specific
     // animal is Sold, not restocked) - CanBeAddedToCart already says so, so
     // they always land in "couldn't add again" without needing special-casing.
+    // Only the buyer's own order (FindForUser), and only while it's still
+    // just "received" - enforced again inside IOrderStore.Cancel itself, in
+    // the same statement that flips the status, not just checked up here.
+    public async Task<IActionResult> OnPostCancelOrderAsync(int orderId)
+    {
+        if (!User.IsInRole("Customer")) return Forbid();
+
+        if (orders.FindForUser(orderId, this.CurrentUserId()) is null)
+        {
+            ErrorMessage = new Bilingual("Ordren blev ikke fundet.", "The order wasn't found.");
+            return RedirectToPage();
+        }
+
+        if (orders.Cancel(orderId, OrderStatus.Placed))
+        {
+            await OrderEmails.SendStatusUpdateAsync(emailSender, users, orders.FindById(orderId)!);
+            ToastMessage = new Bilingual($"Ordre #{orderId} er annulleret.", $"Order #{orderId} has been cancelled.");
+        }
+        else
+        {
+            ErrorMessage = new Bilingual(
+                "Ordren kan ikke længere annulleres her - kontakt butikken.",
+                "This order can no longer be cancelled here - contact the shop.");
+        }
+        return RedirectToPage();
+    }
+
     public IActionResult OnPostReorder(int orderId)
     {
         if (!User.IsInRole("Customer")) return Forbid();

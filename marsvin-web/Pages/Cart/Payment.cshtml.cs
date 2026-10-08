@@ -34,7 +34,8 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     public int ParcelCount => ShippingCalculator.ParcelCount(ShippableWeightGrams);
     public IReadOnlyList<ShippingQuote> ShippingOptions =>
         Enum.GetValues<ShippingCarrier>()
-            .Select(c => ShippingCalculator.Quote(c, ShippableWeightGrams, DateOnly.FromDateTime(DateTime.UtcNow)))
+            .Select(c => ShippingCalculator.Quote(c, ShippableWeightGrams, DateOnly.FromDateTime(DateTime.UtcNow),
+                ShippingCalculator.ShippableTotal(Lines)))
             .ToList();
 
     [BindProperty]
@@ -46,6 +47,8 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     private static readonly Regex CardNumberPattern = new(@"^[0-9 ]{12,19}$", RegexOptions.Compiled);
     private static readonly Regex ExpiryPattern = new(@"^(0[1-9]|1[0-2])\/[0-9]{2}$", RegexOptions.Compiled);
     private static readonly Regex CvcPattern = new(@"^[0-9]{3,4}$", RegexOptions.Compiled);
+    // Digits and spaces, optional leading +, e.g. "12 34 56 78" or "+45 12345678".
+    private static readonly Regex PhonePattern = new(@"^\+?[0-9 ]{8,20}$", RegexOptions.Compiled);
     private static readonly Regex GuestEmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
 
     public bool IsGuest => User.Identity?.IsAuthenticated != true;
@@ -105,6 +108,38 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
                 ModelState.AddModelError("Input.GuestEmail", "E-mailadressen ser forkert ud.");
         }
 
+        // A phone number is what a carrier sends its "ready to collect" /
+        // "arriving today" message to, so shipping needs one; for a pickup
+        // it's optional. Either way, if one is given it has to look like one.
+        if (string.IsNullOrWhiteSpace(Input.Phone))
+        {
+            if (Input.DeliveryMethod == DeliveryMethod.Shipping)
+                ModelState.AddModelError("Input.Phone", "Angiv et telefonnummer - fragtselskabet sender besked dertil.");
+        }
+        else if (!PhonePattern.IsMatch(Input.Phone.Trim()))
+        {
+            ModelState.AddModelError("Input.Phone", "Telefonnummeret ser forkert ud.");
+        }
+
+        // Danish animal welfare law: an animal may not be sold to anyone
+        // under 16 without a parent's consent. Only asked (and only
+        // required) when there's actually a guinea pig in the order.
+        if (HasAnimal && !Input.ConfirmAge16)
+            ModelState.AddModelError("Input.ConfirmAge16", "Bekræft, at du er fyldt 16 år, for at købe et marsvin.");
+
+        // Buying for a company: both the name and a real-looking CVR number,
+        // or it's just a private purchase with stray fields. The CVR is
+        // checked with its own check-digit rule (see Cvr.IsValid) - enough to
+        // catch a typo, not a lookup of whether the company exists.
+        var isCompany = Input.BuyerType == BuyerType.Company;
+        if (isCompany)
+        {
+            if (string.IsNullOrWhiteSpace(Input.CompanyName))
+                ModelState.AddModelError("Input.CompanyName", "Udfyld virksomhedens navn.");
+            if (!Cvr.IsValid(Input.CompanyCvr))
+                ModelState.AddModelError("Input.CompanyCvr", "CVR-nummeret skal være 8 cifre og ser forkert ud.");
+        }
+
         if (!ModelState.IsValid) return Page();
 
         // The "payment" above is never actually processed - the demo card details
@@ -117,7 +152,9 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         // comment) - ignored (and harmless to pass) for a signed-in customer.
         var result = orders.Checkout(this.CurrentUserIdOrNull(), Input.DeliveryMethod, Input.ShippingAddress,
             Input.DeliveryMethod == DeliveryMethod.Shipping ? Input.ShippingCarrier : null, Input.PaymentMethod,
-            IsGuest ? Input.GuestName : null, IsGuest ? Input.GuestEmail : null, Lines);
+            IsGuest ? Input.GuestName : null, IsGuest ? Input.GuestEmail : null, Lines,
+            Input.Phone, HasAnimal && Input.ConfirmAge16,
+            isCompany ? Input.CompanyName : null, isCompany ? Cvr.Normalize(Input.CompanyCvr) : null);
         if (!result.Success)
         {
             ErrorMessage = result.ErrorMessage;
@@ -212,6 +249,22 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
 
         [StringLength(256)]
         public string? GuestEmail { get; set; }
+
+        [StringLength(30)]
+        public string? Phone { get; set; }
+
+        public BuyerType BuyerType { get; set; } = BuyerType.Private;
+
+        // Only read when BuyerType is Company - see OnPostAsync.
+        [StringLength(200)]
+        public string? CompanyName { get; set; }
+
+        [StringLength(20)]
+        public string? CompanyCvr { get; set; }
+
+        // "I am 16 or older" - a yes/no, deliberately not an age or a date
+        // of birth: the rule needs to be met, the number isn't needed.
+        public bool ConfirmAge16 { get; set; }
 
         [StringLength(500)]
         public string? ShippingAddress { get; set; }

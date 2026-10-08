@@ -54,6 +54,18 @@
                             {
                                 <span class="cavy-meta" data-en="Account deleted">Konto slettet</span>
                             }
+                            @if (order.CompanyName is not null)
+                            {
+                                <br /><span class="cavy-meta">@order.CompanyName, CVR @order.CompanyCvr</span>
+                            }
+                            @if (order.ContactPhone is not null)
+                            {
+                                <br /><span class="cavy-meta" data-en="@($"Phone: {order.ContactPhone}")">Tlf.: @order.ContactPhone</span>
+                            }
+                            @if (order.AgeConfirmed)
+                            {
+                                <br /><span class="cavy-meta" data-en="Confirmed 16 or older">Har bekræftet at være fyldt 16 år</span>
+                            }
                         </td>
                         <td>@string.Join(", ", order.Items.Select(i => $"{i.ProductName} x{i.Quantity}"))</td>
                         <td>@order.TotalPrice.ToString("N0") kr.</td>
@@ -76,16 +88,29 @@
                             }
                         </td>
                         <td>
-                            <form method="post" asp-page-handler="SetStatus">
-                                <input type="hidden" name="orderId" value="@order.OrderId" />
-                                <select name="status" aria-label="Status">
-                                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                            @if (order.Status == OrderStatus.Cancelled)
+                            {
+                                @* Final: its items are back in stock, so it can't be reopened. *@
+                                <strong data-en="Cancelled">Annulleret</strong>
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="SetStatus" class="order-status-form">
+                                    <input type="hidden" name="orderId" value="@order.OrderId" />
+                                    <select name="status" aria-label="Status">
+                                        @foreach (var status in Enum.GetValues<OrderStatus>())
+                                        {
+                                            <option value="@status" selected="@(status == order.Status)" data-en="@status.DisplayName(order.DeliveryMethod, english: true)">@status.DisplayName(order.DeliveryMethod)</option>
+                                        }
+                                    </select>
+                                    @if (order.DeliveryMethod == DeliveryMethod.Shipping)
                                     {
-                                        <option value="@status" selected="@(status == order.Status)" data-en="@status.DisplayName(order.DeliveryMethod, english: true)">@status.DisplayName(order.DeliveryMethod)</option>
+                                        <input type="text" name="trackingNumber" value="@order.TrackingNumber" maxlength="50"
+                                               placeholder="Track & trace" aria-label="Track & trace-nummer" data-en-aria-label="Track & trace number" />
                                     }
-                                </select>
-                                <button type="submit" class="btn btn--quiet" data-en="Save">Gem</button>
-                            </form>
+                                    <button type="submit" class="btn btn--quiet" data-en="Save">Gem</button>
+                                </form>
+                            }
                         </td>
                     </tr>
                 }

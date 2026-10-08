@@ -18,6 +18,10 @@
         {
             <input type="hidden" name="kategori" value="@Model.Active" />
         }
+        @if (Model.ActiveBrand is not null)
+        {
+            <input type="hidden" name="maerke" value="@Model.ActiveBrand" />
+        }
         <input type="search" name="q" value="@Model.Query"
                placeholder="Søg..." data-en-placeholder="Search..."
                aria-label="Søg i tilbehør" data-en-aria-label="Search accessories" />
@@ -25,14 +29,27 @@
     </form>
 
     <nav class="filters" aria-label="Filtrér efter kategori" data-en-aria-label="Filter by category">
-        <a class="filter" asp-page="/Tilbehor/Index" asp-route-q="@Model.Query"
+        <a class="filter" asp-page="/Tilbehor/Index" asp-route-q="@Model.Query" asp-route-maerke="@Model.ActiveBrand"
            aria-current="@(Model.Active is null ? "true" : "false")" data-en="All">Alt</a>
         @foreach (var (value, label, labelEn) in MarsvinWebExample.Pages.Tilbehor.IndexModel.Categories)
         {
-            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@value" asp-route-q="@Model.Query"
+            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@value" asp-route-q="@Model.Query" asp-route-maerke="@Model.ActiveBrand"
                aria-current="@(Model.Active == value ? "true" : "false")" data-en="@labelEn">@label</a>
         }
     </nav>
+
+    @if (Model.Brands.Count > 0)
+    {
+        <nav class="filters filters--brands" aria-label="Filtrér efter mærke" data-en-aria-label="Filter by brand">
+            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@Model.Active" asp-route-q="@Model.Query"
+               aria-current="@(Model.ActiveBrand is null ? "true" : "false")" data-en="All brands">Alle mærker</a>
+            @foreach (var brand in Model.Brands)
+            {
+                <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@Model.Active" asp-route-q="@Model.Query" asp-route-maerke="@brand"
+                   aria-current="@(Model.ActiveBrand == brand ? "true" : "false")">@brand</a>
+            }
+        </nav>
+    }
 
     @if (Model.Items.Count == 0)
     {
@@ -53,6 +70,10 @@
                         <partial name="_GoodsIcon" model="item" />
                     }
                     <p class="cat-tag" data-en="@item.CategoryNameEn">@item.CategoryName</p>
+                    @if (item.Brand is not null)
+                    {
+                        <p class="brand-tag">@item.Brand</p>
+                    }
                     <h3 data-en="@(item.NameEn ?? item.Name)">@item.Name</h3>
                     <p data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
                     <span class="goods-foot">

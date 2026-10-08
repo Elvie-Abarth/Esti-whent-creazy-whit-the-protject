@@ -1,0 +1,56 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Messages.IndexModel
+@{
+    ViewData["Title"] = "Beskeder (personale)";
+    ViewData["TitleEn"] = "Messages (staff)";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Messages">Beskeder</h2>
+            <p data-en="The most recent 200 messages from the contact form. Reply from the shop's own mailbox.">
+                De seneste 200 beskeder fra kontaktformularen. Svar fra butikkens egen postkasse.
+            </p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.Items.Count == 0)
+    {
+        <p data-en="No messages yet.">Ingen beskeder endnu.</p>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th data-en="When">Hvornår</th>
+                    <th data-en="From">Fra</th>
+                    <th data-en="About">Om</th>
+                    <th data-en="Message">Besked</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var message in Model.Items)
+                {
+                    <tr>
+                        <td>@message.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
+                        <td>@message.Name<br /><a class="cavy-meta" href="mailto:@message.Email">@message.Email</a></td>
+                        <td>
+                            <span data-en="@message.Topic.DisplayName(english: true)">@message.Topic.DisplayName()</span>
+                            @if (message.OrderId is int orderId)
+                            {
+                                <br /><span class="cavy-meta" data-en="@($"Order #{orderId} (as typed - not verified)")">Ordre #@orderId (som indtastet - ikke kontrolleret)</span>
+                            }
+                        </td>
+                        @* Razor encodes the text; pre-wrap keeps the sender's own line breaks. *@
+                        <td class="message-body">@message.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

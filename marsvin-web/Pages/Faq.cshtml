@@ -1,0 +1,41 @@
+@page
+@using MarsvinWebExample.Data
+@{
+    ViewData["Title"] = "Ofte stillede spørgsmål";
+    ViewData["TitleEn"] = "Frequently asked questions";
+}
+
+<div class="wrap section guide-intro">
+    <div class="section-head">
+        <h1 data-en="Frequently asked questions">Ofte stillede spørgsmål</h1>
+        <p data-en="The questions we get most, answered. Can't find yours? Write to us on the contact page, or ask in the chat in the corner.">
+            De spørgsmål, vi oftest får, med svar. Finder du ikke dit? Skriv til
+            os på kontaktsiden, eller spørg i chatten nede i hjørnet.
+        </p>
+    </div>
+</div>
+
+<section class="section">
+    <div class="wrap guide-article">
+        @* <details> per question: opens and closes without any JS, and a
+           closed answer is still in the page for search (browser and search engine). *@
+        @foreach (var topic in FaqData.Entries.GroupBy(e => (e.Topic, e.TopicEn)))
+        {
+            <article>
+                <h2 data-en="@topic.Key.TopicEn">@topic.Key.Topic</h2>
+                @foreach (var entry in topic)
+                {
+                    <details class="faq-item">
+                        <summary data-en="@entry.QuestionEn">@entry.Question</summary>
+                        <p data-en="@entry.AnswerEn">@entry.Answer</p>
+                    </details>
+                }
+            </article>
+        }
+
+        <div class="actions">
+            <a class="btn" asp-page="/Kontakt" data-en="Contact us">Kontakt os</a>
+            <a class="btn btn--quiet" asp-page="/BetalingOgLevering" data-en="Payment &amp; delivery terms">Vilkår for betaling &amp; levering</a>
+        </div>
+    </div>
+</section>

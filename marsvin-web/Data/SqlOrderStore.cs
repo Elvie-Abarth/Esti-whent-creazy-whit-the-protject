@@ -7,7 +7,9 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
 {
     public CheckoutResult Checkout(int? userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null,
         ShippingCarrier? shippingCarrier = null, PaymentMethod paymentMethod = PaymentMethod.Card,
-        string? guestName = null, string? guestEmail = null, IReadOnlyList<CartLine>? guestLines = null)
+        string? guestName = null, string? guestEmail = null, IReadOnlyList<CartLine>? guestLines = null,
+        string? contactPhone = null, bool ageConfirmed = false,
+        string? companyName = null, string? companyCvr = null)
     {
         using var connection = new SqlConnection(connectionString);
         connection.Open();
@@ -83,12 +85,18 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             // the price shown per carrier on the payment page is the same
             // calculation, but only this one decides what's charged.
             var shipping = effectiveCarrier is ShippingCarrier carrier
-                ? ShippingCalculator.Quote(carrier, ShippingCalculator.ShippableWeightGrams(lines), DateOnly.FromDateTime(DateTime.UtcNow))
+                ? ShippingCalculator.Quote(carrier, ShippingCalculator.ShippableWeightGrams(lines),
+                    DateOnly.FromDateTime(DateTime.UtcNow), ShippingCalculator.ShippableTotal(lines))
                 : null;
+
+            var hasCompany = !string.IsNullOrWhiteSpace(companyName) && !string.IsNullOrWhiteSpace(companyCvr);
 
             var orderId = InsertOrder(connection, transaction, userId, lines, deliveryMethod,
                 deliveryMethod == DeliveryMethod.Shipping ? shippingAddress!.Trim() : null,
-                effectiveCarrier, paymentMethod, guestName?.Trim(), guestEmail?.Trim(), shipping);
+                effectiveCarrier, paymentMethod, guestName?.Trim(), guestEmail?.Trim(), shipping,
+                string.IsNullOrWhiteSpace(contactPhone) ? null : contactPhone.Trim(), ageConfirmed,
+                // A company order needs both or it isn't one.
+                hasCompany ? companyName!.Trim() : null, hasCompany ? companyCvr!.Trim() : null);
 
             foreach (var line in lines)
                 ApplyStockChange(connection, transaction, line);
@@ -119,7 +127,7 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
     // so a column added to Orders only has to be added here and in ReadHeader.
     private const string OrderColumns =
         "o.OrderId, o.UserId, o.TotalPrice, o.CreatedAt, o.DeliveryMethod, o.ShippingAddress, o.ShippingCarrier, " +
-        "o.PaymentMethod, o.GuestName, o.GuestEmail, o.ShippingCost, o.ShippingWeightGrams, o.ParcelCount, o.Status";
+        "o.PaymentMethod, o.GuestName, o.GuestEmail, o.ShippingCost, o.ShippingWeightGrams, o.ParcelCount, o.Status, o.ContactPhone, o.AgeConfirmed, o.TrackingNumber, o.CompanyName, o.CompanyCvr";
 
     public Order? FindById(int orderId)
     {
@@ -169,16 +177,86 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         return LoadOrders(connection, command, withBuyer: true);
     }
 
-    public bool UpdateStatus(int orderId, OrderStatus status)
+    public bool UpdateStatus(int orderId, OrderStatus status, string? trackingNumber = null)
     {
+        if (status == OrderStatus.Cancelled) return false;
+
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
+        // Status <> Cancelled: a cancelled order's items are already back in
+        // stock (and may have been sold to someone else since) - it can't
+        // quietly come back to life.
         using var command = new SqlCommand(
-            "UPDATE dbo.Orders SET Status = @Status WHERE OrderId = @OrderId;", connection);
+            """
+            UPDATE dbo.Orders SET Status = @Status, TrackingNumber = @TrackingNumber
+            WHERE OrderId = @OrderId AND Status <> @Cancelled;
+            """, connection);
         command.Parameters.AddWithValue("@Status", (byte)status);
+        command.Parameters.AddWithValue("@TrackingNumber", (object?)trackingNumber ?? DBNull.Value);
         command.Parameters.AddWithValue("@OrderId", orderId);
+        command.Parameters.AddWithValue("@Cancelled", (byte)OrderStatus.Cancelled);
         return command.ExecuteNonQuery() == 1;
+    }
+
+    public bool Cancel(int orderId, OrderStatus latestCancellableStatus)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // The WHERE is the whole guard: of two cancel requests racing
+            // each other, only one can flip the row, and only that one goes
+            // on to restock. Cancelled is the highest status value, so
+            // "Status <= latest" also rules out an already-cancelled order.
+            using (var command = new SqlCommand(
+                "UPDATE dbo.Orders SET Status = @Cancelled WHERE OrderId = @OrderId AND Status <= @Latest;",
+                connection, transaction))
+            {
+                command.Parameters.AddWithValue("@Cancelled", (byte)OrderStatus.Cancelled);
+                command.Parameters.AddWithValue("@OrderId", orderId);
+                command.Parameters.AddWithValue("@Latest", (byte)latestCancellableStatus);
+                if (command.ExecuteNonQuery() != 1)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+            }
+
+            // A product deleted from the catalog since the order was placed
+            // simply matches no row here - nothing to restock.
+            foreach (var item in LoadOrderItems(connection, transaction, orderId))
+            {
+                using var restock = item.IsAnimal
+                    ? new SqlCommand(
+                        "UPDATE dbo.Animals SET Status = @Available WHERE ProductId = @ProductId AND Status = @Sold;",
+                        connection, transaction)
+                    : new SqlCommand(
+                        "UPDATE dbo.StockProducts SET StockQuantity = StockQuantity + @Quantity WHERE ProductId = @ProductId;",
+                        connection, transaction);
+                restock.Parameters.AddWithValue("@ProductId", item.ProductId);
+                if (item.IsAnimal)
+                {
+                    restock.Parameters.AddWithValue("@Available", (byte)AnimalStatus.Available);
+                    restock.Parameters.AddWithValue("@Sold", (byte)AnimalStatus.Sold);
+                }
+                else
+                {
+                    restock.Parameters.AddWithValue("@Quantity", item.Quantity);
+                }
+                restock.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
     public bool ClaimGuestOrder(int orderId, int userId, string email)
@@ -235,6 +313,11 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
             ShippingWeightGrams = reader.GetNullableInt32("ShippingWeightGrams"),
             ParcelCount = reader.GetNullableInt32("ParcelCount"),
             Status = (OrderStatus)reader.GetByte(reader.GetOrdinal("Status")),
+            ContactPhone = reader.GetNullableString("ContactPhone"),
+            TrackingNumber = reader.GetNullableString("TrackingNumber"),
+            CompanyName = reader.GetNullableString("CompanyName"),
+            CompanyCvr = reader.GetNullableString("CompanyCvr"),
+            AgeConfirmed = reader.GetBoolean(reader.GetOrdinal("AgeConfirmed")),
             BuyerDisplayName = withBuyer ? reader.GetNullableString("BuyerDisplayName") : null,
             BuyerEmail = withBuyer ? reader.GetNullableString("BuyerEmail") : null
         };
@@ -359,17 +442,18 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
     private static int InsertOrder(
         SqlConnection connection, SqlTransaction transaction, int? userId, IReadOnlyList<CartLine> lines,
         DeliveryMethod deliveryMethod, string? shippingAddress, ShippingCarrier? shippingCarrier, PaymentMethod paymentMethod,
-        string? guestName, string? guestEmail, ShippingQuote? shipping)
+        string? guestName, string? guestEmail, ShippingQuote? shipping, string? contactPhone, bool ageConfirmed,
+        string? companyName, string? companyCvr)
     {
         var total = lines.Sum(l => l.LineTotal) + (shipping?.Cost ?? 0);
 
         using var orderCommand = new SqlCommand(
             """
             INSERT INTO dbo.Orders (UserId, TotalPrice, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod, GuestName, GuestEmail,
-                                    ShippingCost, ShippingWeightGrams, ParcelCount)
+                                    ShippingCost, ShippingWeightGrams, ParcelCount, ContactPhone, AgeConfirmed, CompanyName, CompanyCvr)
             OUTPUT INSERTED.OrderId
             VALUES (@UserId, @TotalPrice, @DeliveryMethod, @ShippingAddress, @ShippingCarrier, @PaymentMethod, @GuestName, @GuestEmail,
-                    @ShippingCost, @ShippingWeightGrams, @ParcelCount);
+                    @ShippingCost, @ShippingWeightGrams, @ParcelCount, @ContactPhone, @AgeConfirmed, @CompanyName, @CompanyCvr);
             """, connection, transaction);
         orderCommand.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
         orderCommand.Parameters.AddWithValue("@TotalPrice", total);
@@ -382,6 +466,10 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         orderCommand.Parameters.AddWithValue("@ShippingCost", shipping?.Cost ?? 0);
         orderCommand.Parameters.AddWithValue("@ShippingWeightGrams", (object?)shipping?.WeightGrams ?? DBNull.Value);
         orderCommand.Parameters.AddWithValue("@ParcelCount", (object?)shipping?.ParcelCount ?? DBNull.Value);
+        orderCommand.Parameters.AddWithValue("@ContactPhone", (object?)contactPhone ?? DBNull.Value);
+        orderCommand.Parameters.AddWithValue("@AgeConfirmed", ageConfirmed);
+        orderCommand.Parameters.AddWithValue("@CompanyName", (object?)companyName ?? DBNull.Value);
+        orderCommand.Parameters.AddWithValue("@CompanyCvr", (object?)companyCvr ?? DBNull.Value);
         var orderId = (int)orderCommand.ExecuteScalar()!;
 
         foreach (var line in lines)

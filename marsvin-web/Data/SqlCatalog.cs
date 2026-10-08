@@ -133,7 +133,7 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
     {
         const string sql = """
             SELECT p.ProductId, p.Name, p.NameEn, p.Description, p.DescriptionEn, p.Price,
-                   s.Sku, s.Category, s.StockQuantity, s.Unit, s.PhotoUrl, s.WeightGrams
+                   s.Sku, s.Category, s.StockQuantity, s.Unit, s.PhotoUrl, s.WeightGrams, s.Brand
             FROM dbo.Products p
             JOIN dbo.StockProducts s ON s.ProductId = p.ProductId
             ORDER BY p.ProductId;
@@ -151,7 +151,7 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
     {
         const string sql = """
             SELECT p.ProductId, p.Name, p.NameEn, p.Description, p.DescriptionEn, p.Price,
-                   s.Sku, s.Category, s.StockQuantity, s.Unit, s.PhotoUrl, s.WeightGrams
+                   s.Sku, s.Category, s.StockQuantity, s.Unit, s.PhotoUrl, s.WeightGrams, s.Brand
             FROM dbo.Products p
             JOIN dbo.StockProducts s ON s.ProductId = p.ProductId
             WHERE p.ProductId = @ProductId;
@@ -176,7 +176,8 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         StockQuantity = reader.GetInt32(reader.GetOrdinal("StockQuantity")),
         Unit = reader.GetNullableString("Unit"),
         PhotoUrl = reader.GetNullableString("PhotoUrl"),
-        WeightGrams = reader.GetInt32(reader.GetOrdinal("WeightGrams"))
+        WeightGrams = reader.GetInt32(reader.GetOrdinal("WeightGrams")),
+        Brand = reader.GetNullableString("Brand")
     };
 
     public void CreateAnimal(Animal animal)
@@ -255,8 +256,8 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
 
         using var command = new SqlCommand(
             """
-            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl, WeightGrams)
-            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl, @WeightGrams);
+            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl, WeightGrams, Brand)
+            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl, @WeightGrams, @Brand);
             """, connection, transaction);
         command.Parameters.AddWithValue("@ProductId", productId);
         BindStockProduct(command, product);
@@ -277,7 +278,7 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
             """
             UPDATE dbo.StockProducts SET
                 Sku = @Sku, Category = @Category, StockQuantity = @StockQuantity,
-                Unit = @Unit, PhotoUrl = @PhotoUrl, WeightGrams = @WeightGrams
+                Unit = @Unit, PhotoUrl = @PhotoUrl, WeightGrams = @WeightGrams, Brand = @Brand
             WHERE ProductId = @ProductId;
             """, connection, transaction);
         command.Parameters.AddWithValue("@ProductId", product.ProductId);
@@ -403,6 +404,7 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         command.Parameters.AddWithValue("@Unit", (object?)product.Unit ?? DBNull.Value);
         command.Parameters.AddWithValue("@PhotoUrl", (object?)product.PhotoUrl ?? DBNull.Value);
         command.Parameters.AddWithValue("@WeightGrams", product.WeightGrams);
+        command.Parameters.AddWithValue("@Brand", (object?)product.Brand ?? DBNull.Value);
     }
 
     private SqlConnection Open()

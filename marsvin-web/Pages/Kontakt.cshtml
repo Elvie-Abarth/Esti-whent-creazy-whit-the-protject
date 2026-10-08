@@ -1,4 +1,5 @@
 @page
+@model MarsvinWebExample.Pages.KontaktModel
 @{
     ViewData["Title"] = "Kontakt";
     ViewData["TitleEn"] = "Contact";
@@ -7,31 +8,105 @@
 <div class="wrap section guide-intro">
     <div class="section-head">
         <h1 data-en="Contact">Kontakt</h1>
-        <p data-en="Questions about a guinea pig, an order, or the cage you're planning — reach us however suits you.">
+        <p data-en="Questions about a guinea pig, an order, or the cage you're planning — write, call or drop by, whichever suits you.">
             Spørgsmål om et marsvin, en ordre, eller buret du planlægger —
-            skriv eller ring, alt efter hvad der passer dig.
+            skriv, ring eller kig forbi, alt efter hvad der passer dig.
         </p>
     </div>
 </div>
 
 <section class="section">
-    <div class="wrap guide-article">
-        <article>
-            <h2 data-en="Shop">Butikken</h2>
-            <ul class="facts">
-                <li><span data-en="Address">Adresse</span><span>Havnegade 12, 6700 Esbjerg</span></li>
-                <li><span data-en="Opening hours">Åbningstider</span><span data-en="Thursday and Friday 14–18, Saturday 10–14">Torsdag og fredag 14–18, lørdag 10–14</span></li>
-                <li><span>E-mail</span><span><a href="mailto:kontakt@marsvin.dk">kontakt@marsvin.dk</a></span></li>
-                <li><span data-en="Phone">Telefon</span><span><a href="tel:+4570123456">70 12 34 56</a></span></li>
-            </ul>
-        </article>
+    <div class="wrap">
+        <div class="receipt-grid contact-grid">
+            <section class="receipt-card">
+                <h3 data-en="Write to us">Skriv til os</h3>
+                <form method="post" class="auth-form contact-form">
+                    <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
-        <div class="callout">
-            <h2 data-en="Demo project">Demoprojekt</h2>
-            <p data-en="This address, email and phone number are placeholders for an example webshop, not a real business — see Om os for the full note.">
-                Denne adresse, e-mail og dette telefonnummer er pladsholdere
-                til en eksempelwebshop, ikke en rigtig forretning — se Om os for hele bemærkningen.
-            </p>
+                    <label>
+                        <span data-en="Name">Navn</span>
+                        <input asp-for="Input.Name" autocomplete="name" />
+                        <span asp-validation-for="Input.Name" class="field-error"></span>
+                    </label>
+                    <label>
+                        <span data-en="Email">E-mail</span>
+                        <input asp-for="Input.Email" type="email" autocomplete="email" />
+                        <span asp-validation-for="Input.Email" class="field-error"></span>
+                    </label>
+                    <label>
+                        <span data-en="What is it about?">Hvad drejer det sig om?</span>
+                        <select asp-for="Input.Topic">
+                            @foreach (var topic in Enum.GetValues<ContactTopic>())
+                            {
+                                <option value="@topic" data-en="@topic.DisplayName(english: true)">@topic.DisplayName()</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span data-en="Order number (optional)">Ordrenummer (valgfrit)</span>
+                        <input asp-for="Input.OrderId" type="number" min="1" inputmode="numeric" />
+                        <span asp-validation-for="Input.OrderId" class="field-error"></span>
+                    </label>
+                    <label>
+                        <span data-en="Message">Besked</span>
+                        <textarea asp-for="Input.Message" rows="6" maxlength="2000"></textarea>
+                        <span asp-validation-for="Input.Message" class="field-error"></span>
+                    </label>
+
+                    <partial name="_Recaptcha" />
+
+                    <button type="submit" class="btn" data-en="Send message">Send besked</button>
+                    <span class="field-hint" data-en="We only use your name and email to answer this message - see the privacy policy.">
+                        Vi bruger kun dit navn og din e-mail til at svare på denne besked - se privatlivspolitikken.
+                    </span>
+                </form>
+            </section>
+
+            <div class="contact-side">
+                <section class="receipt-card">
+                    <h3 data-en="The shop">Butikken</h3>
+                    <dl class="pay-facts">
+                        <dt data-en="Address">Adresse</dt>
+                        <dd>Havnegade 12, 6700 Esbjerg</dd>
+                        <dt data-en="Opening hours">Åbningstider</dt>
+                        <dd data-en="Thursday and Friday 14–18, Saturday 10–14">Torsdag og fredag 14–18, lørdag 10–14</dd>
+                        <dt>E-mail</dt>
+                        <dd><a href="mailto:kontakt@marsvin.dk">kontakt@marsvin.dk</a></dd>
+                        <dt data-en="Phone">Telefon</dt>
+                        <dd><a href="tel:+4570123456">70 12 34 56</a></dd>
+                        <dt data-en="Phone hours">Telefontid</dt>
+                        <dd data-en="Thursday to Saturday, during opening hours">Torsdag til lørdag, i åbningstiden</dd>
+                        <dt data-en="Reply time">Svartid</dt>
+                        <dd data-en="Within a couple of weekdays">Inden for et par hverdage</dd>
+                    </dl>
+                </section>
+
+                <section class="receipt-card">
+                    <h3 data-en="Quicker answers">Hurtigere svar</h3>
+                    <p data-en="Most questions about delivery, returns and buying a guinea pig are already answered:">
+                        De fleste spørgsmål om levering, retur og køb af marsvin er allerede besvaret:
+                    </p>
+                    <ul class="contact-links">
+                        <li><a asp-page="/Faq" data-en="Frequently asked questions">Ofte stillede spørgsmål</a></li>
+                        <li><a asp-page="/BetalingOgLevering" data-en="Payment &amp; delivery">Betaling &amp; levering</a></li>
+                        <li><a asp-page="/Pasningsguide" data-en="Care guide">Pasningsguide</a></li>
+                    </ul>
+                    <p class="field-hint" data-en="Buying for a company, school or institution? Choose 'Company' at checkout - or write to us here about a larger order.">
+                        Køber du til en virksomhed, skole eller institution? Vælg "Virksomhed" i kassen -
+                        eller skriv til os her om en større ordre.
+                    </p>
+                </section>
+
+                <div class="callout">
+                    <h3 data-en="Demo project">Demoprojekt</h3>
+                    <p data-en="This address, email and phone number are placeholders for an example webshop, not a real business — see Om os for the full note. Messages sent here are stored and shown to the shop's staff accounts, nothing more.">
+                        Denne adresse, e-mail og dette telefonnummer er pladsholdere
+                        til en eksempelwebshop, ikke en rigtig forretning — se Om os
+                        for hele bemærkningen. Beskeder sendt her gemmes og vises
+                        for butikkens personalekonti, ikke andet.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 </section>

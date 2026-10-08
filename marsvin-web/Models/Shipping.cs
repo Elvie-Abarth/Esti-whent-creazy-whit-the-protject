@@ -75,10 +75,18 @@ public static class ShippingCalculator
         return (AddBusinessDays(orderDate, min), AddBusinessDays(orderDate, max));
     }
 
-    public static ShippingQuote Quote(ShippingCarrier carrier, int weightGrams, DateOnly orderDate)
+    /// <summary>Shipping is free once the shippable items (never the animals - they aren't shipped) come to this much.</summary>
+    public const decimal FreeShippingThreshold = 499m;
+
+    public static decimal ShippableTotal(IEnumerable<CartLine> lines) =>
+        lines.Where(l => !l.IsAnimal).Sum(l => l.LineTotal);
+
+    /// <param name="shippableItemsTotal">What the shipped items cost together - at or above <see cref="FreeShippingThreshold"/> the shipping is free, whatever it weighs.</param>
+    public static ShippingQuote Quote(ShippingCarrier carrier, int weightGrams, DateOnly orderDate, decimal shippableItemsTotal = 0)
     {
         var (earliest, latest) = DeliveryWindow(carrier, orderDate);
-        return new ShippingQuote(carrier, weightGrams, ParcelCount(weightGrams), Cost(carrier, weightGrams), earliest, latest);
+        var cost = shippableItemsTotal >= FreeShippingThreshold ? 0 : Cost(carrier, weightGrams);
+        return new ShippingQuote(carrier, weightGrams, ParcelCount(weightGrams), cost, earliest, latest);
     }
 
     // No carrier delivers on a Saturday or Sunday at these rates. Public

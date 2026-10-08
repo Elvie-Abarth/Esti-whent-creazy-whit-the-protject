@@ -47,6 +47,17 @@ turn it on, get a reCAPTCHA v2 ("I'm not a robot" checkbox) key pair from
 into the page), and set the secret key with
 `dotnet user-secrets set Recaptcha:SecretKey ...` (never commit that one).
 
+The support chat ("Pip", the guinea pig in the corner) needs no setup and
+no key: it is a keyword lookup inside the app, not an AI service, so it
+costs nothing to run. It only knows what's on the front page, the guinea pig
+and accessories pages, the footer and the FAQ (`Data/ShopKnowledge.cs`) - it
+has no access to orders or accounts, so there's nothing private it could be
+talked into revealing.
+
+Nothing in this project costs money to run: the database is LocalDB, email
+is logged to the console unless you add your own SMTP account, reCAPTCHA is
+off unless you add keys, and payment and donations are demos.
+
 You need the **.NET 9 SDK**, for VS Code the **C# Dev Kit** extension, and
 **SQL Server LocalDB** (ships with Visual Studio, or install separately).
 `dotnet --list-sdks` and `sqllocaldb info` tell you what you have.

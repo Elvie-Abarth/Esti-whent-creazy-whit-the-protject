@@ -38,7 +38,9 @@ public interface IOrderStore
     /// </summary>
     CheckoutResult Checkout(int? userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null,
         ShippingCarrier? shippingCarrier = null, PaymentMethod paymentMethod = PaymentMethod.Card,
-        string? guestName = null, string? guestEmail = null, IReadOnlyList<CartLine>? guestLines = null);
+        string? guestName = null, string? guestEmail = null, IReadOnlyList<CartLine>? guestLines = null,
+        string? contactPhone = null, bool ageConfirmed = false,
+        string? companyName = null, string? companyCvr = null);
 
     /// <summary>Looks up an order, but only if it belongs to the given user (prevents one customer from viewing another's order by guessing an id).</summary>
     Order? FindForUser(int orderId, int userId);
@@ -58,8 +60,25 @@ public interface IOrderStore
     /// <summary>Every order ever placed, across every customer, most recent first - the admin order list.</summary>
     IReadOnlyList<Order> GetAllOrders();
 
-    /// <summary>Staff moving an order along (see Admin/Orders). False if no such order exists.</summary>
-    bool UpdateStatus(int orderId, OrderStatus status);
+    /// <summary>
+    /// Staff moving an order along (see Admin/Orders), and recording the
+    /// carrier's tracking number alongside. Never into or out of Cancelled -
+    /// that's <see cref="Cancel"/>, which also puts the stock back. False if
+    /// nothing was changed.
+    /// </summary>
+    bool UpdateStatus(int orderId, OrderStatus status, string? trackingNumber = null);
+
+    /// <summary>
+    /// Calls an order off and puts what was in it back on sale: accessory
+    /// stock is added back, a guinea pig goes from Sold to Available again.
+    /// Only possible while the order hasn't got further than
+    /// <paramref name="latestCancellableStatus"/> - Placed for the buyer
+    /// themselves, Processing for staff; never once it has been sent. The
+    /// status check and the restock happen in one transaction, so two
+    /// cancel requests at once can't put the stock back twice. False if the
+    /// order doesn't exist or is already too far along.
+    /// </summary>
+    bool Cancel(int orderId, OrderStatus latestCancellableStatus);
 
     /// <summary>
     /// Hands a guest order over to an account, so it shows up in that

@@ -220,6 +220,10 @@
                                 <p data-en="@($"Status: {order.Status.DisplayName(order.DeliveryMethod, english: true)}")">
                                     Status: @order.Status.DisplayName(order.DeliveryMethod)
                                 </p>
+                                @if (order.TrackingNumber is not null)
+                                {
+                                    <p>Track &amp; trace: @order.TrackingNumber</p>
+                                }
                             </div>
                         </div>
 
@@ -280,10 +284,20 @@
                             <p class="cavy-meta" data-en="Pickup in store.">Afhentning i butikken.</p>
                         }
 
-                        <form method="post" asp-page-handler="Reorder">
-                            <input type="hidden" name="orderId" value="@order.OrderId" />
-                            <button type="submit" class="btn btn--quiet" data-en="Order these items again">Bestil disse varer igen</button>
-                        </form>
+                        <div class="actions">
+                            <form method="post" asp-page-handler="Reorder">
+                                <input type="hidden" name="orderId" value="@order.OrderId" />
+                                <button type="submit" class="btn btn--quiet" data-en="Order these items again">Bestil disse varer igen</button>
+                            </form>
+                            @if (order.Status == OrderStatus.Placed)
+                            {
+                                <form method="post" asp-page-handler="CancelOrder"
+                                      data-confirm="Vil du annullere denne ordre? Det kan ikke fortrydes.">
+                                    <input type="hidden" name="orderId" value="@order.OrderId" />
+                                    <button type="submit" class="btn btn--quiet" data-en="Cancel this order">Annullér denne ordre</button>
+                                </form>
+                            }
+                        </div>
                     </div>
                 }
             }

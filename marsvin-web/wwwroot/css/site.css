@@ -958,6 +958,165 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .payment-card .ship-only { display: none; flex-direction: column; gap: 1.25rem; }
 .payment-card:has(input[name="Input.DeliveryMethod"][value="Shipping"]:checked) .ship-only { display: flex; }
 
+/* ---- Contact, FAQ, donation and brand pages --------------------------- */
+.auth-form textarea {
+    font: inherit;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--meadow);
+    resize: vertical;
+}
+.auth-form textarea:focus-visible { border-color: var(--fleece); }
+
+.contact-grid { grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); margin-top: 0; }
+.contact-side { display: flex; flex-direction: column; gap: 1.25rem; }
+.contact-form { margin-top: 0; }
+.contact-form label, .contact-form input, .contact-form select, .contact-form textarea { font-size: 1.0625rem; }
+.contact-links { margin: 0.6rem 0; padding-left: 1.2rem; }
+
+.faq-item { border-bottom: 1px solid var(--line); padding: 0.85rem 0; }
+.faq-item summary { cursor: pointer; font-weight: 700; }
+.faq-item summary:hover { color: var(--fleece); }
+.faq-item p { margin: 0.6rem 0 0; }
+
+/* A staff-table cell holding text a visitor typed: keep their line breaks,
+   and never let one long word push the table off the page. */
+.message-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.filters--brands { margin-top: -0.5rem; }
+.brand-tag { margin: 0; color: var(--bark); font-size: 0.85rem; font-weight: 700; }
+.brand-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.25rem; }
+.brand-list a { display: block; height: 100%; text-decoration: none; color: inherit; }
+.brand-list a:hover .receipt-card { border-color: var(--fleece); }
+.brand-list h3 { border-bottom: none; padding-bottom: 0; margin-bottom: 0.4rem; }
+
+/* Donation form: the amount for money, the description for products - same
+   no-JS :has() switch as the payment page's card/MobilePay fields. */
+.donation-form .donation-products { display: none; }
+.donation-form:has(input[name="Input.Kind"][value="Products"]:checked) .donation-products { display: flex; }
+.donation-form:has(input[name="Input.Kind"][value="Products"]:checked) p.donation-products { display: block; }
+.donation-form:has(input[name="Input.Kind"][value="Products"]:checked) .donation-money { display: none; }
+
+/* Payment page: company name and CVR only when "company" is chosen. */
+.buyer-type { display: flex; flex-direction: column; gap: 0.6rem; }
+.payment-card .company-only { display: none; flex-direction: column; gap: 1.25rem; }
+.payment-card:has(input[name="Input.BuyerType"][value="Company"]:checked) .company-only { display: flex; }
+
+/* ---- Support chat bubble (see _Layout.cshtml, chat.js) ----------------- */
+.chat { position: fixed; right: 1rem; bottom: 1rem; z-index: 90; }
+/* The button is the guinea pig itself, peeking over a little speech label. */
+.chat-toggle {
+    list-style: none;
+    cursor: pointer;
+    margin-left: auto;
+    width: max-content;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.chat-toggle::-webkit-details-marker { display: none; }
+.chat-pig { width: 5.2rem; height: auto; display: block; filter: drop-shadow(0 6px 8px rgba(35, 48, 31, 0.3)); transition: transform 0.2s ease; }
+.chat-toggle:hover .chat-pig { transform: translateY(-4px) rotate(-4deg); }
+.chat-toggle-label {
+    margin-top: -0.5rem;
+    background: var(--fleece);
+    color: var(--paper);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.3rem 0.9rem;
+    border-radius: 999px;
+    box-shadow: 0 4px 12px rgba(35, 48, 31, 0.3);
+}
+.chat-toggle:hover .chat-toggle-label { background: #9c3159; }
+.chat-head { display: flex; align-items: center; gap: 0.6rem; border-bottom: 1px solid var(--line); padding-bottom: 0.6rem; }
+.chat-head div { display: flex; flex-direction: column; line-height: 1.3; }
+.chat-head span { font-size: 0.85rem; color: var(--bark); }
+.chat-pig--small { width: 3rem; filter: none; }
+.chat-panel {
+    width: min(22rem, calc(100vw - 2rem));
+    margin-bottom: 0.6rem;
+    background: var(--paper);
+    border: 1px solid var(--bark);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(35, 48, 31, 0.3);
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+/* The panel sits above the button, not below it. */
+.chat[open] { display: flex; flex-direction: column-reverse; }
+.chat-intro { margin: 0; font-size: 0.85rem; color: var(--bark); }
+.chat-log { display: flex; flex-direction: column; gap: 0.5rem; max-height: 18rem; overflow-y: auto; }
+.chat-msg { margin: 0; padding: 0.5rem 0.75rem; border-radius: 10px; font-size: 0.95rem; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 90%; }
+.chat-msg--user { align-self: flex-end; background: var(--meadow); color: var(--paper); }
+.chat-msg--bot { align-self: flex-start; background: var(--hay); border-bottom-left-radius: 2px; }
+.chat-msg--user { border-bottom-right-radius: 2px; }
+.chat-form { display: flex; gap: 0.5rem; }
+.chat-form input { flex: 1; min-width: 0; font: inherit; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--meadow); }
+.chat-form .btn { padding: 0.5rem 0.9rem; }
+
+/* ---- Cart/Confirmation: the receipt ------------------------------------
+   Who / where / what was paid as three cards of label-value pairs (the same
+   .pay-facts as the payment page), instead of a run of loose sentences. */
+.receipt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0 2rem;
+    align-items: start;
+}
+.receipt-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.25rem 1.4rem 1.4rem;
+}
+.receipt-card h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    margin: 0 0 0.9rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--line);
+}
+/* A long email address or street name wraps instead of pushing the card wider. */
+.receipt-card dd { overflow-wrap: anywhere; }
+.receipt-card .field-hint { display: block; margin: 0.9rem 0 0; }
+
+.order-cancelled { margin: 2rem 0 0; border-left-color: #7A1F3D; }
+.order-cancel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-bottom: 2rem; }
+.order-status-form { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+.order-status-form select,
+.order-status-form input { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--meadow); max-width: 12rem; }
+.receipt-card .pay-note { margin: 0.9rem 0 0; }
+
+.order-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0 0;
+}
+.order-steps li {
+    flex: 1 1 9rem;
+    text-align: center;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--bark);
+}
+.order-steps li.is-done { background: rgba(116, 150, 74, 0.2); color: var(--meadow); }
+.order-steps li.is-current {
+    background: var(--meadow);
+    border-color: var(--meadow);
+    color: var(--paper);
+    font-weight: 700;
+}
+
 /* The guest's "or make an account" offer: present, but not louder than
    the two fields the guest actually has to fill in. */
 .pay-account-offer {

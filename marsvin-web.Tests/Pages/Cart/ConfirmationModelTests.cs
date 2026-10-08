@@ -27,7 +27,7 @@ public class ConfirmationModelTests(SqlCatalogFixture fixture)
         var owner = NewCustomerId();
         _cart.AddOrIncrement(owner, 104, 1);
         var order = _orders.Checkout(owner).Order!;
-        var model = new ConfirmationModel(_orders) { PageContext = TestAuth.ContextFor(owner, "Customer") };
+        var model = new ConfirmationModel(_orders, _users, new LoggingEmailSender(Microsoft.Extensions.Logging.Abstractions.NullLogger<LoggingEmailSender>.Instance)) { PageContext = TestAuth.ContextFor(owner, "Customer") };
 
         var result = model.OnGet(order.OrderId);
 
@@ -42,7 +42,7 @@ public class ConfirmationModelTests(SqlCatalogFixture fixture)
         var stranger = NewCustomerId();
         _cart.AddOrIncrement(owner, 104, 1);
         var order = _orders.Checkout(owner).Order!;
-        var model = new ConfirmationModel(_orders) { PageContext = TestAuth.ContextFor(stranger, "Customer") };
+        var model = new ConfirmationModel(_orders, _users, new LoggingEmailSender(Microsoft.Extensions.Logging.Abstractions.NullLogger<LoggingEmailSender>.Instance)) { PageContext = TestAuth.ContextFor(stranger, "Customer") };
 
         var result = model.OnGet(order.OrderId);
 

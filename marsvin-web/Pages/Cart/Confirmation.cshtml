@@ -1,5 +1,6 @@
 @page "{orderId:int}"
 @model MarsvinWebExample.Pages.Cart.ConfirmationModel
+@using System.Security.Claims
 @{
     ViewData["Title"] = "Tak for din bestilling";
     ViewData["TitleEn"] = "Thank you for your order";
@@ -36,67 +37,165 @@
             </tbody>
         </table>
         <div class="cart-summary">
-            @if (Model.Order.DeliveryMethod == DeliveryMethod.Shipping)
-            {
-                <span data-en="@($"Items: {Model.Order.ItemsTotal:N0} kr. + shipping: {Model.Order.ShippingCost:N0} kr.")">
-                    Varer: @Model.Order.ItemsTotal.ToString("N0") kr. + fragt: @Model.Order.ShippingCost.ToString("N0") kr.
-                </span>
-            }
-            <span class="cart-total"><span data-en="Total">I alt</span>: @Model.Order.TotalPrice.ToString("N0") kr.</span>
+            <span class="cart-total"><span data-en="Items total">Varer i alt</span>: @Model.Order.ItemsTotal.ToString("N0") kr.</span>
         </div>
     </div>
 
-    <p data-en="@($"Status: {Model.Order.Status.DisplayName(Model.Order.DeliveryMethod, english: true)}")">
-        Status: @Model.Order.Status.DisplayName(Model.Order.DeliveryMethod)
-    </p>
-
-    <p data-en="@($"Paid with: {(Model.Order.PaymentMethod == PaymentMethod.Card ? "Card" : "MobilePay")} (demo)")">
-        Betalt med: @(Model.Order.PaymentMethod == PaymentMethod.Card ? "Kort" : "MobilePay") (demo)
-    </p>
-
     @{
-        var animalNames = Model.Order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName).ToList();
+        var order = Model.Order;
+        var shipped = order.DeliveryMethod == DeliveryMethod.Shipping;
+        var animalNames = order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName).ToList();
+        // A guest's name/email are on the order itself; a signed-in buyer's
+        // come from their own session (FindForUser already proved it's theirs).
+        var buyerName = order.GuestName ?? User.Identity?.Name;
+        var buyerEmail = order.GuestEmail ?? User.FindFirstValue(ClaimTypes.Email);
     }
-    @if (Model.Order.DeliveryMethod == DeliveryMethod.Shipping)
+
+    @* Where the order is right now, as four steps - the same four staff
+       move it through on Admin/Orders. *@
+    @if (order.Status == OrderStatus.Cancelled)
     {
-        @if (Model.Order.ShippingCarrier is ShippingCarrier carrier)
-        {
-            <p data-en="@($"Carrier: {carrier.DisplayName(english: true)}")">
-                Fragtselskab: @carrier.DisplayName()
-            </p>
-            <p data-en="@($"The accessories in this order are delivered to {carrier.DestinationText(Model.Order.ShippingAddress, english: true)}.")">
-                Tilbehøret i denne ordre leveres til @carrier.DestinationText(Model.Order.ShippingAddress).
-            </p>
-        }
-        @if (Model.Order.ExpectedDelivery is var (earliest, latest))
-        {
-            <p data-en="@($"Expected delivery: {ShippingCalculator.FormatWindow(earliest, latest)} (an estimate, weekdays only).")">
-                Forventet levering: @ShippingCalculator.FormatWindow(earliest, latest) (et skøn, kun hverdage).
-            </p>
-        }
-        @if (Model.Order.ShippingWeightGrams is int grams && Model.Order.ParcelCount is int parcels)
-        {
-            <p data-en="@($"Total weight: {ShippingCalculator.FormatWeight(grams, english: true)}, sent as {(parcels == 1 ? "1 parcel" : $"{parcels} parcels")}.")">
-                Samlet vægt: @ShippingCalculator.FormatWeight(grams), sendes som @(parcels == 1 ? "1 pakke" : $"{parcels} pakker").
-            </p>
-        }
-        @if (animalNames.Count > 0)
-        {
-            <p class="cavy-meta" data-en="@($"{string.Join(" and ", animalNames)} still needs to be picked up in store - a guinea pig can't be shipped, regardless of the rest of the order.")">
-                @string.Join(" og ", animalNames) skal stadig afhentes i
-                butikken - et marsvin kan ikke sendes med fragt, uanset resten
-                af ordren.
-            </p>
-        }
+        <p class="pay-note order-cancelled" data-en="@($"This order has been cancelled. The {order.TotalPrice:N0} kr. goes back to you (demo - nothing was ever charged).")">
+            Denne ordre er annulleret. Beløbet på @order.TotalPrice.ToString("N0") kr. føres tilbage til dig (demo - der blev aldrig trukket noget).
+        </p>
     }
     else
     {
-        <p data-en="This order is picked up in store.">
-            Denne ordre afhentes i butikken.
-        </p>
+    <ol class="order-steps" aria-label="Ordrestatus" data-en-aria-label="Order status">
+        @foreach (var status in Enum.GetValues<OrderStatus>().Where(s => s != OrderStatus.Cancelled))
+        {
+            var state = status == order.Status ? "is-current" : status < order.Status ? "is-done" : "";
+            <li class="@state" aria-current="@(status == order.Status ? "step" : null)"
+                data-en="@status.DisplayName(order.DeliveryMethod, english: true)">@status.DisplayName(order.DeliveryMethod)</li>
+        }
+    </ol>
     }
 
-    @if (Model.Order.UserId is null)
+    <div class="receipt-grid">
+        <section class="receipt-card">
+            <h3 data-en="Your details">Dine oplysninger</h3>
+            <dl class="pay-facts">
+                <dt data-en="Name">Navn</dt>
+                <dd>@buyerName</dd>
+                <dt data-en="Email">E-mail</dt>
+                <dd>@buyerEmail</dd>
+                @if (order.ContactPhone is not null)
+                {
+                    <dt data-en="Phone">Telefon</dt>
+                    <dd>@order.ContactPhone</dd>
+                }
+                @if (order.CompanyName is not null)
+                {
+                    <dt data-en="Company">Virksomhed</dt>
+                    <dd>@order.CompanyName</dd>
+                    <dt>CVR</dt>
+                    <dd>@order.CompanyCvr</dd>
+                }
+                <dt data-en="Order number">Ordrenummer</dt>
+                <dd>#@order.OrderId</dd>
+            </dl>
+        </section>
+
+        <section class="receipt-card">
+            <h3 data-en="Delivery">Levering</h3>
+            <dl class="pay-facts">
+                @if (shipped && order.ShippingCarrier is ShippingCarrier carrier)
+                {
+                    <dt data-en="Method">Leveringsmåde</dt>
+                    <dd data-en="@($"Shipped with {carrier.DisplayName(english: true)}")">Sendes med @carrier.DisplayName()</dd>
+                    <dt data-en="Delivered to">Leveres til</dt>
+                    @if (carrier.DeliversToParcelShop())
+                    {
+                        <dd data-en="@($"Pick-up point near {order.ShippingAddress}")">Udleveringssted nær @order.ShippingAddress</dd>
+                    }
+                    else
+                    {
+                        <dd>@order.ShippingAddress</dd>
+                    }
+                    @if (order.ExpectedDelivery is var (earliest, latest))
+                    {
+                        <dt data-en="Expected delivery">Forventet levering</dt>
+                        <dd>@ShippingCalculator.FormatWindow(earliest, latest)</dd>
+                    }
+                    @if (order.TrackingNumber is not null)
+                    {
+                        <dt>Track &amp; trace</dt>
+                        <dd>@order.TrackingNumber</dd>
+                    }
+                    @if (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels)
+                    {
+                        <dt data-en="Shipment">Forsendelse</dt>
+                        <dd data-en="@($"{ShippingCalculator.FormatWeight(grams, english: true)} in {(parcels == 1 ? "1 parcel" : $"{parcels} parcels")}")">@ShippingCalculator.FormatWeight(grams) i @(parcels == 1 ? "1 pakke" : $"{parcels} pakker")</dd>
+                    }
+                    @if (animalNames.Count > 0)
+                    {
+                        <dt data-en="Picked up in store">Afhentes i butikken</dt>
+                        <dd>@string.Join(", ", animalNames)</dd>
+                    }
+                }
+                else
+                {
+                    <dt data-en="Method">Leveringsmåde</dt>
+                    <dd data-en="Pickup in store">Afhentning i butikken</dd>
+                    <dt data-en="Where">Hvor</dt>
+                    <dd data-en="Marsvin, Havnegade 12, 6700 Esbjerg">Marsvin, Havnegade 12, 6700 Esbjerg</dd>
+                    <dt data-en="Opening hours">Åbningstider</dt>
+                    <dd data-en="Thursday and Friday 14-18, Saturday 10-14">Torsdag og fredag 14-18, lørdag 10-14</dd>
+                }
+            </dl>
+            @if (shipped)
+            {
+                <p class="field-hint" data-en="@(order.ShippingCarrier?.DeliversToParcelShop() == true
+                    ? "The carrier picks the pick-up point nearest your address and messages you when the parcel is ready. Dates are day/month and an estimate (weekdays only)."
+                    : "Dates are day/month and an estimate (weekdays only).")">
+                    @if (order.ShippingCarrier?.DeliversToParcelShop() == true)
+                    {
+                        <text>Fragtselskabet vælger det nærmeste udleveringssted og giver besked, når pakken er klar.</text>
+                    }
+                    Datoer er dag/måned og et skøn (kun hverdage).
+                </p>
+            }
+        </section>
+
+        <section class="receipt-card">
+            <h3 data-en="Payment">Betaling</h3>
+            <dl class="pay-facts">
+                <dt data-en="Paid with">Betalt med</dt>
+                <dd data-en="@($"{(order.PaymentMethod == PaymentMethod.Card ? "Card" : "MobilePay")} (demo)")">@(order.PaymentMethod == PaymentMethod.Card ? "Kort" : "MobilePay") (demo)</dd>
+                <dt data-en="Items">Varer</dt>
+                <dd>@order.ItemsTotal.ToString("N0") kr.</dd>
+                <dt data-en="Shipping">Fragt</dt>
+                @if (shipped)
+                {
+                    <dd>@order.ShippingCost.ToString("N0") kr.</dd>
+                }
+                else
+                {
+                    <dd data-en="Free">Gratis</dd>
+                }
+                @if (order.CompanyName is not null)
+                {
+                    <dt data-en="Of which VAT (25%)">Heraf moms (25 %)</dt>
+                    <dd>@order.VatAmount.ToString("N2") kr.</dd>
+                }
+                <dt class="pay-total" data-en="Total">I alt</dt>
+                <dd class="pay-total">@order.TotalPrice.ToString("N0") kr.</dd>
+            </dl>
+        </section>
+    </div>
+
+    @if (order.Status == OrderStatus.Placed)
+    {
+        <form method="post" asp-page-handler="Cancel" class="order-cancel"
+              data-confirm="Vil du annullere denne ordre? Det kan ikke fortrydes.">
+            <button type="submit" class="btn btn--quiet" data-en="Cancel this order">Annullér denne ordre</button>
+            <span class="field-hint" data-en="Free for as long as the order is only 'received' - once we've started packing it, contact the shop instead.">
+                Gratis, så længe ordren kun er "modtaget" - når vi er begyndt at pakke den, skal du kontakte butikken i stedet.
+            </span>
+        </form>
+    }
+
+    @if (Model.Order.UserId is null && order.Status != OrderStatus.Cancelled)
     {
         @* A guest's receipt lives only in this browser session and the
            confirmation email. Registering with the same email address, from

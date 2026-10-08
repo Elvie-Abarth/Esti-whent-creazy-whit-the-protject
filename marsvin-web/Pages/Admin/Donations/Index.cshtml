@@ -1,0 +1,72 @@
+@page
+@model MarsvinWebExample.Pages.Admin.Donations.IndexModel
+@{
+    ViewData["Title"] = "Donationer (personale)";
+    ViewData["TitleEn"] = "Donations (staff)";
+}
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Donations">Donationer</h2>
+            <p data-en="@($"The most recent 200 donations. Money pledged (demo): {Model.MoneyTotal:N0} kr. Product donations need a reply to arrange the hand-over.")">
+                De seneste 200 donationer. Doneret beløb (demo): @Model.MoneyTotal.ToString("N0") kr.
+                Varedonationer skal have et svar, så afleveringen kan aftales.
+            </p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.Items.Count == 0)
+    {
+        <p data-en="No donations yet.">Ingen donationer endnu.</p>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th data-en="When">Hvornår</th>
+                    <th data-en="Donation">Donation</th>
+                    <th data-en="From">Fra</th>
+                    <th data-en="Message">Hilsen</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var donation in Model.Items)
+                {
+                    <tr>
+                        <td>@donation.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
+                        <td>
+                            @if (donation.Kind == DonationKind.Money)
+                            {
+                                <strong>@donation.AmountKr?.ToString("N0") kr.</strong>
+                            }
+                            else
+                            {
+                                <strong data-en="Products">Varer</strong><br /><span class="message-body">@donation.ItemDescription</span>
+                            }
+                        </td>
+                        <td>
+                            @if (donation.DonorName is null && donation.DonorEmail is null)
+                            {
+                                <span class="cavy-meta" data-en="Anonymous">Anonym</span>
+                            }
+                            else
+                            {
+                                @donation.DonorName
+                                @if (donation.DonorEmail is not null)
+                                {
+                                    <br /><a class="cavy-meta" href="mailto:@donation.DonorEmail">@donation.DonorEmail</a>
+                                }
+                            }
+                        </td>
+                        <td class="message-body">@donation.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

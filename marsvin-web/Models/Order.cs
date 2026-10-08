@@ -57,6 +57,27 @@ public sealed record Order
 
     public decimal ItemsTotal => TotalPrice - ShippingCost;
 
+    /// <summary>
+    /// Set (together with <see cref="CompanyCvr"/>) when the order was placed
+    /// on behalf of a company - shown on the receipt with the VAT amount, the
+    /// way a company needs it for its bookkeeping. Null for a private purchase.
+    /// </summary>
+    public string? CompanyName { get; init; }
+
+    public string? CompanyCvr { get; init; }
+
+    /// <summary>Danish prices include 25% VAT, so the VAT is a fifth of the total.</summary>
+    public decimal VatAmount => Math.Round(TotalPrice * 0.2m, 2);
+
+    /// <summary>The carrier's track-and-trace number, typed in by staff when the parcel is handed over. Null until then.</summary>
+    public string? TrackingNumber { get; init; }
+
+    /// <summary>Given at checkout so the shop or the carrier can reach the buyer about this order. Null if none was given.</summary>
+    public string? ContactPhone { get; init; }
+
+    /// <summary>The buyer confirmed being 16 or older - asked only when the order contains a guinea pig.</summary>
+    public bool AgeConfirmed { get; init; }
+
     /// <summary>Estimated delivery dates, counted from the day the order was placed. Null for a pickup order.</summary>
     public (DateOnly Earliest, DateOnly Latest)? ExpectedDelivery =>
         DeliveryMethod == DeliveryMethod.Shipping && ShippingCarrier is ShippingCarrier carrier

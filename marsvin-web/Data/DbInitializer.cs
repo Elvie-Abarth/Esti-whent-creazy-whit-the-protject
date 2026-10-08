@@ -22,9 +22,11 @@ public static class DbInitializer
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
-        var weightsNeedBackfill = StockProductsLackWeightColumn(connection);
+        var weightsNeedBackfill = StockProductsLackColumn(connection, "WeightGrams");
+        var brandsNeedBackfill = StockProductsLackColumn(connection, "Brand");
         RunSchemaScript(connection);
         if (weightsNeedBackfill) BackfillDemoWeights(connection);
+        if (brandsNeedBackfill) BackfillDemoBrands(connection);
         SeedIfEmpty(connection);
         SeedAccountsIfEmpty(connection);
     }
@@ -59,17 +61,31 @@ public static class DbInitializer
         command.ExecuteNonQuery();
     }
 
-    // True only for a database from before WeightGrams existed (an existing
-    // StockProducts table without the column) - never for a brand new one,
+    // True only for a database from before the column existed (an existing
+    // StockProducts table without it) - never for a brand new one,
     // which SeedIfEmpty fills with the right weights anyway.
-    private static bool StockProductsLackWeightColumn(SqlConnection connection)
+    private static bool StockProductsLackColumn(SqlConnection connection, string column)
     {
         using var command = new SqlCommand(
             """
             SELECT CASE WHEN OBJECT_ID('dbo.StockProducts', 'U') IS NOT NULL
-                         AND COL_LENGTH('dbo.StockProducts', 'WeightGrams') IS NULL THEN 1 ELSE 0 END;
+                         AND COL_LENGTH('dbo.StockProducts', @Column) IS NULL THEN 1 ELSE 0 END;
             """, connection);
+        command.Parameters.AddWithValue("@Column", column);
         return (int)command.ExecuteScalar()! == 1;
+    }
+
+    // Same once-only rule as BackfillDemoWeights below, for the Brand column.
+    private static void BackfillDemoBrands(SqlConnection connection)
+    {
+        foreach (var item in new DemoCatalog().Accessories.Where(a => a.Brand is not null))
+        {
+            using var command = new SqlCommand(
+                "UPDATE dbo.StockProducts SET Brand = @Brand WHERE Sku = @Sku;", connection);
+            command.Parameters.AddWithValue("@Brand", item.Brand);
+            command.Parameters.AddWithValue("@Sku", item.Sku);
+            command.ExecuteNonQuery();
+        }
     }
 
     // Runs exactly once, on the startup that adds the column: every existing
@@ -221,8 +237,8 @@ public static class DbInitializer
     {
         using var command = new SqlCommand(
             """
-            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl, WeightGrams)
-            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl, @WeightGrams);
+            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl, WeightGrams, Brand)
+            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl, @WeightGrams, @Brand);
             """, connection);
 
         command.Parameters.AddWithValue("@ProductId", item.ProductId);
@@ -232,6 +248,7 @@ public static class DbInitializer
         command.Parameters.AddWithValue("@Unit", (object?)item.Unit ?? DBNull.Value);
         command.Parameters.AddWithValue("@PhotoUrl", (object?)item.PhotoUrl ?? DBNull.Value);
         command.Parameters.AddWithValue("@WeightGrams", item.WeightGrams);
+        command.Parameters.AddWithValue("@Brand", (object?)item.Brand ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 }

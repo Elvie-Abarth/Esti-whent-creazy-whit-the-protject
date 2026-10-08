@@ -62,7 +62,9 @@ public enum OrderStatus
     /// <summary>Handed to the carrier - or, for a pickup order, ready to be collected.</summary>
     Sent,
     /// <summary>Delivered - or, for a pickup order, collected.</summary>
-    Completed
+    Completed,
+    /// <summary>Called off before it was sent; its items are back in stock. Final - never changed again.</summary>
+    Cancelled
 }
 
 public static class OrderStatusExtensions
@@ -82,6 +84,7 @@ public static class OrderStatusExtensions
             OrderStatus.Completed => shipping
                 ? (english ? "Delivered" : "Leveret")
                 : (english ? "Picked up" : "Afhentet"),
+            OrderStatus.Cancelled => english ? "Cancelled" : "Annulleret",
             _ => status.ToString()
         };
     }

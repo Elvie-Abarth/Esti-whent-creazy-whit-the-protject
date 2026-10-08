@@ -22,6 +22,18 @@
                 <p data-en="See who's working when, or assign a shift.">Se hvem der arbejder hvornår, eller tilføj en vagt.</p>
             </a>
         </li>
+        <li>
+            <a asp-page="/Admin/Messages/Index">
+                <h3 data-en="Messages">Beskeder</h3>
+                <p data-en="What customers have written through the contact form.">Hvad kunderne har skrevet via kontaktformularen.</p>
+            </a>
+        </li>
+        <li>
+            <a asp-page="/Admin/Donations/Index">
+                <h3 data-en="Donations">Donationer</h3>
+                <p data-en="Amounts and items given towards rehomed guinea pigs.">Beløb og varer givet til genplacerede marsvin.</p>
+            </a>
+        </li>
         @if (User.IsInRole("Admin"))
         {
             <li>

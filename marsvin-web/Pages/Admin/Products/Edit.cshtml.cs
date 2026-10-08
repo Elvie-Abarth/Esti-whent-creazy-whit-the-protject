@@ -42,6 +42,7 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
             Price = item.Price,
             StockQuantity = item.StockQuantity,
             WeightGrams = item.WeightGrams,
+            Brand = item.Brand,
             Unit = item.Unit,
             PhotoUrl = item.PhotoUrl
         };
@@ -72,6 +73,7 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
             Price = Input.Price,
             StockQuantity = Input.StockQuantity,
             WeightGrams = Input.WeightGrams,
+            Brand = string.IsNullOrWhiteSpace(Input.Brand) ? null : Input.Brand.Trim(),
             Unit = Input.Unit,
             PhotoUrl = Input.PhotoUrl
         };
@@ -122,6 +124,9 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
 
         [StringLength(20)]
         public string? Unit { get; set; }
+
+        [StringLength(100)]
+        public string? Brand { get; set; }
 
         [StringLength(300)]
         public string? PhotoUrl { get; set; }

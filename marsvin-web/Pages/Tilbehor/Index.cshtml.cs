@@ -11,6 +11,11 @@ public class IndexModel(ICatalog catalog) : PageModel
     public AccessoryCategory? Active { get; private set; }
     public string? Query { get; private set; }
 
+    /// <summary>The brand being filtered by - always one that actually exists in the catalog, or null.</summary>
+    public string? ActiveBrand { get; private set; }
+
+    public IReadOnlyList<string> Brands { get; private set; } = [];
+
     [TempData]
     public string? ErrorMessage { get; set; }
 
@@ -25,13 +30,19 @@ public class IndexModel(ICatalog catalog) : PageModel
         (AccessoryCategory.Care,    "Pleje",    "Care")
     ];
 
-    public void OnGet(string? kategori = null, string? q = null)
+    public void OnGet(string? kategori = null, string? q = null, string? maerke = null)
     {
         if (Enum.TryParse<AccessoryCategory>(kategori, ignoreCase: true, out var parsed))
             Active = parsed;
         Query = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
 
         Items = catalog.Accessories;
+        Brands = Items.Select(a => a.Brand).OfType<string>().Distinct().Order().ToList();
+        // Matched against the catalog's own list rather than echoed back: the
+        // page only ever shows a brand name that came from the database.
+        ActiveBrand = Brands.FirstOrDefault(b => string.Equals(b, maerke?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (ActiveBrand is not null)
+            Items = Items.Where(a => a.Brand == ActiveBrand).ToList();
         if (Active is not null)
             Items = Items.Where(a => a.Category == Active).ToList();
         if (Query is not null)
@@ -44,6 +55,7 @@ public class IndexModel(ICatalog catalog) : PageModel
             Items = Items.Where(a =>
                 a.Name.Contains(Query, StringComparison.OrdinalIgnoreCase) ||
                 (a.NameEn?.Contains(Query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (a.Brand?.Contains(Query, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 a.Description.Contains(Query, StringComparison.OrdinalIgnoreCase) ||
                 (a.DescriptionEn?.Contains(Query, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
         }

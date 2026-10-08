@@ -30,6 +30,9 @@ builder.Services.AddRazorPages(options =>
         "/Index", "/OmOs", "/Kontakt", "/Privatliv", "/BetalingOgLevering",
         "/Pasningsguide", "/PasningsguideHurtig", "/PasningsguideHurtigPdf",
         "/Foderliste", "/FoderlistePdf",
+        "/Faq", "/Maerker", "/Stoet",
+        // The chat bubble's endpoint - on every public page, guests included.
+        "/Chat",
         "/Marsvin/Index", "/Marsvin/Details", "/Tilbehor/Index",
         // Guest checkout - see the comments on each Cart page model.
         "/Cart/Index", "/Cart/Payment", "/Cart/Confirmation",
@@ -107,6 +110,19 @@ builder.Services.AddRateLimiter(options =>
             SegmentsPerWindow = 4,
             QueueLimit = 0
         }));
+
+    // The support chat (Pages/Chat): tighter than "auth" - a real
+    // conversation is a handful of questions a minute, and every answer
+    // reads the catalog from the database.
+    options.AddPolicy("chat", httpContext => RateLimitPartition.GetSlidingWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            SegmentsPerWindow = 4,
+            QueueLimit = 0
+        }));
 });
 
 var connectionString = builder.Configuration.GetConnectionString("MarsvinDb")
@@ -159,6 +175,12 @@ builder.Services.AddScoped<IPendingLoginStore>(_ => new SqlPendingLoginStore(con
 builder.Services.AddScoped<IShiftStore>(_ => new SqlShiftStore(connectionString));
 builder.Services.AddScoped<ITimeOffRequestStore>(_ => new SqlTimeOffRequestStore(connectionString));
 builder.Services.AddScoped<IAuditLogStore>(_ => new SqlAuditLogStore(connectionString));
+builder.Services.AddScoped<IInboxStore>(_ => new SqlInboxStore(connectionString));
+
+// The support chat ("Pip") is a keyword lookup over the shop's own public
+// facts - no AI service, no API key, nothing that costs money to run. See
+// Data/ChatAssistants.cs.
+builder.Services.AddScoped<IChatAssistant, KeywordChatAssistant>();
 
 // Singleton, not Scoped - the whole point is tracking failed attempts
 // across requests. LoginModel and ResetPasswordModel share this one

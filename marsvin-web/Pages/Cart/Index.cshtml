@@ -77,6 +77,64 @@
                 <a class="btn" asp-page="/Cart/Payment" data-en="Check out">Gennemfør køb</a>
             </div>
         </div>
+
+        <div class="receipt-grid">
+            <section class="receipt-card">
+                <h3 data-en="Delivery">Levering</h3>
+                <dl class="pay-facts">
+                    <dt data-en="Pickup in store">Afhentning i butikken</dt>
+                    <dd data-en="Free">Gratis</dd>
+                    @if (Model.CanShip)
+                    {
+                        <dt data-en="Shipping">Forsendelse</dt>
+                        @if (Model.CheapestShipping == 0)
+                        {
+                            <dd data-en="Free">Gratis</dd>
+                        }
+                        else
+                        {
+                            <dd data-en="@($"from {Model.CheapestShipping:N0} kr.")">fra @Model.CheapestShipping.ToString("N0") kr.</dd>
+                        }
+                        <dt data-en="Delivery time">Leveringstid</dt>
+                        <dd data-en="1-4 weekdays, depending on carrier">1-4 hverdage, afhængigt af fragtselskab</dd>
+                    }
+                </dl>
+                @if (Model.CanShip && Model.AmountToFreeShipping > 0)
+                {
+                    <p class="pay-note" data-en="@($"Add accessories for {Model.AmountToFreeShipping:N0} kr. more and shipping is free (free over {ShippingCalculator.FreeShippingThreshold:N0} kr.).")">
+                        Køb tilbehør for @Model.AmountToFreeShipping.ToString("N0") kr. mere, så er fragten gratis
+                        (gratis over @ShippingCalculator.FreeShippingThreshold.ToString("N0") kr.).
+                    </p>
+                }
+                else if (Model.CanShip)
+                {
+                    <p class="pay-note" data-en="You've reached free shipping.">Du har opnået gratis fragt.</p>
+                }
+                @if (Model.HasAnimal)
+                {
+                    <p class="field-hint" data-en="Guinea pigs are always picked up in store - they can't be shipped.">
+                        Marsvin afhentes altid i butikken - de kan ikke sendes.
+                    </p>
+                }
+            </section>
+
+            <section class="receipt-card">
+                <h3 data-en="Good to know">Godt at vide</h3>
+                <dl class="pay-facts">
+                    <dt data-en="Cancel">Fortryd</dt>
+                    <dd data-en="Free until we start packing your order">Gratis, indtil vi begynder at pakke ordren</dd>
+                    <dt data-en="Returns">Retur</dt>
+                    <dd data-en="14 days on accessories">14 dage på tilbehør</dd>
+                </dl>
+                <p class="field-hint" data-en="Items in your cart aren't reserved - they're only yours once you've checked out. That goes especially for the guinea pigs: there's only one of each.">
+                    Varer i kurven er ikke reserveret - de er først dine, når købet er gennemført.
+                    Det gælder især marsvinene: der findes kun ét af hvert.
+                </p>
+                <p class="field-hint">
+                    <a asp-page="/BetalingOgLevering" data-en="All terms for delivery, cancelling and returns">Alle vilkår for levering, fortrydelse og retur</a>
+                </p>
+            </section>
+        </div>
     }
 </div>
 

@@ -260,8 +260,29 @@ BEGIN
     ALTER TABLE dbo.Orders ADD ParcelCount INT NULL;
 END
 
--- 0 Placed, 1 Processing, 2 Sent / ready for pickup, 3 Delivered / picked up
--- (see OrderStatus). Not in the CREATE TABLE above - added here for new and
+-- Contact phone: for the carrier's "ready to collect" message, or the shop
+-- calling about a pickup - stored with the order only, never on the account.
+-- AgeConfirmed: the buyer ticked "I am 16 or older" for an order containing a
+-- guinea pig. A yes/no on purpose, not an age or a date of birth - the shop
+-- needs to know the rule was met, not how old anyone is.
+IF COL_LENGTH('dbo.Orders', 'ContactPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD ContactPhone NVARCHAR(30) NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'AgeConfirmed') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD AgeConfirmed BIT NOT NULL DEFAULT 0;
+END
+
+-- The carrier's track-and-trace number, typed in by staff on Admin/Orders.
+IF COL_LENGTH('dbo.Orders', 'TrackingNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD TrackingNumber NVARCHAR(50) NULL;
+END
+
+-- 0 Placed, 1 Processing, 2 Sent / ready for pickup, 3 Delivered / picked up,
+-- 4 Cancelled (see OrderStatus). Not in the CREATE TABLE above - added here for new and
 -- existing databases alike; orders from before it existed start at Placed.
 IF COL_LENGTH('dbo.Orders', 'Status') IS NULL
 BEGIN
@@ -387,5 +408,58 @@ BEGIN
         Action      NVARCHAR(100) NOT NULL, -- short machine-readable verb, e.g. "Product.Deleted"
         Details     NVARCHAR(1000) NOT NULL,
         CreatedAt   DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+
+-- Brand of an accessory (see Tilbehor's brand filter and the Maerker page).
+-- Added for new and existing databases alike; DbInitializer fills in the demo
+-- catalog's own brands once, the same way it does the weights.
+IF COL_LENGTH('dbo.StockProducts', 'Brand') IS NULL
+BEGIN
+    ALTER TABLE dbo.StockProducts ADD Brand NVARCHAR(100) NULL;
+END
+
+-- A company purchase (see Cart/Payment): both set together or not at all.
+IF COL_LENGTH('dbo.Orders', 'CompanyName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD CompanyName NVARCHAR(200) NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'CompanyCvr') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD CompanyCvr CHAR(8) NULL;
+END
+
+-- Messages from the public contact form (see Kontakt, read on Admin/Messages).
+-- OrderId is whatever number the sender typed - not a FK, and not proof the
+-- order is theirs.
+IF OBJECT_ID('dbo.ContactMessages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ContactMessages
+    (
+        ContactMessageId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name      NVARCHAR(200)  NOT NULL,
+        Email     NVARCHAR(256)  NOT NULL,
+        Topic     TINYINT        NOT NULL,   -- 0 Order, 1 GuineaPig, 2 Accessory, 3 Company, 4 Other
+        OrderId   INT            NULL,
+        Message   NVARCHAR(2000) NOT NULL,
+        CreatedAt DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+
+-- Donations towards rehomed guinea pigs (see Stoet, read on Admin/Donations).
+-- A money donation is a demo, like the checkout: recorded, never charged.
+IF OBJECT_ID('dbo.Donations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Donations
+    (
+        DonationId      INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Kind            TINYINT        NOT NULL,   -- 0 Money, 1 Products
+        AmountKr        DECIMAL(10, 2) NULL,       -- only for Money
+        ItemDescription NVARCHAR(500)  NULL,       -- only for Products
+        DonorName       NVARCHAR(200)  NULL,       -- optional for Money (anonymous is fine)
+        DonorEmail      NVARCHAR(256)  NULL,
+        Message         NVARCHAR(500)  NULL,
+        CreatedAt       DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END

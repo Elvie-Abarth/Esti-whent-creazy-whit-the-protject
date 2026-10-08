@@ -15,6 +15,17 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
     public IReadOnlyList<CartLine> Lines { get; private set; } = [];
     public decimal Total => Lines.Sum(l => l.LineTotal);
 
+    // What the cart page says about delivery before checkout: the cheapest
+    // shipping this cart qualifies for, and how far it is from free shipping.
+    // Display only - Checkout works the real price out itself.
+    public bool HasAnimal => Lines.Any(l => l.IsAnimal);
+    public bool CanShip => Lines.Any(l => !l.IsAnimal);
+    public decimal ShippableTotal => ShippingCalculator.ShippableTotal(Lines);
+    public decimal AmountToFreeShipping => Math.Max(0, ShippingCalculator.FreeShippingThreshold - ShippableTotal);
+    public decimal CheapestShipping =>
+        Enum.GetValues<ShippingCarrier>().Min(c => ShippingCalculator.Quote(
+            c, ShippingCalculator.ShippableWeightGrams(Lines), DateOnly.FromDateTime(DateTime.UtcNow), ShippableTotal).Cost);
+
     [TempData]
     public string? ErrorMessage { get; set; }
 

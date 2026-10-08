@@ -1,0 +1,94 @@
+@page
+@model MarsvinWebExample.Pages.StoetModel
+@{
+    ViewData["Title"] = "Støt marsvin i nød";
+    ViewData["TitleEn"] = "Support guinea pigs in need";
+}
+
+<div class="wrap section guide-intro">
+    <div class="section-head">
+        <h1 data-en="Support guinea pigs in need">Støt marsvin i nød</h1>
+        <p data-en="Some guinea pigs come back to us - an allergy, a move, a cage mate that died. We take them in, get them checked by a vet and find them a new home. A donation pays for their food, hay and vet visits while they wait.">
+            Nogle marsvin kommer tilbage til os - en allergi, en flytning, en
+            burkammerat der døde. Vi tager imod dem, får dem tjekket hos
+            dyrlægen og finder dem et nyt hjem. En donation betaler deres
+            foder, hø og dyrlægebesøg, mens de venter.
+        </p>
+    </div>
+</div>
+
+<section class="section">
+    <div class="wrap auth-page payment-wrap">
+        <form method="post" class="auth-form payment-card donation-form">
+            <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+
+            <fieldset>
+                <legend class="pay-step"><span class="pay-step-number">1</span> <span data-en="What would you like to give?">Hvad vil du gerne give?</span></legend>
+                <label class="checkbox-label delivery-option">
+                    <input type="radio" asp-for="Input.Kind" value="@DonationKind.Money" />
+                    <span class="option-body">
+                        <strong data-en="An amount">Et beløb</strong>
+                        <span data-en="Goes to food, hay and vet visits.">Går til foder, hø og dyrlægebesøg.</span>
+                    </span>
+                </label>
+                <label class="checkbox-label delivery-option">
+                    <input type="radio" asp-for="Input.Kind" value="@DonationKind.Products" />
+                    <span class="option-body">
+                        <strong data-en="Food, hay or equipment">Foder, hø eller udstyr</strong>
+                        <span data-en="Unopened food and hay, or a cage, house or bottle in good condition - handed in at the shop.">Uåbnet foder og hø, eller et bur, hus eller en flaske i god stand - afleveres i butikken.</span>
+                    </span>
+                </label>
+            </fieldset>
+
+            <fieldset class="donation-money">
+                <legend class="pay-step"><span class="pay-step-number">2</span> <span data-en="Amount">Beløb</span></legend>
+                <label>
+                    <span data-en="@($"Amount in kr. ({StoetModel.MinAmount}-{StoetModel.MaxAmount:N0})")">Beløb i kr. (@StoetModel.MinAmount-@StoetModel.MaxAmount.ToString("N0"))</span>
+                    <input asp-for="Input.AmountKr" type="number" min="@StoetModel.MinAmount" max="@StoetModel.MaxAmount" step="1" inputmode="numeric" />
+                    <span class="field-hint" data-en="50 kr. is hay for one guinea pig for a month. 300 kr. is a vet check.">50 kr. er hø til ét marsvin i en måned. 300 kr. er et dyrlægetjek.</span>
+                    <span asp-validation-for="Input.AmountKr" class="field-error"></span>
+                </label>
+                <p class="pay-note" data-en="Demo only: no money is taken and no payment details are asked for. The donation is just recorded.">
+                    Kun demo: der trækkes ingen penge, og du bliver ikke bedt om betalingsoplysninger. Donationen bliver blot registreret.
+                </p>
+            </fieldset>
+
+            <fieldset class="donation-products">
+                <legend class="pay-step"><span class="pay-step-number">2</span> <span data-en="What are you giving?">Hvad giver du?</span></legend>
+                <label>
+                    <span data-en="Describe it briefly">Beskriv det kort</span>
+                    <textarea asp-for="Input.ItemDescription" rows="3" maxlength="500" placeholder="Fx 2 poser timothy-hø og et træhus"></textarea>
+                    <span asp-validation-for="Input.ItemDescription" class="field-error"></span>
+                </label>
+                <p class="field-hint" data-en="Hand it in at Havnegade 12, 6700 Esbjerg, during opening hours - we'll write to you first to agree a day.">
+                    Afleveres på Havnegade 12, 6700 Esbjerg, i åbningstiden - vi skriver til dig først og aftaler en dag.
+                </p>
+            </fieldset>
+
+            <fieldset>
+                <legend class="pay-step"><span class="pay-step-number">3</span> <span data-en="About you">Om dig</span></legend>
+                <p class="field-hint donation-money" data-en="Optional - you're welcome to give anonymously.">Valgfrit - du må gerne give anonymt.</p>
+                <p class="field-hint donation-products" data-en="Needed, so we can arrange the hand-over with you.">Skal udfyldes, så vi kan aftale afleveringen med dig.</p>
+                <label>
+                    <span data-en="Name">Navn</span>
+                    <input asp-for="Input.DonorName" autocomplete="name" />
+                    <span asp-validation-for="Input.DonorName" class="field-error"></span>
+                </label>
+                <label>
+                    <span data-en="Email">E-mail</span>
+                    <input asp-for="Input.DonorEmail" type="email" autocomplete="email" />
+                    <span asp-validation-for="Input.DonorEmail" class="field-error"></span>
+                </label>
+                <label>
+                    <span data-en="A message for us (optional)">En hilsen til os (valgfrit)</span>
+                    <textarea asp-for="Input.Message" rows="2" maxlength="500"></textarea>
+                    <span asp-validation-for="Input.Message" class="field-error"></span>
+                </label>
+            </fieldset>
+
+            <partial name="_Recaptcha" />
+
+            <button type="submit" class="btn" data-en="Donate">Donér</button>
+        </form>
+    </div>
+</section>

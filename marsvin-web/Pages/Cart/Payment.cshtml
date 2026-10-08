@@ -75,10 +75,10 @@
     <form method="post" class="auth-form payment-card">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
-        @if (Model.IsGuest)
-        {
-            <fieldset>
-                <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Your details">Dine oplysninger</span></legend>
+        <fieldset>
+            <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Your details">Dine oplysninger</span></legend>
+            @if (Model.IsGuest)
+            {
                 <p data-en="You're checking out as a guest - no account needed. Your name and email are only used for the receipt.">
                     Du køber som gæst - ingen konto nødvendig. Navn og e-mail bruges kun til din kvittering.
                 </p>
@@ -92,6 +92,67 @@
                     <input asp-for="Input.GuestEmail" autocomplete="email" type="email" />
                     <span asp-validation-for="Input.GuestEmail" class="field-error"></span>
                 </label>
+            }
+            else
+            {
+                <p data-en="@($"Signed in as {User.Identity!.Name}. The receipt goes to your account's email address.")">
+                    Logget ind som @User.Identity!.Name. Kvitteringen sendes til din kontos e-mailadresse.
+                </p>
+            }
+
+            <label>
+                <span data-en="Phone number">Telefonnummer</span>
+                <input asp-for="Input.Phone" type="tel" autocomplete="tel" placeholder="12 34 56 78" />
+                <span class="field-hint" data-en="Needed for shipping - the carrier texts you when the parcel is on its way or ready to collect. Optional for pickup in store.">
+                    Skal udfyldes ved forsendelse - fragtselskabet sender en sms, når pakken er på vej eller klar til afhentning. Valgfrit ved afhentning i butikken.
+                </span>
+                <span asp-validation-for="Input.Phone" class="field-error"></span>
+            </label>
+
+            <div class="buyer-type">
+                <label class="checkbox-label delivery-option">
+                    <input type="radio" asp-for="Input.BuyerType" value="@BuyerType.Private" />
+                    <strong data-en="Private purchase">Privat køb</strong>
+                </label>
+                <label class="checkbox-label delivery-option">
+                    <input type="radio" asp-for="Input.BuyerType" value="@BuyerType.Company" />
+                    <span class="option-body">
+                        <strong data-en="Company, school or institution">Virksomhed, skole eller institution</strong>
+                        <span data-en="Company name and CVR number go on the receipt, with the VAT amount.">Firmanavn og CVR-nummer kommer på kvitteringen sammen med momsbeløbet.</span>
+                    </span>
+                </label>
+            </div>
+            <div class="company-only">
+                <label>
+                    <span data-en="Company name">Virksomhedens navn</span>
+                    <input asp-for="Input.CompanyName" autocomplete="organization" />
+                    <span asp-validation-for="Input.CompanyName" class="field-error"></span>
+                </label>
+                <label>
+                    <span data-en="CVR number">CVR-nummer</span>
+                    <input asp-for="Input.CompanyCvr" inputmode="numeric" maxlength="11" placeholder="12 34 56 74" />
+                    <span class="field-hint" data-en="8 digits.">8 cifre.</span>
+                    <span asp-validation-for="Input.CompanyCvr" class="field-error"></span>
+                </label>
+            </div>
+
+            @if (Model.HasAnimal)
+            {
+                @* A yes/no, not "how old are you?" - see PaymentInputModel.ConfirmAge16. *@
+                <label class="checkbox-label delivery-option">
+                    <input type="checkbox" asp-for="Input.ConfirmAge16" />
+                    <span class="option-body">
+                        <strong data-en="I am 16 or older">Jeg er fyldt 16 år</strong>
+                        <span data-en="By law, an animal can't be sold to anyone under 16 without a parent's consent. Under 16? Come to the shop with a parent instead.">
+                            Efter loven må et dyr ikke sælges til nogen under 16 år uden forældrenes samtykke. Under 16? Kom forbi butikken sammen med en forælder i stedet.
+                        </span>
+                        <span asp-validation-for="Input.ConfirmAge16" class="field-error"></span>
+                    </span>
+                </label>
+            }
+
+            @if (Model.IsGuest)
+            {
                 <div class="pay-account-offer">
                     <p data-en="Prefer an account? Then your details are saved and you can follow each order's status. Your cart comes with you.">
                         Hellere en konto? Så gemmes dine oplysninger, og du kan følge hver ordres status. Din kurv følger med.
@@ -101,8 +162,8 @@
                         <a asp-page="/Account/Login" asp-route-returnUrl="/Cart/Payment" data-en="Log in">Log ind</a>
                     </div>
                 </div>
-            </fieldset>
-        }
+            }
+        </fieldset>
 
         <fieldset>
             <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Delivery">Levering</span></legend>
@@ -123,7 +184,14 @@
                     <span class="option-body">
                         <span class="option-head">
                             <strong data-en="@(Model.HasAnimal ? "Ship the accessories" : "Have it shipped")">@(Model.HasAnimal ? "Få tilbehøret sendt" : "Få det sendt")</strong>
-                            <strong class="option-price" data-en="@($"from {Model.ShippingOptions.Min(o => o.Cost):N0} kr.")">fra @Model.ShippingOptions.Min(o => o.Cost).ToString("N0") kr.</strong>
+                            @if (Model.ShippingOptions.Min(o => o.Cost) == 0)
+                            {
+                                <strong class="option-price" data-en="Free">Gratis</strong>
+                            }
+                            else
+                            {
+                                <strong class="option-price" data-en="@($"from {Model.ShippingOptions.Min(o => o.Cost):N0} kr.")">fra @Model.ShippingOptions.Min(o => o.Cost).ToString("N0") kr.</strong>
+                            }
                         </span>
                         <span data-en="To your door or to a pick-up point near you">Til din dør eller til et udleveringssted nær dig</span>
                     </span>
@@ -167,7 +235,14 @@
                                 <span class="option-body">
                                     <span class="option-head">
                                         <strong data-en="@option.Carrier.DisplayName(english: true)">@option.Carrier.DisplayName()</strong>
-                                        <strong class="option-price">@option.Cost.ToString("N0") kr.</strong>
+                                        @if (option.Cost == 0)
+                                        {
+                                            <strong class="option-price" data-en="Free">Gratis</strong>
+                                        }
+                                        else
+                                        {
+                                            <strong class="option-price">@option.Cost.ToString("N0") kr.</strong>
+                                        }
                                     </span>
                                     <span class="pay-facts">
                                         <span data-en="Delivered to">Leveres til</span>
@@ -277,7 +352,14 @@
                             <dt data-en="Items">Varer</dt>
                             <dd>@Model.Total.ToString("N0") kr.</dd>
                             <dt data-en="@($"Shipping ({option.Carrier.DisplayName(english: true)})")">Fragt (@option.Carrier.DisplayName())</dt>
-                            <dd>@option.Cost.ToString("N0") kr.</dd>
+                            @if (option.Cost == 0)
+                            {
+                                <dd data-en="@($"Free - your order is over {ShippingCalculator.FreeShippingThreshold:N0} kr.")">Gratis - din ordre er over @ShippingCalculator.FreeShippingThreshold.ToString("N0") kr.</dd>
+                            }
+                            else
+                            {
+                                <dd>@option.Cost.ToString("N0") kr.</dd>
+                            }
                             <dt data-en="Delivered to">Leveres til</dt>
                             @if (option.Carrier.DeliversToParcelShop())
                             {
