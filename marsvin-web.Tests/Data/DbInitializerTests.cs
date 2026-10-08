@@ -30,9 +30,9 @@ public class DbInitializerTests
         using var connection = new SqlConnection(_fixture.ConnectionString);
         connection.Open();
 
-        Assert.Equal(12, CountRows(connection, "dbo.Animals"));
-        Assert.Equal(26, CountRows(connection, "dbo.StockProducts"));
-        Assert.Equal(38, CountRows(connection, "dbo.Products"));
+        Assert.Equal(13, CountRows(connection, "dbo.Animals"));
+        Assert.Equal(71, CountRows(connection, "dbo.StockProducts"));
+        Assert.Equal(84, CountRows(connection, "dbo.Products"));
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class DbInitializerTests
         using var connection = new SqlConnection(_fixture.ConnectionString);
         connection.Open();
 
-        Assert.Equal(38, CountRows(connection, "dbo.Products"));
+        Assert.Equal(84, CountRows(connection, "dbo.Products"));
     }
 
     private static int CountRows(SqlConnection connection, string table)

@@ -1,104 +1,307 @@
 @page
+@using MarsvinWebExample.Pages.Tilbehor
 @model MarsvinWebExample.Pages.Tilbehor.IndexModel
 @{
     ViewData["Title"] = "Tilbehør";
     ViewData["TitleEn"] = "Accessories";
+
+    var canBuy = !User.IsInRole("Employee") && !User.IsInRole("Admin");
+    var freeFrom = ShippingCalculator.FreeShippingThreshold;
+    var first = Model.Items.Count == 0 ? 0 : (Model.CurrentPage - 1) * IndexModel.PageSize + 1;
+    var last = first + Model.PageItems.Count - 1;
+    var activeCategory = IndexModel.Categories.FirstOrDefault(c => c.Value == Model.Active);
 }
 
-<section class="faq-hero">
-    <div class="wrap faq-hero-inner faq-hero-inner--text">
-        <div class="faq-hero-text">
+<section class="faq-hero shop-hero">
+    <div class="wrap">
+        <div class="shop-hero-text">
             <h1 data-en="Accessories">Tilbehør</h1>
-            <p data-en="Hay, food, cages, houses, toys and bedding. Everything is tested on our own animals.">Hø, foder, bure, huse, legetøj og strøelse. Alt er testet på vores egne dyr.</p>
+            <p data-en="@($"Hay, food, cages, houses, toys, bedding and care - {Model.TotalInShop} products we use for our own guinea pigs.")">
+                Hø, foder, bure, huse, legetøj, strøelse og pleje - @Model.TotalInShop varer, vi selv bruger til vores egne marsvin.
+            </p>
         </div>
+
+        <form method="get" class="shop-search" role="search" aria-label="Søg i tilbehør" data-en-aria-label="Search accessories">
+            @if (Model.Active is not null)
+            {
+                <input type="hidden" name="kategori" value="@Model.Active" />
+            }
+            @if (Model.ActiveBrand is not null)
+            {
+                <input type="hidden" name="maerke" value="@Model.ActiveBrand" />
+            }
+            @if (Model.ActivePrice is not null)
+            {
+                <input type="hidden" name="pris" value="@Model.ActivePrice.Key" />
+            }
+            @if (Model.Sort != IndexModel.Sorts[0])
+            {
+                <input type="hidden" name="sort" value="@Model.Sort.Key" />
+            }
+            <input type="search" name="q" value="@Model.Query" maxlength="60"
+                   placeholder="Søg efter hø, bur, Trixie ..." data-en-placeholder="Search for hay, cage, Trixie ..."
+                   aria-label="Søg i tilbehør" data-en-aria-label="Search accessories" />
+            <button type="submit" class="btn" data-en="Search">Søg</button>
+        </form>
+
+        <ul class="shop-promises">
+            <li data-en="@($"Free shipping from {freeFrom:N0} kr.")">Fri fragt fra @freeFrom.ToString("N0") kr.</li>
+            <li data-en="Sent with PostNord, GLS or DAO">Sendes med PostNord, GLS eller DAO</li>
+            <li data-en="Tested on our own animals">Testet på vores egne dyr</li>
+        </ul>
     </div>
 </section>
 
-<div class="wrap section">
+<div class="wrap section shop-section">
 
-    <form method="get" class="search-box" role="search" aria-label="Søg i tilbehør" data-en-aria-label="Search accessories">
-        @if (Model.Active is not null)
+    @* Shop by category: one tile each, with a real product photo from it. *@
+    <nav class="category-tiles" aria-label="Kategorier" data-en-aria-label="Categories">
+        @foreach (var (value, label, labelEn) in IndexModel.Categories)
         {
-            <input type="hidden" name="kategori" value="@Model.Active" />
-        }
-        @if (Model.ActiveBrand is not null)
-        {
-            <input type="hidden" name="maerke" value="@Model.ActiveBrand" />
-        }
-        <input type="search" name="q" value="@Model.Query"
-               placeholder="Søg..." data-en-placeholder="Search..."
-               aria-label="Søg i tilbehør" data-en-aria-label="Search accessories" />
-        <button type="submit" class="btn btn--quiet" data-en="Search">Søg</button>
-    </form>
-
-    <nav class="filters" aria-label="Filtrér efter kategori" data-en-aria-label="Filter by category">
-        <a class="filter" asp-page="/Tilbehor/Index" asp-route-q="@Model.Query" asp-route-maerke="@Model.ActiveBrand"
-           aria-current="@(Model.Active is null ? "true" : "false")" data-en="All">Alt</a>
-        @foreach (var (value, label, labelEn) in MarsvinWebExample.Pages.Tilbehor.IndexModel.Categories)
-        {
-            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@value" asp-route-q="@Model.Query" asp-route-maerke="@Model.ActiveBrand"
-               aria-current="@(Model.Active == value ? "true" : "false")" data-en="@labelEn">@label</a>
+            <a class="category-tile" href="@Model.CategoryUrl(value)" aria-current="@(Model.Active == value ? "true" : "false")">
+                @if (Model.CategoryPhotos.TryGetValue(value, out var tilePhoto))
+                {
+                    <img src="@tilePhoto" alt="" loading="lazy" width="96" height="96" />
+                }
+                <span data-en="@labelEn">@label</span>
+            </a>
         }
     </nav>
 
-    @if (Model.Brands.Count > 0)
-    {
-        <nav class="filters filters--brands" aria-label="Filtrér efter mærke" data-en-aria-label="Filter by brand">
-            <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@Model.Active" asp-route-q="@Model.Query"
-               aria-current="@(Model.ActiveBrand is null ? "true" : "false")" data-en="All brands">Alle mærker</a>
-            @foreach (var brand in Model.Brands)
-            {
-                <a class="filter" asp-page="/Tilbehor/Index" asp-route-kategori="@Model.Active" asp-route-q="@Model.Query" asp-route-maerke="@brand"
-                   aria-current="@(Model.ActiveBrand == brand ? "true" : "false")">@brand</a>
-            }
-        </nav>
-    }
-
-    @if (Model.Items.Count == 0)
-    {
-        <p data-en="No items match. Try another search or category, or call the shop.">Ingen varer matcher. Prøv en anden søgning eller kategori, eller ring til butikken.</p>
-    }
-    else
-    {
-        <ul class="goods">
-            @foreach (var item in Model.Items)
-            {
-                <li id="product-@item.ProductId">
-                    @if (!string.IsNullOrWhiteSpace(item.PhotoUrl))
+    <div class="shop">
+        <aside class="shop-filters" aria-label="Filtre" data-en-aria-label="Filters">
+            <details class="filter-group" open>
+                <summary data-en="Category">Kategori</summary>
+                <ul>
+                    <li>
+                        <a href="@Model.CategoryUrl(null)" aria-current="@(Model.Active is null ? "true" : "false")">
+                            <span data-en="All categories">Alle kategorier</span>
+                        </a>
+                    </li>
+                    @foreach (var (value, label, labelEn) in IndexModel.Categories)
                     {
-                        <img class="goods-photo" src="@item.PhotoUrl" alt="@(item.NameEn ?? item.Name)" />
+                        var count = Model.CategoryCounts.GetValueOrDefault(value);
+                        <li>
+                            <a href="@Model.CategoryUrl(value)" aria-current="@(Model.Active == value ? "true" : "false")"
+                               class="@(count == 0 ? "is-empty" : null)">
+                                <span data-en="@labelEn">@label</span>
+                                <span class="filter-count">@count</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </details>
+
+            <details class="filter-group" open>
+                <summary data-en="Price">Pris</summary>
+                <ul>
+                    <li>
+                        <a href="@Model.PriceUrl(null)" aria-current="@(Model.ActivePrice is null ? "true" : "false")">
+                            <span data-en="All prices">Alle priser</span>
+                        </a>
+                    </li>
+                    @foreach (var range in IndexModel.PriceRanges)
+                    {
+                        var count = Model.PriceCounts.GetValueOrDefault(range.Key);
+                        <li>
+                            <a href="@Model.PriceUrl(range)" aria-current="@(Model.ActivePrice == range ? "true" : "false")"
+                               class="@(count == 0 ? "is-empty" : null)">
+                                <span data-en="@range.LabelEn">@range.Label</span>
+                                <span class="filter-count">@count</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </details>
+
+            @if (Model.Brands.Count > 0)
+            {
+                <details class="filter-group" open>
+                    <summary data-en="Brand">Mærke</summary>
+                    <ul>
+                        <li>
+                            <a href="@Model.BrandUrl(null)" aria-current="@(Model.ActiveBrand is null ? "true" : "false")">
+                                <span data-en="All brands">Alle mærker</span>
+                            </a>
+                        </li>
+                        @foreach (var brand in Model.Brands)
+                        {
+                            var count = Model.BrandCounts.GetValueOrDefault(brand);
+                            <li>
+                                <a href="@Model.BrandUrl(brand)" aria-current="@(Model.ActiveBrand == brand ? "true" : "false")"
+                                   class="@(count == 0 ? "is-empty" : null)">
+                                    <span>@brand</span>
+                                    <span class="filter-count">@count</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </details>
+            }
+        </aside>
+
+        <div class="shop-results" id="varer">
+            <div class="shop-toolbar">
+                <div>
+                    @if (activeCategory.Label is not null)
+                    {
+                        <h2 data-en="@activeCategory.LabelEn">@activeCategory.Label</h2>
                     }
                     else
                     {
-                        <partial name="_GoodsIcon" model="item" />
+                        <h2 data-en="All accessories">Alt tilbehør</h2>
                     }
-                    <p class="cat-tag" data-en="@item.CategoryNameEn">@item.CategoryName</p>
-                    @if (item.Brand is not null)
+                    @if (Model.Items.Count > 0)
                     {
-                        <p class="brand-tag">@item.Brand</p>
+                        <p class="shop-count" data-en="@($"Showing {first}-{last} of {Model.Items.Count} products")">
+                            Viser @first-@last af @Model.Items.Count varer
+                        </p>
                     }
-                    <h3 data-en="@(item.NameEn ?? item.Name)">@item.Name</h3>
-                    <p data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
-                    <span class="goods-foot">
-                        <span class="price">@item.Price.ToString("N0") kr.</span>
-                        <span class="@(item.StockLevel switch { StockLevel.OutOfStock => "stock stock--low", StockLevel.LowStock => "stock stock--low", _ => "stock" })"
-                              data-en="@item.StockLevelTextEn">
-                            @item.StockLevelText
-                        </span>
-                    </span>
-                    @* Guests can buy too (no [Authorize] on Cart/Index - see its
-                       own PageModel) - no login gate needed here anymore. *@
-                    @if (item.StockLevel != StockLevel.OutOfStock && !User.IsInRole("Employee") && !User.IsInRole("Admin"))
+                </div>
+
+                <form method="get" class="shop-sort" data-auto-submit>
+                    @if (Model.Active is not null)
                     {
-                        <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="goods-buy">
-                            <input type="hidden" name="productId" value="@item.ProductId" />
-                            <input type="hidden" name="quantity" value="1" />
-                            <input type="hidden" name="returnUrl" value="@(Request.Path + Request.QueryString)#product-@item.ProductId" />
-                            <button type="submit" class="goods-action" data-en="Add to cart">Læg i kurv</button>
-                        </form>
+                        <input type="hidden" name="kategori" value="@Model.Active" />
                     }
-                </li>
+                    @if (Model.ActiveBrand is not null)
+                    {
+                        <input type="hidden" name="maerke" value="@Model.ActiveBrand" />
+                    }
+                    @if (Model.ActivePrice is not null)
+                    {
+                        <input type="hidden" name="pris" value="@Model.ActivePrice.Key" />
+                    }
+                    @if (Model.Query is not null)
+                    {
+                        <input type="hidden" name="q" value="@Model.Query" />
+                    }
+                    <label for="sort" data-en="Sort by">Sortér efter</label>
+                    <select id="sort" name="sort">
+                        @foreach (var option in IndexModel.Sorts)
+                        {
+                            <option value="@option.Key" selected="@(Model.Sort == option)" data-en="@option.LabelEn">@option.Label</option>
+                        }
+                    </select>
+                    <button type="submit" class="btn btn--quiet" data-en="Show">Vis</button>
+                </form>
+            </div>
+
+            @if (Model.HasFilters)
+            {
+                <ul class="active-filters" aria-label="Valgte filtre" data-en-aria-label="Chosen filters">
+                    @if (Model.Query is not null)
+                    {
+                        <li><a href="@Model.WithoutQueryUrl()" aria-label="Fjern søgning" data-en-aria-label="Remove search">&ldquo;@Model.Query&rdquo; <span aria-hidden="true">&times;</span></a></li>
+                    }
+                    @if (activeCategory.Label is not null)
+                    {
+                        <li><a href="@Model.CategoryUrl(null)"><span data-en="@activeCategory.LabelEn">@activeCategory.Label</span> <span aria-hidden="true">&times;</span></a></li>
+                    }
+                    @if (Model.ActivePrice is not null)
+                    {
+                        <li><a href="@Model.PriceUrl(null)"><span data-en="@Model.ActivePrice.LabelEn">@Model.ActivePrice.Label</span> <span aria-hidden="true">&times;</span></a></li>
+                    }
+                    @if (Model.ActiveBrand is not null)
+                    {
+                        <li><a href="@Model.BrandUrl(null)"><span>@Model.ActiveBrand</span> <span aria-hidden="true">&times;</span></a></li>
+                    }
+                    <li><a class="active-filters-clear" href="@Model.ClearUrl()" data-en="Clear all">Ryd alle</a></li>
+                </ul>
             }
-        </ul>
-    }
+
+            @if (Model.Items.Count == 0)
+            {
+                <div class="shop-empty">
+                    <h3 data-en="Nothing matches">Ingen varer matcher</h3>
+                    <p data-en="Try another search word or remove a filter - or call the shop, and we'll help you find it.">
+                        Prøv et andet søgeord eller fjern et filter - eller ring til butikken, så hjælper vi dig med at finde det.
+                    </p>
+                    <a class="btn btn--quiet" href="@Model.ClearUrl()" data-en="See all accessories">Se alt tilbehør</a>
+                </div>
+            }
+            else
+            {
+                <ul class="products">
+                    @foreach (var item in Model.PageItems)
+                    {
+                        <li id="product-@item.ProductId" class="product-card">
+                            <div class="product-media">
+                                @if (!string.IsNullOrWhiteSpace(item.PhotoUrl))
+                                {
+                                    <img class="product-photo" src="@item.PhotoUrl" alt="@item.Name" data-en-alt="@(item.NameEn ?? item.Name)"
+                                         loading="lazy" width="400" height="400" />
+                                }
+                                else
+                                {
+                                    <partial name="_GoodsIcon" model="item" />
+                                }
+                                @if (item.StockLevel == StockLevel.OutOfStock)
+                                {
+                                    <span class="product-badge product-badge--out" data-en="Sold out">Udsolgt</span>
+                                }
+                                else if (item.Price >= freeFrom)
+                                {
+                                    <span class="product-badge" data-en="Free shipping">Fri fragt</span>
+                                }
+                            </div>
+
+                            <div class="product-body">
+                                <p class="product-brand">
+                                    @if (item.Brand is not null)
+                                    {
+                                        <span>@item.Brand</span>
+                                    }
+                                    else
+                                    {
+                                        <span data-en="@item.CategoryNameEn">@item.CategoryName</span>
+                                    }
+                                </p>
+                                <h3 data-en="@(item.NameEn ?? item.Name)">@item.Name</h3>
+                                <p class="product-desc" data-en="@(item.DescriptionEn ?? item.Description)">@item.Description</p>
+
+                                <div class="product-foot">
+                                    <span class="price">@item.Price.ToString("N0") kr.</span>
+                                    <span class="@(item.StockLevel == StockLevel.InStock ? "stock stock--ok" : "stock stock--low")"
+                                          data-en="@item.StockLevelTextEn">@item.StockLevelText</span>
+                                </div>
+
+                                @* Guests can buy too (no [Authorize] on Cart/Index - see its
+                                   own PageModel) - no login gate needed here. *@
+                                @if (item.StockLevel != StockLevel.OutOfStock && canBuy)
+                                {
+                                    <form method="post" asp-page="/Cart/Index" asp-page-handler="Add" class="product-buy">
+                                        <input type="hidden" name="productId" value="@item.ProductId" />
+                                        <input type="hidden" name="quantity" value="1" />
+                                        <input type="hidden" name="returnUrl" value="@(Request.Path + Request.QueryString)#product-@item.ProductId" />
+                                        <button type="submit" class="btn product-add" data-en="Add to cart">Læg i kurv</button>
+                                    </form>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+
+                @if (Model.PageCount > 1)
+                {
+                    <nav class="pager" aria-label="Sider" data-en-aria-label="Pages">
+                        @if (Model.CurrentPage > 1)
+                        {
+                            <a class="pager-step" href="@Model.PageUrl(Model.CurrentPage - 1)#varer" rel="prev" data-en="Previous">Forrige</a>
+                        }
+                        @for (var number = 1; number <= Model.PageCount; number++)
+                        {
+                            <a href="@Model.PageUrl(number)#varer" aria-current="@(number == Model.CurrentPage ? "page" : "false")">@number</a>
+                        }
+                        @if (Model.CurrentPage < Model.PageCount)
+                        {
+                            <a class="pager-step" href="@Model.PageUrl(Model.CurrentPage + 1)#varer" rel="next" data-en="Next">Næste</a>
+                        }
+                    </nav>
+                }
+            }
+        </div>
+    </div>
 </div>
+
+<script src="~/js/auto-submit.js" asp-append-version="true"></script>

@@ -2001,3 +2001,269 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 /* Sized to the plate rather than "at most" the plate: an SVG logo with no
    size of its own would otherwise spill out of it. */
 .brand-logo--image img { width: 100%; height: 100%; object-fit: contain; display: block; min-height: 0; min-width: 0; }
+
+/* A short form placed inside a page top, under its intro (forgot password). */
+.hero-form { max-width: 24rem; margin-top: 1.5rem; }
+.faq-hero-text .field-hint { margin-top: 1rem; }
+
+/* ------------------------------ accessories shop ----------------
+   The accessories page as a proper shop shelf: search and promises in the
+   page top, a tile per category, then filters in a column on the left and
+   the products on the right. Product photos are square on white, so the
+   photo area of a card is white too and the whole product always shows. */
+.shop-hero > .wrap { padding-block: clamp(1.75rem, 4vw, 3rem); }
+.shop-hero-text h1 { margin: 0.2rem 0 0.6rem; font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.1; }
+.shop-hero-text p { max-width: 40rem; margin: 0; }
+
+.shop-search { display: flex; gap: 0.5rem; margin-top: 1.4rem; max-width: 36rem; }
+.shop-search input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    color: var(--meadow);
+}
+.shop-search input:focus-visible { outline-offset: 0; }
+
+.shop-promises {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    margin: 1.2rem 0 0;
+    padding: 0;
+    font-size: 0.92rem;
+    color: var(--bark);
+}
+.shop-promises li::before { content: "\2713"; margin-right: 0.45rem; color: var(--grass); font-weight: 700; }
+
+.shop-section { padding-top: clamp(1.5rem, 3vw, 2.25rem); }
+
+.category-tiles {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+}
+.category-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.9rem 0.5rem 0.8rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.category-tile img {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 0.35rem;
+}
+.category-tile:hover { border-color: var(--grass); color: var(--meadow); box-shadow: 0 6px 16px rgba(44, 67, 39, 0.12); transform: translateY(-2px); }
+.category-tile[aria-current="true"] { border-color: var(--meadow); box-shadow: inset 0 0 0 1px var(--meadow); }
+
+.shop {
+    display: grid;
+    grid-template-columns: 14.5rem minmax(0, 1fr);
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    align-items: start;
+}
+
+.shop-filters {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.4rem 1rem;
+}
+.filter-group { padding: 0.75rem 0; }
+.filter-group + .filter-group { border-top: 1px solid var(--line); }
+.filter-group summary {
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.02rem;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.filter-group summary::-webkit-details-marker { display: none; }
+.filter-group summary::after { content: "+"; color: var(--bark); font-weight: 400; }
+.filter-group[open] summary::after { content: "\2212"; }
+.filter-group ul { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.filter-group a {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.22rem 0.5rem;
+    margin-inline: -0.5rem;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+.filter-group a:hover { background: var(--hay); color: var(--meadow); }
+.filter-group a[aria-current="true"] { background: var(--meadow); color: var(--hay); font-weight: 700; }
+.filter-group a[aria-current="true"] .filter-count { color: var(--hay); }
+.filter-group a.is-empty { color: var(--bark); opacity: 0.6; }
+.filter-count { font-size: 0.82rem; color: var(--bark); font-variant-numeric: tabular-nums; }
+
+.shop-results { scroll-margin-top: 1rem; }
+.shop-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--line);
+}
+.shop-toolbar h2 { font-size: clamp(1.4rem, 2.6vw, 1.8rem); margin: 0; }
+.shop-count { margin: 0.3rem 0 0; font-size: 0.92rem; color: var(--bark); }
+
+.shop-sort { display: flex; align-items: center; gap: 0.5rem; }
+.shop-sort label { font-size: 0.92rem; color: var(--bark); white-space: nowrap; }
+.shop-sort select {
+    font: inherit;
+    font-size: 0.95rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--meadow);
+}
+.shop-sort .btn { padding: 0.45rem 0.9rem; font-size: 0.9rem; }
+.shop-sort.is-auto .btn { display: none; }
+
+.active-filters { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0 0 1.25rem; padding: 0; }
+.active-filters a {
+    display: inline-flex;
+    gap: 0.4rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+.active-filters a:hover { border-color: var(--fleece); }
+.active-filters a.active-filters-clear { border-color: transparent; background: none; text-decoration: underline; font-weight: 400; }
+
+.products {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+    gap: 1.25rem;
+}
+.product-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    /* Landing back on a card after "add to cart" should not tuck it under the top edge. */
+    scroll-margin-top: 1rem;
+    transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+}
+.product-card:hover { box-shadow: 0 10px 24px rgba(44, 67, 39, 0.14); transform: translateY(-2px); border-color: #c9b88f; }
+.product-card:target { border-color: var(--grass); box-shadow: 0 0 0 2px var(--grass); }
+
+.product-media { position: relative; background: #fff; border-bottom: 1px solid var(--line); }
+.product-photo { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; padding: 0.9rem; }
+.product-media .goods-icon { display: block; aspect-ratio: 1; margin: 0; border-radius: 0; padding: 22%; background: #fff; }
+.product-badge {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: var(--meadow);
+    color: var(--hay);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.product-badge--out { background: var(--bark); }
+
+.product-body { display: flex; flex-direction: column; flex: 1; padding: 0.9rem 1rem 1rem; }
+.product-brand { margin: 0 0 0.2rem; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bark); }
+.product-card h3 { font-size: 1.02rem; line-height: 1.25; margin: 0 0 0.4rem; text-wrap: pretty; }
+.product-desc {
+    margin: 0 0 0.8rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--bark);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+.product-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin-top: auto; }
+.product-foot .price { font-size: 1.3rem; }
+.product-foot .stock::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.35rem;
+    border-radius: 50%;
+    background: var(--grass);
+}
+.product-foot .stock--low::before { background: var(--fleece); }
+.product-buy { margin-top: 0.75rem; }
+.product-add { width: 100%; padding: 0.6rem 1rem; font-size: 0.95rem; }
+
+.shop-empty { background: var(--paper); border: 1px dashed var(--line); border-radius: 10px; padding: 2.5rem 1.5rem; text-align: center; }
+.shop-empty p { margin-inline: auto; }
+
+.pager { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin-top: 2rem; }
+.pager a {
+    min-width: 2.5rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--paper);
+    text-align: center;
+    text-decoration: none;
+    font-weight: 600;
+}
+.pager a:hover { border-color: var(--meadow); color: var(--meadow); }
+.pager a[aria-current="page"] { background: var(--meadow); border-color: var(--meadow); color: var(--hay); }
+
+@media (max-width: 900px) {
+    .category-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .shop { grid-template-columns: minmax(0, 1fr); }
+    /* On a narrow screen the filter column becomes rows of chips above the products. */
+    .shop-filters { position: static; max-height: none; }
+    .filter-group ul { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .filter-group a { margin: 0; padding: 0.25rem 0.7rem; border: 1px solid var(--line); border-radius: 999px; }
+}
+@media (max-width: 520px) {
+    .category-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .product-body { padding: 0.7rem 0.75rem 0.8rem; }
+    .product-desc { display: none; }
+    .product-foot { flex-direction: column; gap: 0.1rem; }
+}

@@ -28,6 +28,7 @@ public static class DbInitializer
         if (weightsNeedBackfill) BackfillDemoWeights(connection);
         if (brandsNeedBackfill) BackfillDemoBrands(connection);
         SeedIfEmpty(connection);
+        AddSecondAccessoryBatchOnce(connection);
         SeedAccountsIfEmpty(connection);
     }
 
@@ -128,6 +129,51 @@ public static class DbInitializer
 
         foreach (var item in catalog.Accessories)
             InsertStockProduct(connection, item);
+    }
+
+    // The demo catalog grew after databases already existed, and SeedIfEmpty
+    // never touches one that has data. This adds the newer accessories
+    // (ProductId 127 and up) to such a database exactly once - recorded in
+    // dbo.SeedBatches, so a product an admin later deletes doesn't come back
+    // on the next startup. Rows are matched by Sku, and a ProductId an
+    // admin-created product already took is replaced by the next free one.
+    private const string SecondAccessoryBatch = "accessories-batch-2";
+    private const int SecondAccessoryBatchFirstId = 127;
+
+    private static void AddSecondAccessoryBatchOnce(SqlConnection connection)
+    {
+        using (var check = new SqlCommand("SELECT COUNT(*) FROM dbo.SeedBatches WHERE Name = @Name;", connection))
+        {
+            check.Parameters.AddWithValue("@Name", SecondAccessoryBatch);
+            if ((int)check.ExecuteScalar()! > 0) return;
+        }
+
+        foreach (var item in new DemoCatalog().Accessories.Where(a => a.ProductId >= SecondAccessoryBatchFirstId))
+        {
+            if (Exists(connection, "SELECT COUNT(*) FROM dbo.StockProducts WHERE Sku = @Value;", item.Sku)) continue;
+
+            var productId = item.ProductId;
+            if (Exists(connection, "SELECT COUNT(*) FROM dbo.Products WHERE ProductId = @Value;", productId))
+            {
+                using var next = new SqlCommand("SELECT MAX(ProductId) + 1 FROM dbo.Products;", connection);
+                productId = (int)next.ExecuteScalar()!;
+            }
+
+            InsertProduct(connection, productId, productType: 2,
+                item.Name, item.NameEn, item.Description, item.DescriptionEn, item.Price);
+            InsertStockProduct(connection, item, productId);
+        }
+
+        using var done = new SqlCommand("INSERT INTO dbo.SeedBatches (Name) VALUES (@Name);", connection);
+        done.Parameters.AddWithValue("@Name", SecondAccessoryBatch);
+        done.ExecuteNonQuery();
+    }
+
+    private static bool Exists(SqlConnection connection, string countSql, object value)
+    {
+        using var command = new SqlCommand(countSql, connection);
+        command.Parameters.AddWithValue("@Value", value);
+        return (int)command.ExecuteScalar()! > 0;
     }
 
     /// <summary>
@@ -233,7 +279,7 @@ public static class DbInitializer
         command.ExecuteNonQuery();
     }
 
-    private static void InsertStockProduct(SqlConnection connection, StockProduct item)
+    private static void InsertStockProduct(SqlConnection connection, StockProduct item, int? productId = null)
     {
         using var command = new SqlCommand(
             """
@@ -241,7 +287,7 @@ public static class DbInitializer
             VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl, @WeightGrams, @Brand);
             """, connection);
 
-        command.Parameters.AddWithValue("@ProductId", item.ProductId);
+        command.Parameters.AddWithValue("@ProductId", productId ?? item.ProductId);
         command.Parameters.AddWithValue("@Sku", item.Sku);
         command.Parameters.AddWithValue("@Category", (byte)item.Category);
         command.Parameters.AddWithValue("@StockQuantity", item.StockQuantity);

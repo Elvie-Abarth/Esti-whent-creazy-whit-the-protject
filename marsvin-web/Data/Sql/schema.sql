@@ -463,3 +463,15 @@ BEGIN
         CreatedAt       DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END
+
+-- Which one-off additions to the demo catalog this database already got
+-- (see DbInitializer.AddSecondAccessoryBatchOnce). A row here means
+-- "done, don't add them again" - even if an admin has since deleted some.
+IF OBJECT_ID('dbo.SeedBatches', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SeedBatches
+    (
+        Name      NVARCHAR(100) NOT NULL PRIMARY KEY,
+        AppliedAt DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
