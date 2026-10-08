@@ -15,6 +15,14 @@
     <PackageReference Include="QuestPDF" Version="2026.9.0" />
   </ItemGroup>
 
+  <!-- The support chat reads its care-guide knowledge from the page itself
+       (see CareGuideText in Data/ShopKnowledge.cs). -->
+  <ItemGroup>
+    <Content Update="Pages\Pasningsguide.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Data\Sql\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

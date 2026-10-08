@@ -5,13 +5,16 @@
     ViewData["TitleEn"] = "Accessories";
 }
 
-<div class="wrap section">
-    <div class="section-head">
-        <div>
-            <h2 data-en="Accessories">Tilbehør</h2>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner faq-hero-inner--text">
+        <div class="faq-hero-text">
+            <h1 data-en="Accessories">Tilbehør</h1>
             <p data-en="Hay, food, cages, houses, toys and bedding. Everything is tested on our own animals.">Hø, foder, bure, huse, legetøj og strøelse. Alt er testet på vores egne dyr.</p>
         </div>
     </div>
+</section>
+
+<div class="wrap section">
 
     <form method="get" class="search-box" role="search" aria-label="Søg i tilbehør" data-en-aria-label="Search accessories">
         @if (Model.Active is not null)

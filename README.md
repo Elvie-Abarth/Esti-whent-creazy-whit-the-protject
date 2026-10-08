@@ -49,10 +49,13 @@ into the page), and set the secret key with
 
 The support chat ("Pip", the guinea pig in the corner) needs no setup and
 no key: it is a keyword lookup inside the app, not an AI service, so it
-costs nothing to run. It only knows what's on the front page, the guinea pig
-and accessories pages, the footer and the FAQ (`Data/ShopKnowledge.cs`) - it
-has no access to orders or accounts, so there's nothing private it could be
-talked into revealing.
+costs nothing to run. It knows the shop's public content - animals,
+accessories and brands, the care guide and food list, delivery, returns, and
+the FAQ (`Data/ShopKnowledge.cs`) - and tolerates misspellings (one or two
+wrong letters, or aa/ae/oe typed for the Danish letters). It knows nothing about
+people (orders, accounts, customers, staff) and nothing about how the site
+is built or secured, and turns such questions away - there is nothing
+private in its knowledge for any wording to dig out.
 
 Nothing in this project costs money to run: the database is LocalDB, email
 is logged to the console unless you add your own SMTP account, reCAPTCHA is

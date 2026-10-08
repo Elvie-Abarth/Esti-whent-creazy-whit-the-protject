@@ -3,39 +3,68 @@
 @{
     ViewData["Title"] = "Ofte stillede spørgsmål";
     ViewData["TitleEn"] = "Frequently asked questions";
+
+    // One anchor per topic, for the "jump to" list beside the questions.
+    var topics = FaqData.Entries
+        .GroupBy(e => (e.Topic, e.TopicEn))
+        .Select((group, index) => (Id: $"emne-{index + 1}", group.Key.Topic, group.Key.TopicEn, Entries: group.ToList()))
+        .ToList();
 }
 
-<div class="wrap section guide-intro">
-    <div class="section-head">
-        <h1 data-en="Frequently asked questions">Ofte stillede spørgsmål</h1>
-        <p data-en="The questions we get most, answered. Can't find yours? Write to us on the contact page, or ask in the chat in the corner.">
-            De spørgsmål, vi oftest får, med svar. Finder du ikke dit? Skriv til
-            os på kontaktsiden, eller spørg i chatten nede i hjørnet.
-        </p>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="Frequently asked questions">Ofte stillede spørgsmål</h1>
+        </div>
+        <img class="faq-hero-photo" src="~/img/faq-marsvin.jpg" width="1000" height="655"
+             alt="Et hvidt og rødbrunt marsvin med strittende pels, der kigger direkte ind i kameraet"
+             data-en-alt="A white and ginger guinea pig with tousled fur, looking straight into the camera" />
     </div>
-</div>
+</section>
 
 <section class="section">
-    <div class="wrap guide-article">
-        @* <details> per question: opens and closes without any JS, and a
-           closed answer is still in the page for search (browser and search engine). *@
-        @foreach (var topic in FaqData.Entries.GroupBy(e => (e.Topic, e.TopicEn)))
-        {
-            <article>
-                <h2 data-en="@topic.Key.TopicEn">@topic.Key.Topic</h2>
-                @foreach (var entry in topic)
+    <div class="wrap faq-layout">
+        <nav class="faq-topics" aria-label="Emner" data-en-aria-label="Topics">
+            <h2 data-en="Topics">Emner</h2>
+            <ul>
+                @foreach (var topic in topics)
                 {
-                    <details class="faq-item">
-                        <summary data-en="@entry.QuestionEn">@entry.Question</summary>
-                        <p data-en="@entry.AnswerEn">@entry.Answer</p>
-                    </details>
+                    <li>
+                        <a href="#@topic.Id">
+                            <span data-en="@topic.TopicEn">@topic.Topic</span>
+                            <span class="faq-count">@topic.Entries.Count</span>
+                        </a>
+                    </li>
                 }
-            </article>
-        }
+            </ul>
+        </nav>
 
-        <div class="actions">
-            <a class="btn" asp-page="/Kontakt" data-en="Contact us">Kontakt os</a>
-            <a class="btn btn--quiet" asp-page="/BetalingOgLevering" data-en="Payment &amp; delivery terms">Vilkår for betaling &amp; levering</a>
+        <div class="faq-groups">
+            @* <details> per question: opens and closes without any JS, and a
+               closed answer is still in the page for search (browser and search engine). *@
+            @foreach (var topic in topics)
+            {
+                <section class="faq-group" id="@topic.Id">
+                    <h2 data-en="@topic.TopicEn">@topic.Topic</h2>
+                    @foreach (var entry in topic.Entries)
+                    {
+                        <details class="faq-item">
+                            <summary><span data-en="@entry.QuestionEn">@entry.Question</span></summary>
+                            <p data-en="@entry.AnswerEn">@entry.Answer</p>
+                        </details>
+                    }
+                </section>
+            }
+
+            <section class="faq-more">
+                <div>
+                    <h2 data-en="Didn't find your answer?">Fandt du ikke dit svar?</h2>
+                    <p data-en="Write to us and we'll reply within a couple of weekdays - or ask Pip in the corner.">
+                        Skriv til os, så svarer vi inden for et par hverdage - eller spørg Pip nede i hjørnet.
+                    </p>
+                </div>
+                <a class="btn" asp-page="/Kontakt" data-en="Contact us">Kontakt os</a>
+            </section>
         </div>
     </div>
 </section>

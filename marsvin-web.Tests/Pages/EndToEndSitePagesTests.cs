@@ -26,7 +26,7 @@ public class EndToEndSitePagesTests(MarsvinWebAppFactory factory)
 
     [Theory]
     [InlineData("/Faq", "Ofte stillede spørgsmål")]
-    [InlineData("/Maerker", "Engholm Hø")]
+    [InlineData("/Maerker", "JR Farm")]
     [InlineData("/Stoet", "Støt marsvin i nød")]
     [InlineData("/Kontakt", "Skriv til os")]
     public async Task PublicPages_AreReachableWithoutLoggingIn(string path, string expectedText)
@@ -192,7 +192,7 @@ public class EndToEndSitePagesTests(MarsvinWebAppFactory factory)
     {
         var client = MakeClient();
 
-        var filtered = await Html(await client.GetAsync("/Tilbehor?maerke=" + Uri.EscapeDataString("Pilegård Bure")));
+        var filtered = await Html(await client.GetAsync("/Tilbehor?maerke=" + Uri.EscapeDataString("Savic")));
         Assert.Contains("Bur 120 x 60 cm", filtered);
         Assert.DoesNotContain("Timothy-hø, 2 kg", filtered);
 

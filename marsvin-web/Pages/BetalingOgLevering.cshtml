@@ -4,154 +4,234 @@
     ViewData["TitleEn"] = "Payment & delivery";
 }
 
-<div class="wrap section guide-intro">
-    <div class="section-head">
-        <h1 data-en="Payment &amp; delivery">Betaling &amp; levering</h1>
-        <p data-en="Short version: guinea pigs are always picked up in store, accessories can be shipped or picked up, and checkout is a demo payment step, not a real one.">
-            Kort fortalt: marsvin afhentes altid i butikken, tilbehør kan
-            enten sendes eller afhentes, og betalingstrinnet i kassen er en
-            demo, ikke en rigtig betaling.
-        </p>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="Payment &amp; delivery">Betaling &amp; levering</h1>
+            <p data-en="Short version: guinea pigs are always picked up in store, accessories can be shipped or picked up, and checkout is a demo payment step, not a real one.">
+                Kort fortalt: marsvin afhentes altid i butikken, tilbehør kan
+                enten sendes eller afhentes, og betalingstrinnet i kassen er en
+                demo, ikke en rigtig betaling.
+            </p>
+        </div>
+        <img class="faq-hero-photo guide-hero-photo" src="~/img/levering-marsvin.jpg" width="500" height="335"
+             alt="To marsvin foran et træhus, med forpoterne oppe på en træstamme"
+             data-en-alt="Two guinea pigs in front of a wooden house, front paws up on a log" />
     </div>
-</div>
+</section>
 
+@* Same layout as the care guide: a list of the page's chapters that stays in
+   view, and each chapter as a card of short labelled rows. *@
 <section class="section">
-    <div class="wrap guide-article">
-        <article>
-            <h2 data-en="Delivery">Levering</h2>
-            <p data-en="Guinea pigs are always picked up in store - a guinea pig can't go in a parcel, and we want to talk through the cage with you before you leave with an animal. That's not something checkout can offer around.">
-                Marsvin afhentes altid i butikken - et marsvin kan ikke sendes
-                med pakkepost, og vi vil gerne nå at snakke om buret med dig,
-                inden du tager af sted med et dyr. Det er ikke noget kassen
-                kan tilbyde sig udenom.
-            </p>
-            <p data-en="Accessories are different: at checkout you choose either pickup in store or shipping to an address you give us there. If your cart mixes a guinea pig with accessories, shipping is still offered for the accessories - the guinea pig itself always needs picking up separately, whichever you choose.">
-                Tilbehør er anderledes: i kassen vælger du enten afhentning i
-                butikken eller forsendelse til en adresse, du angiver der.
-                Blander din kurv et marsvin med tilbehør, kan du stadig vælge
-                forsendelse af tilbehøret - marsvinet skal altid afhentes
-                separat, uanset hvad du vælger.
-            </p>
-            <p data-en="An order confirmation shows exactly what was chosen - what to bring and where for a pickup, or the address it's going to for a shipment.">
-                En ordrebekræftelse viser præcis hvad der blev valgt - hvad du
-                skal medbringe og hvorhen ved afhentning, eller adressen den
-                sendes til ved forsendelse.
-            </p>
-        </article>
+    <div class="wrap faq-layout">
+        <nav class="faq-topics" aria-label="På denne side" data-en-aria-label="On this page">
+            <h2 data-en="On this page">På denne side</h2>
+            <ul>
+                <li><a href="#levering"><span data-en="Delivery">Levering</span><span class="faq-count">1</span></a></li>
+                <li><a href="#fragt"><span data-en="Shipping: price, delivery time and where it ends up">Fragt: pris, leveringstid og hvor pakken ender</span><span class="faq-count">2</span></a></li>
+                <li><a href="#fortrydelse"><span data-en="Cancelling and returns">Fortrydelse og retur</span><span class="faq-count">3</span></a></li>
+                <li><a href="#betaling"><span data-en="Payment">Betaling</span><span class="faq-count">4</span></a></li>
+            </ul>
+        </nav>
 
-        <article>
-            <h2 data-en="Shipping: price, delivery time and where it ends up">Fragt: pris, leveringstid og hvor pakken ender</h2>
-            <p data-en="Pickup in store is free. Shipping is priced per parcel by weight, and checkout shows the exact price, the expected delivery date and the total for each carrier before you choose.">
-                Afhentning i butikken er gratis. Fragt prissættes pr. pakke
-                efter vægt, og i kassen ser du den præcise pris, den
-                forventede leveringsdato og totalen for hvert fragtselskab,
-                inden du vælger.
-            </p>
-            <table class="cart-table">
-                <thead>
-                    <tr>
-                        <th data-en="Carrier">Fragtselskab</th>
-                        <th data-en="Delivered to">Leveres til</th>
-                        <th data-en="Delivery time">Leveringstid</th>
-                        <th data-en="Up to 1 kg">Op til 1 kg</th>
-                        <th data-en="Up to 5 kg">Op til 5 kg</th>
-                        <th data-en="Up to 10 kg">Op til 10 kg</th>
-                        <th data-en="Up to 20 kg">Op til 20 kg</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var carrier in Enum.GetValues<ShippingCarrier>())
-                    {
-                        var (minDays, maxDays) = ShippingCalculator.BusinessDays(carrier);
-                        <tr>
-                            <td>@carrier.DisplayName()</td>
-                            @if (carrier.DeliversToParcelShop())
-                            {
-                                <td data-en="Parcel shop near your address">Pakkeshop nær din adresse</td>
-                            }
-                            else
-                            {
-                                <td data-en="Your door">Din dør</td>
-                            }
-                            <td data-en="@($"{minDays}-{maxDays} weekdays")">@minDays-@maxDays hverdage</td>
-                            @foreach (var grams in new[] { 1_000, 5_000, 10_000, 20_000 })
-                            {
-                                <td>@ShippingCalculator.Cost(carrier, grams).ToString("N0") kr.</td>
-                            }
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <p data-en="A parcel holds at most 20 kg. A heavier order is split into several parcels, each priced on its own weight - checkout tells you how many parcels yours becomes and what it weighs in total. For a parcel shop, the carrier picks the one nearest your address and messages you when the parcel is ready to collect.">
-                En pakke rummer højst 20 kg. En tungere ordre deles i flere
-                pakker, som hver prissættes efter sin egen vægt - i kassen
-                kan du se, hvor mange pakker din ordre bliver til, og hvad
-                den vejer i alt. Ved levering til pakkeshop vælger
-                fragtselskabet den nærmeste på din adresse og giver besked,
-                når pakken kan hentes.
-            </p>
-            <p data-en="@($"Shipping is free when the accessories you have shipped come to {ShippingCalculator.FreeShippingThreshold:N0} kr. or more - whatever the parcel weighs, and with whichever carrier. Your cart shows how far you are from it.")">
-                Fragten er gratis, når det tilbehør, du får sendt, løber op i
-                @ShippingCalculator.FreeShippingThreshold.ToString("N0") kr. eller mere - uanset hvad pakken vejer,
-                og uanset fragtselskab. Din kurv viser, hvor langt du er fra det.
-            </p>
-            <p data-en="When an order's status changes - being prepared, sent or ready for pickup, delivered - we email you. Once a parcel is handed to the carrier, its track & trace number is shown on the order too.">
-                Når en ordre skifter status - under behandling, afsendt eller
-                klar til afhentning, leveret - får du en e-mail. Når en pakke
-                er afleveret til fragtselskabet, står dens track &amp;
-                trace-nummer også på ordren.
-            </p>
-            <p data-en="Follow an order under My account: received, being prepared, sent (or ready for pickup), delivered (or picked up).">
-                Følg en ordre under Min konto: modtaget, under behandling,
-                afsendt (eller klar til afhentning), leveret (eller afhentet).
-            </p>
-        </article>
+        <div class="guide-chapters">
+            <article class="guide-chapter" id="levering">
+                <header>
+                    <span class="guide-chapter-number">1</span>
+                    <h2 data-en="Delivery">Levering</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Guinea pigs">Marsvin</h3>
+                        <p data-en="Guinea pigs are always picked up in store - a guinea pig can't go in a parcel, and we want to talk through the cage with you before you leave with an animal. That's not something checkout can offer around.">
+                            Marsvin afhentes altid i butikken - et marsvin kan ikke sendes
+                            med pakkepost, og vi vil gerne nå at snakke om buret med dig,
+                            inden du tager af sted med et dyr. Det er ikke noget kassen
+                            kan tilbyde sig udenom.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Accessories">Tilbehør</h3>
+                        <p data-en="Accessories are different: at checkout you choose either pickup in store or shipping to an address you give us there. If your cart mixes a guinea pig with accessories, shipping is still offered for the accessories - the guinea pig itself always needs picking up separately, whichever you choose.">
+                            Tilbehør er anderledes: i kassen vælger du enten afhentning i
+                            butikken eller forsendelse til en adresse, du angiver der.
+                            Blander din kurv et marsvin med tilbehør, kan du stadig vælge
+                            forsendelse af tilbehøret - marsvinet skal altid afhentes
+                            separat, uanset hvad du vælger.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Order confirmation">Ordrebekræftelse</h3>
+                        <p data-en="An order confirmation shows exactly what was chosen - what to bring and where for a pickup, or the address it's going to for a shipment.">
+                            En ordrebekræftelse viser præcis hvad der blev valgt - hvad du
+                            skal medbringe og hvorhen ved afhentning, eller adressen den
+                            sendes til ved forsendelse.
+                        </p>
+                    </div>
+                </div>
+            </article>
 
-        <article>
-            <h2 data-en="Cancelling and returns">Fortrydelse og retur</h2>
-            <p data-en="Cancel before we pack: as long as an order's status is 'received', you can cancel it yourself, free - on the receipt page, or under My account. Once we've started preparing it, contact the shop and we'll cancel it for you if it hasn't been sent yet. A cancelled order's items go straight back on sale.">
-                Fortryd inden vi pakker: så længe en ordres status er
-                "modtaget", kan du selv annullere den gratis - på
-                kvitteringssiden eller under Min konto. Er vi begyndt at gøre
-                den klar, så kontakt butikken, og vi annullerer den for dig,
-                hvis den ikke er sendt endnu. Varerne i en annulleret ordre
-                kommer straks til salg igen.
-            </p>
-            <p data-en="Accessories: you have 14 days from the day you receive them to change your mind. Return them unused and in their original packaging - hand them in at the shop for free, or send them back at your own cost. The money is returned within 14 days of us getting them back.">
-                Tilbehør: du har 14 dages fortrydelsesret fra den dag, du
-                modtager varen. Returnér den ubrugt og i original emballage -
-                aflevér den gratis i butikken, eller send den retur for egen
-                regning. Pengene tilbageføres senest 14 dage efter, at vi har
-                fået varen tilbage.
-            </p>
-            <p data-en="Guinea pigs: a guinea pig can't be posted back. If it isn't working out, bring it back to the shop within 14 days and you get the full price back - and after that, talk to us anyway. We would always rather take an animal back than have it somewhere it isn't thriving.">
-                Marsvin: et marsvin kan ikke sendes retur med posten. Går det
-                ikke, så kom tilbage til butikken med det inden for 14 dage og
-                få hele beløbet retur - og kontakt os gerne også derefter. Vi
-                tager til enhver tid hellere et dyr tilbage, end at det bor et
-                sted, hvor det ikke trives.
-            </p>
-        </article>
+            <article class="guide-chapter" id="fragt">
+                <header>
+                    <span class="guide-chapter-number">2</span>
+                    <h2 data-en="Shipping: price, delivery time and where it ends up">Fragt: pris, leveringstid og hvor pakken ender</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="How it's priced">Sådan prissættes det</h3>
+                        <p data-en="Pickup in store is free. Shipping is priced per parcel by weight, and checkout shows the exact price, the expected delivery date and the total for each carrier before you choose.">
+                            Afhentning i butikken er gratis. Fragt prissættes pr. pakke
+                            efter vægt, og i kassen ser du den præcise pris, den
+                            forventede leveringsdato og totalen for hvert fragtselskab,
+                            inden du vælger.
+                        </p>
+                    </div>
+                    <div class="guide-point guide-point--wide">
+                        <h3 data-en="Prices and delivery time">Priser og leveringstid</h3>
+                        <div class="guide-scroll">
+                            <table class="cart-table">
+                                <thead>
+                                    <tr>
+                                        <th data-en="Carrier">Fragtselskab</th>
+                                        <th data-en="Delivered to">Leveres til</th>
+                                        <th data-en="Delivery time">Leveringstid</th>
+                                        <th data-en="Up to 1 kg">Op til 1 kg</th>
+                                        <th data-en="Up to 5 kg">Op til 5 kg</th>
+                                        <th data-en="Up to 10 kg">Op til 10 kg</th>
+                                        <th data-en="Up to 20 kg">Op til 20 kg</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var carrier in Enum.GetValues<ShippingCarrier>())
+                                    {
+                                        var (minDays, maxDays) = ShippingCalculator.BusinessDays(carrier);
+                                        <tr>
+                                            <td>@carrier.DisplayName()</td>
+                                            @if (carrier.DeliversToParcelShop())
+                                            {
+                                                <td data-en="Pick-up point near you">Udleveringssted nær dig</td>
+                                            }
+                                            else
+                                            {
+                                                <td data-en="Your door">Din dør</td>
+                                            }
+                                            <td data-en="@($"{minDays}-{maxDays} weekdays")">@minDays-@maxDays hverdage</td>
+                                            @foreach (var grams in new[] { 1_000, 5_000, 10_000, 20_000 })
+                                            {
+                                                <td>@ShippingCalculator.Cost(carrier, grams).ToString("N0") kr.</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Parcels">Pakker</h3>
+                        <p data-en="A parcel holds at most 20 kg. A heavier order is split into several parcels, each priced on its own weight - checkout tells you how many parcels yours becomes and what it weighs in total. For a parcel shop, the carrier picks the one nearest your address and messages you when the parcel is ready to collect.">
+                            En pakke rummer højst 20 kg. En tungere ordre deles i flere
+                            pakker, som hver prissættes efter sin egen vægt - i kassen
+                            kan du se, hvor mange pakker din ordre bliver til, og hvad
+                            den vejer i alt. Ved levering til pakkeshop vælger
+                            fragtselskabet den nærmeste på din adresse og giver besked,
+                            når pakken kan hentes.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Free shipping">Gratis fragt</h3>
+                        <p data-en="@($"Shipping is free when the accessories you have shipped come to {ShippingCalculator.FreeShippingThreshold:N0} kr. or more - whatever the parcel weighs, and with whichever carrier. Your cart shows how far you are from it.")">
+                            Fragten er gratis, når det tilbehør, du får sendt, løber op i
+                            @ShippingCalculator.FreeShippingThreshold.ToString("N0") kr. eller mere - uanset hvad pakken vejer,
+                            og uanset fragtselskab. Din kurv viser, hvor langt du er fra det.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Updates along the way">Besked undervejs</h3>
+                        <p data-en="When an order's status changes - being prepared, sent or ready for pickup, delivered - we email you. Once a parcel is handed to the carrier, its track & trace number is shown on the order too.">
+                            Når en ordre skifter status - under behandling, afsendt eller
+                            klar til afhentning, leveret - får du en e-mail. Når en pakke
+                            er afleveret til fragtselskabet, står dens track &amp;
+                            trace-nummer også på ordren.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Follow the order">Følg ordren</h3>
+                        <p data-en="Follow an order under My account: received, being prepared, sent (or ready for pickup), delivered (or picked up).">
+                            Følg en ordre under Min konto: modtaget, under behandling,
+                            afsendt (eller klar til afhentning), leveret (eller afhentet).
+                        </p>
+                    </div>
+                </div>
+            </article>
 
-        <article>
-            <h2 data-en="Payment">Betaling</h2>
-            <p data-en="Checkout ends on a demo payment page: it asks for card-shaped details, validates that they're the right shape, and stops there. No card is charged, nothing is sent to a payment provider, and no card details are stored - because there is no real payment integration behind it.">
-                Kassen ender på en demo-betalingsside: den beder om
-                kortlignende oplysninger, tjekker at de har den rigtige form,
-                og stopper der. Der trækkes ikke penge fra noget kort, intet
-                sendes til en betalingsudbyder, og ingen kortoplysninger
-                gemmes - fordi der ikke er en rigtig betalingsløsning bag den.
-            </p>
-        </article>
+            <article class="guide-chapter" id="fortrydelse">
+                <header>
+                    <span class="guide-chapter-number">3</span>
+                    <h2 data-en="Cancelling and returns">Fortrydelse og retur</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Cancel an order">Fortryd en ordre</h3>
+                        <p data-en="Cancel before we pack: as long as an order's status is 'received', you can cancel it yourself, free - on the receipt page, or under My account. Once we've started preparing it, contact the shop and we'll cancel it for you if it hasn't been sent yet. A cancelled order's items go straight back on sale.">
+                            Fortryd inden vi pakker: så længe en ordres status er
+                            "modtaget", kan du selv annullere den gratis - på
+                            kvitteringssiden eller under Min konto. Er vi begyndt at gøre
+                            den klar, så kontakt butikken, og vi annullerer den for dig,
+                            hvis den ikke er sendt endnu. Varerne i en annulleret ordre
+                            kommer straks til salg igen.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Accessories">Tilbehør</h3>
+                        <p data-en="Accessories: you have 14 days from the day you receive them to change your mind. Return them unused and in their original packaging - hand them in at the shop for free, or send them back at your own cost. The money is returned within 14 days of us getting them back.">
+                            Tilbehør: du har 14 dages fortrydelsesret fra den dag, du
+                            modtager varen. Returnér den ubrugt og i original emballage -
+                            aflevér den gratis i butikken, eller send den retur for egen
+                            regning. Pengene tilbageføres senest 14 dage efter, at vi har
+                            fået varen tilbage.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Guinea pigs">Marsvin</h3>
+                        <p data-en="Guinea pigs: a guinea pig can't be posted back. If it isn't working out, bring it back to the shop within 14 days and you get the full price back - and after that, talk to us anyway. We would always rather take an animal back than have it somewhere it isn't thriving.">
+                            Marsvin: et marsvin kan ikke sendes retur med posten. Går det
+                            ikke, så kom tilbage til butikken med det inden for 14 dage og
+                            få hele beløbet retur - og kontakt os gerne også derefter. Vi
+                            tager til enhver tid hellere et dyr tilbage, end at det bor et
+                            sted, hvor det ikke trives.
+                        </p>
+                    </div>
+                </div>
+            </article>
 
-        <div class="callout">
-            <h2 data-en="Why not a real payment provider?">Hvorfor ikke en rigtig betalingsudbyder?</h2>
-            <p data-en="Taking real payment for animals this shop doesn't actually sell would be fraud, not a school project - a real integration (e.g. Stripe, in test mode) is realistic future work for this project, but this demo step is what stands in for it today.">
-                At tage rigtig betaling for dyr, denne butik ikke reelt
-                sælger, ville være svindel, ikke et skoleprojekt — en rigtig
-                integration (fx Stripe, i testmode) er realistisk fremtidigt
-                arbejde for projektet, men dette demo-trin er hvad der står i stedet for det i dag.
-            </p>
+            <article class="guide-chapter" id="betaling">
+                <header>
+                    <span class="guide-chapter-number">4</span>
+                    <h2 data-en="Payment">Betaling</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Demo payment">Demo-betaling</h3>
+                        <p data-en="Checkout ends on a demo payment page: it asks for card-shaped details, validates that they're the right shape, and stops there. No card is charged, nothing is sent to a payment provider, and no card details are stored - because there is no real payment integration behind it.">
+                            Kassen ender på en demo-betalingsside: den beder om
+                            kortlignende oplysninger, tjekker at de har den rigtige form,
+                            og stopper der. Der trækkes ikke penge fra noget kort, intet
+                            sendes til en betalingsudbyder, og ingen kortoplysninger
+                            gemmes - fordi der ikke er en rigtig betalingsløsning bag den.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <aside class="guide-note">
+                <h2 data-en="Why not a real payment provider?">Hvorfor ikke en rigtig betalingsudbyder?</h2>
+                <p data-en="Taking real payment for animals this shop doesn't actually sell would be fraud, not a school project - a real integration (e.g. Stripe, in test mode) is realistic future work for this project, but this demo step is what stands in for it today.">
+                    At tage rigtig betaling for dyr, denne butik ikke reelt
+                    sælger, ville være svindel, ikke et skoleprojekt — en rigtig
+                    integration (fx Stripe, i testmode) er realistisk fremtidigt
+                    arbejde for projektet, men dette demo-trin er hvad der står i stedet for det i dag.
+                </p>
+            </aside>
         </div>
     </div>
 </section>

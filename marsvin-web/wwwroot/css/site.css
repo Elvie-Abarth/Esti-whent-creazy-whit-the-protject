@@ -541,17 +541,59 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .site-footer {
     background: var(--meadow);
     color: #DCE6D2;
-    padding: 2.5rem 0;
-    font-size: 0.925rem;
+    padding: clamp(2.5rem, 6vw, 4rem) 0 1.75rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
 }
-.site-footer a { color: var(--hay); }
-.site-footer .wrap { display: flex; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
-.site-footer p { max-width: 40ch; margin: 0; line-height: 1.5; }
-.site-footer p + p { margin-top: 0.75rem; }
+/* Four columns on one grid: the brand (with the strolling mascot) takes the
+   widest, then three even ones. They share a top edge and every column's
+   heading sits on the same line. */
+.footer-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+    gap: 2.5rem clamp(1.5rem, 4vw, 3.5rem);
+    align-items: start;
+}
+.site-footer p { margin: 0; }
+.site-footer a { color: var(--hay); text-decoration: none; }
+.site-footer a:hover, .site-footer a:focus-visible { color: var(--paper); text-decoration: underline; }
 
-.footer-nav { display: flex; flex-direction: column; gap: 0.5rem; }
-.footer-nav a { text-decoration: none; }
-.footer-nav a:hover { color: var(--paper); }
+.footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--paper) !important;
+    text-decoration: none !important;
+    margin-bottom: 0.75rem;
+}
+.footer-logo svg { width: 2.6rem; height: auto; }
+.footer-brand p { max-width: 30ch; color: #C9D6BD; }
+
+.footer-col { display: flex; flex-direction: column; gap: 0.55rem; }
+.footer-col h2 {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #AEC29C;
+    margin: 0.55rem 0 0.45rem;
+}
+.footer-col address { font-style: normal; color: var(--paper); font-weight: 700; }
+.footer-hours { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 1rem; margin: 0; max-width: 15rem; }
+.footer-hours dd { margin: 0; color: var(--paper); font-weight: 700; }
+.footer-note { color: #AEC29C; font-size: 0.875rem; max-width: 26ch; margin-top: 0.25rem !important; }
+
+@media (max-width: 56rem) {
+    .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .footer-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 32rem) {
+    .footer-grid { grid-template-columns: 1fr; }
+}
 
 /* A little mascot pacing back and forth under the "not a real business"
    line - the walk/waddle/heart animations below are all safe to drop
@@ -559,10 +601,12 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
    this file already cancels them (leaving the guinea pig sitting still in
    its resting pose, and a click just doing nothing visible), so nothing
    extra is needed here for that. */
+/* Its own row in the middle of the footer, directly on top of the bottom
+   bar's rule - so the mascot strolls along that line. */
+.footer-mascot-row { display: flex; justify-content: center; margin-top: clamp(1.5rem, 4vw, 2.5rem); }
 .footer-mascot-lane {
     width: 200px;
-    height: 90px;
-    margin-top: 1.1rem;
+    height: 62px;
     overflow: hidden;
     display: flex;
     align-items: flex-end;
@@ -633,12 +677,16 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 }
 
 .footer-copyright {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(251, 247, 236, 0.2);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.4rem 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(251, 247, 236, 0.18);
     font-size: 0.8rem;
     color: #AEC29C;
 }
+/* The site-wide reading-width limit on paragraphs would wrap the one-line notice. */
 .footer-copyright p { max-width: none; }
 
 /* ------------------------------ responsive --------------------- */
@@ -976,10 +1024,137 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .contact-form label, .contact-form input, .contact-form select, .contact-form textarea { font-size: 1.0625rem; }
 .contact-links { margin: 0.6rem 0; padding-left: 1.2rem; }
 
-.faq-item { border-bottom: 1px solid var(--line); padding: 0.85rem 0; }
-.faq-item summary { cursor: pointer; font-weight: 700; }
+/* ---- FAQ page ----
+   Intro and photo side by side, then a topic list that stays in view while
+   the questions scroll past it. Everything sits on one grid, so the photo's
+   right edge, the question cards and the closing box all line up. */
+.faq-hero { background: var(--paper); border-bottom: 1px solid var(--line); }
+.faq-hero-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+    gap: clamp(1.5rem, 4vw, 3.5rem);
+    align-items: center;
+    padding-block: clamp(2rem, 5vw, 3.5rem);
+}
+.faq-hero-text h1 { margin: 0.2rem 0 0.8rem; font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.1; }
+.faq-hero-text p { max-width: 34rem; margin: 0; }
+.faq-hero-text .cat-tag { margin: 0; }
+.faq-hero-photo {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    /* The face is slightly right of centre in the photo. */
+    object-position: 52% 40%;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 28px rgba(44, 67, 39, 0.18);
+}
+
+/* The care guide's photo: the animal fills the frame, so it's centred as is. */
+.guide-hero-photo { object-position: 50% 50%; }
+.support-hero-photo { object-position: 50% 42%; }
+/* The cart photo keeps its own 3:2 shape, so neither the trolley on the left
+   nor the guinea pig on the right is trimmed - and it's a little smaller,
+   since the cart itself is what this page is for. */
+.cart-hero-photo { aspect-ratio: 3 / 2; max-width: 22rem; justify-self: end; }
+/* A wide picture with something at both edges: keep its own wide shape
+   rather than cropping it to the usual 4:3. */
+.faq-hero-photo--wide { aspect-ratio: 16 / 9; object-position: 50% 50%; }
+/* A page with no photo: the text takes the row, still starting at the same
+   left edge and with the same heading size as the pages that have one. */
+.faq-hero-inner--text { grid-template-columns: minmax(0, 1fr); }
+/* The donation form: a single card with nothing beside it, so it sits in
+   the middle of the page rather than leaving the right half empty. */
+.form-column { max-width: 44rem; margin-top: 0; margin-inline: auto; }
+
+.faq-layout {
+    display: grid;
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 3.5rem);
+    align-items: start;
+}
+.faq-topics { position: sticky; top: 1.5rem; }
+.faq-topics h2 { font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bark); margin: 0 0 0.6rem; }
+.faq-topics ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+.faq-topics a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0 0.45rem 0.9rem;
+    margin-left: -2px;
+    border-left: 2px solid transparent;
+    text-decoration: none;
+    color: var(--meadow);
+    font-weight: 700;
+}
+.faq-topics a:hover, .faq-topics a:focus-visible { border-left-color: var(--fleece); color: var(--fleece); }
+.faq-count { font-weight: 400; font-size: 0.85rem; color: var(--bark); }
+
+.faq-groups { display: flex; flex-direction: column; gap: 2.5rem; max-width: 46rem; }
+/* A jump from the topic list lands with a little air above the heading. */
+.faq-group { scroll-margin-top: 1.5rem; }
+.faq-group h2 { font-size: 1.4rem; margin: 0 0 0.9rem; }
+.faq-item {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 0.6rem;
+}
+.faq-item[open] { border-color: var(--bark); box-shadow: 0 4px 14px rgba(44, 67, 39, 0.1); }
+.faq-item summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.95rem 1.15rem;
+    font-weight: 700;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+/* Plus when closed, minus when open - the same round button as the chat's. */
+.faq-item summary::after {
+    content: "+";
+    flex: none;
+    width: 1.7rem;
+    height: 1.7rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--meadow);
+}
+.faq-item[open] summary::after { content: "\2212"; background: var(--meadow); border-color: var(--meadow); color: var(--paper); }
 .faq-item summary:hover { color: var(--fleece); }
-.faq-item p { margin: 0.6rem 0 0; }
+.faq-item p { margin: 0; padding: 0 1.15rem 1.1rem; max-width: 40rem; }
+
+.faq-more {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem 2rem;
+    background: var(--meadow);
+    color: var(--hay);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+}
+.faq-more h2 { margin: 0 0 0.3rem; font-size: 1.25rem; color: var(--paper); }
+.faq-more p { margin: 0; }
+
+@media (max-width: 48rem) {
+    .faq-hero-inner { grid-template-columns: 1fr; }
+    .faq-hero-photo { order: -1; max-height: 16rem; }
+    .faq-layout { grid-template-columns: 1fr; }
+    /* On a phone the topics become a row of chips above the questions. */
+    .faq-topics { position: static; }
+    .faq-topics ul { display: flex; flex-wrap: wrap; gap: 0.5rem; border-left: none; }
+    .faq-topics a { border: 1px solid var(--line); border-radius: 999px; padding: 0.35rem 0.8rem; margin: 0; background: var(--paper); }
+}
 
 /* A staff-table cell holding text a visitor typed: keep their line breaks,
    and never let one long word push the table off the page. */
@@ -991,6 +1166,11 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .brand-list a { display: block; height: 100%; text-decoration: none; color: inherit; }
 .brand-list a:hover .receipt-card { border-color: var(--fleece); }
 .brand-list h3 { border-bottom: none; padding-bottom: 0; margin-bottom: 0.4rem; }
+/* Logo on the left, the brand's name and details beside it; every card the
+   same height, so the logos line up across a row. */
+.brand-card { display: flex; align-items: center; gap: 1.1rem; height: 100%; }
+.brand-card p { margin: 0; }
+.brand-logo { flex: none; width: 4rem; height: 4rem; }
 
 /* Donation form: the amount for money, the description for products - same
    no-JS :has() switch as the payment page's card/MobilePay fields. */
@@ -1030,10 +1210,70 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     box-shadow: 0 4px 12px rgba(35, 48, 31, 0.3);
 }
 .chat-toggle:hover .chat-toggle-label { background: #9c3159; }
+
+/* Pip hops when noticed - and, being a guinea pig, leaves a dropping behind.
+   A pseudo-element right at the rear end (Pip faces left, so that's the far
+   right), invisible until the hover. It drops onto the shoulder of the
+   "Spørg Pip" button, bounces off to the side and tumbles down past it -
+   never across the button's text. Plays once per hover; skipped entirely
+   under prefers-reduced-motion by the global rule at the top of this file. */
+.chat-toggle { position: relative; }
+/* Three droppings, one after the other. A summary only has two
+   pseudo-elements of its own, so the third is borrowed from the label
+   (which isn't positioned, so it's placed against .chat-toggle like the
+   other two). Each gets its own delay and lands a little further out, so
+   they don't pile up on one spot. */
+.chat-toggle::before,
+.chat-toggle::after,
+.chat-toggle-label::after {
+    content: "";
+    position: absolute;
+    right: -0.15rem;
+    top: 2.35rem;
+    width: 0.6rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: #5C3A21;
+    opacity: 0;
+    pointer-events: none;
+}
+.chat-toggle::before { --kick: 0.3rem; --land: 0.5rem; }
+.chat-toggle::after { --kick: 0.45rem; --land: 0.8rem; }
+.chat-toggle-label::after { --kick: 0.6rem; --land: 1.1rem; }
+.chat-toggle:hover::before { animation: pip-dropping 1.2s linear 0.2s 1 both; }
+.chat-toggle:hover::after { animation: pip-dropping 1.2s linear 0.55s 1 both; }
+.chat-toggle:hover .chat-toggle-label::after { animation: pip-dropping 1.2s linear 0.9s 1 both; }
+@keyframes pip-dropping {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.3); animation-timing-function: ease-out; }
+    10%  { opacity: 1; transform: translate(0, 0) scale(1); animation-timing-function: ease-in; }
+    /* lands on the button's rounded shoulder... */
+    38%  { opacity: 1; transform: translate(0, 0.85rem) rotate(40deg); animation-timing-function: ease-out; }
+    /* ...glances off sideways (a nudge, not a hop - it never rises again)... */
+    52%  { opacity: 1; transform: translate(var(--kick), 1rem) rotate(90deg); animation-timing-function: ease-in; }
+    /* ...and falls away beside the button. */
+    90%  { opacity: 1; transform: translate(var(--land), 2.9rem) rotate(170deg); }
+    100% { opacity: 0; transform: translate(var(--land), 3.1rem) rotate(180deg); }
+}
 .chat-head { display: flex; align-items: center; gap: 0.6rem; border-bottom: 1px solid var(--line); padding-bottom: 0.6rem; }
 .chat-head div { display: flex; flex-direction: column; line-height: 1.3; }
 .chat-head span { font-size: 0.85rem; color: var(--bark); }
 .chat-pig--small { width: 3rem; filter: none; }
+.chat-close {
+    margin-left: auto;
+    align-self: flex-start;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--meadow);
+    font: inherit;
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+.chat-close:hover { background: var(--meadow); border-color: var(--meadow); color: var(--paper); }
 .chat-panel {
     width: min(22rem, calc(100vw - 2rem));
     margin-bottom: 0.6rem;
@@ -1167,56 +1407,126 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .form-errors.validation-summary-valid { display: none; }
 .field-error { color: #7A1F3D; font-size: 0.82rem; font-weight: 400; }
 
-/* Live password-strength meter (password-meter.js) - hidden until the
-   field has something typed into it, so it never shows an empty/grey bar
-   on first load. Styled as a little trail of paw-print "footsteps"
-   (the same oval feet _Cavy.cshtml draws under every guinea pig) instead
-   of a generic progress bar, walking toward the label's own tiny cavy. */
-/* flex-wrap on the outer element only (not the bar) - the trail of paws
-   stays intact as one unbroken row, but the label can drop to its own
-   line first if the field is ever too narrow for both. */
-.password-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.5rem; }
-.password-meter-bar { display: flex; align-items: center; gap: 0.3rem; }
-.password-meter-step {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    /* currentColor, not a fixed value - password-meter.js sets each step's
-       own `color` per keystroke (grey while unfilled, the level's colour
-       once filled), and fill inherits that down to the pad and toes. */
-    fill: currentColor;
-    transition: color 0.2s ease;
+/* Live password-strength meter (password-meter.js) - always shown under
+   the field, so the checklist is there before typing starts. A small card: a
+   heading with the current level, a track that a guinea pig walks along
+   toward a carrot (filling in behind it), and the five things the password
+   is checked for as chips that tick off one by one. */
+.password-meter {
+    margin-top: 0.6rem;
+    padding: 0.85rem 0.95rem 0.9rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-weight: 400;
 }
-/* The pad gets a visible outline while unfilled so "not reached yet" is
-   obvious at a glance rather than reading as a pale smudge - filled steps
-   lose it since the toes plus solid colour are already clear on their own. */
-.password-meter-step-pad { stroke: var(--bark); stroke-width: 1; }
-.password-meter-step.is-filled .password-meter-step-pad { stroke: none; }
-/* Alternating up/down like left-right footprints, not a straight row. */
-.password-meter-step:nth-child(odd) { margin-top: 3px; }
-.password-meter-step:nth-child(even) { margin-top: -3px; }
-.password-meter-step.is-new { animation: password-meter-hop 0.35s ease; }
+.password-meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.password-meter-title { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bark); font-weight: 700; }
+.password-meter-level { font-size: 0.95rem; transition: color 0.3s ease; }
+/* Nothing typed yet: the level is a quiet prompt, and no fill is drawn. */
+.password-meter.is-empty .password-meter-level { color: var(--bark); font-weight: 400; }
+.password-meter.is-empty .password-meter-fill { opacity: 0; }
+
+/* The track: room above the bar for the guinea pig to stand on it. */
+.password-meter-track {
+    position: relative;
+    height: 2.9rem;
+    margin: 0.35rem 0 0.75rem;
+}
+.password-meter-track::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--hay);
+    border: 1px solid var(--line);
+}
+.password-meter-fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 0.55rem;
+    border-radius: 999px;
+    transition: width 0.45s cubic-bezier(0.3, 1.3, 0.5, 1), background-color 0.3s ease;
+}
+.password-meter-walker {
+    position: absolute;
+    left: 0;
+    bottom: 0.3rem;
+    width: 3.2rem;
+    transition: left 0.45s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.password-meter-pig { display: block; width: 100%; height: auto; }
+.password-meter-carrot {
+    position: absolute;
+    right: 0.1rem;
+    bottom: 0.35rem;
+    width: 1.7rem;
+    height: auto;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    transform-origin: 20% 90%;
+}
+/* Strong: the carrot has been reached - and eaten. */
+.password-meter.is-strong .password-meter-carrot { transform: scale(0.2) rotate(-30deg); opacity: 0; }
+.password-meter-walker.is-celebrating .password-meter-pig { animation: password-meter-hop 0.6s ease; }
 @keyframes password-meter-hop {
-    0% { transform: scale(0.3) rotate(-15deg); opacity: 0.4; }
-    60% { transform: scale(1.3) rotate(6deg); }
-    100% { transform: scale(1) rotate(0deg); }
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    30% { transform: translateY(-0.5rem) rotate(-6deg); }
+    55% { transform: translateY(0) rotate(0deg); }
+    75% { transform: translateY(-0.2rem) rotate(3deg); }
+}
+.password-meter-heart {
+    position: absolute;
+    left: 50%;
+    top: -0.2rem;
+    color: var(--fleece);
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+}
+.password-meter-walker.is-celebrating .password-meter-heart { animation: password-meter-heart 1s ease-out 0.15s; }
+@keyframes password-meter-heart {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+    20% { opacity: 1; transform: translate(-50%, -0.4rem) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -1.6rem) scale(0.9); }
 }
 
-.password-meter-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
-.password-meter-mascot { width: 28px; height: 18px; flex-shrink: 0; fill: currentColor; }
-.password-meter-mascot-ear { fill-opacity: 0.55; }
-.password-meter-mascot-eye { fill: #23301F; }
-.password-meter-mascot-eye-shine { fill: var(--paper); }
-.password-meter-mascot-mouth { fill: none; stroke: #23301F; stroke-width: 0.9; stroke-linecap: round; }
-.password-meter-mascot-cheek { fill: var(--fleece); opacity: 0.45; }
-/* A little bounce once the password reaches Strong - the same "pleased
-   with itself" beat as the footer mascot's own click reaction. */
-.password-meter-mascot.is-chuffed { animation: password-meter-bounce 0.5s ease; }
-@keyframes password-meter-bounce {
-    0%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-3px); }
-    55% { transform: translateY(0.5px); }
-    75% { transform: translateY(-1px); }
+/* The checklist: what's still missing reads as an empty chip, what's met
+   as a filled green one with a tick. */
+.password-meter-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.password-meter-rules li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.65rem 0.2rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    color: var(--bark);
+    background: transparent;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+.password-meter-rules li::before {
+    content: "";
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    flex: none;
+}
+.password-meter-rules li.is-met { background: rgba(116, 150, 74, 0.18); border-color: var(--grass); color: var(--meadow); font-weight: 700; }
+.password-meter-rules li.is-met::before {
+    content: "\2713";
+    width: auto;
+    height: auto;
+    border: none;
+    font-size: 0.8rem;
+    line-height: 1;
+    color: var(--grass);
 }
 
 /* ------------------------------ cart ------------------------------ */
@@ -1447,7 +1757,97 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .guide-grid p { font-size: 0.92rem; color: var(--bark); margin-bottom: 0; }
 .guide-icon { width: 44px; height: 44px; margin-bottom: 0.7rem; }
 
-.guide-article { max-width: 70ch; }
+/* ---- Care guide chapters ----
+   Each chapter is a card: a numbered heading, then its paragraphs as rows
+   with a short label in a fixed left column. The labels line up down the
+   whole page, and the text column keeps a comfortable reading width. */
+.guide-chapters { display: flex; flex-direction: column; gap: 1.5rem; max-width: 52rem; }
+.guide-chapter {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    scroll-margin-top: 1.5rem;
+}
+.guide-chapter header { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.guide-chapter h2 { margin: 0; font-size: 1.5rem; }
+.guide-chapter-number {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    background: var(--meadow);
+    color: var(--paper);
+    font-weight: 700;
+}
+.guide-points { display: flex; flex-direction: column; }
+.guide-point {
+    display: grid;
+    grid-template-columns: 10.5rem minmax(0, 1fr);
+    gap: 0.4rem 1.5rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--line);
+}
+.guide-point:first-child { padding-top: 0; }
+.guide-point:last-child { padding-bottom: 0; border-bottom: none; }
+.guide-point h3 {
+    margin: 0.15rem 0 0;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fleece);
+}
+.guide-point p { margin: 0; max-width: none; }
+
+/* A row whose content needs the card's full width (a table): the label
+   goes on top instead of beside it, and the table scrolls sideways on a
+   narrow screen rather than squeezing its columns. */
+.guide-point--wide { grid-template-columns: minmax(0, 1fr); }
+.guide-scroll { overflow-x: auto; }
+/* "55 kr." and "1-2 hverdage" stay on one line each; tighter cell padding makes room for it. */
+.guide-scroll th, .guide-scroll td { white-space: nowrap; padding-inline: 0.7rem; }
+.guide-point .facts { margin: 0.6rem 0 0; }
+.guide-point p + p { margin-top: 0.6rem; }
+
+/* The closing aside on these pages ("one honest note"): a card like the
+   chapters, set apart by its coloured edge. */
+.guide-note {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 6px solid var(--fleece);
+    border-radius: 12px;
+    padding: clamp(1.25rem, 3vw, 2rem);
+}
+.guide-note h2 { margin: 0 0 0.6rem; font-size: 1.25rem; }
+.guide-note p { margin: 0; max-width: none; }
+
+/* The emergency list: unmistakably different from the chapters around it. */
+.guide-emergency {
+    background: #FBE7EE;
+    border: 1px solid #E6A9C0;
+    border-left: 6px solid #7A1F3D;
+    border-radius: 12px;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    scroll-margin-top: 1.5rem;
+}
+.guide-emergency h2 { margin: 0 0 0.9rem; font-size: 1.35rem; color: #7A1F3D; }
+.guide-emergency ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+.guide-emergency li { position: relative; padding-left: 1.6rem; }
+.guide-emergency li::before { content: "!"; position: absolute; left: 0; top: 0.2rem; width: 1.1rem; height: 1.1rem; display: grid; place-items: center; border-radius: 50%; background: #7A1F3D; color: #fff; font-size: 0.75rem; font-weight: 700; }
+.faq-topics a.guide-nav-urgent { color: #7A1F3D; }
+
+@media (max-width: 40rem) {
+    .guide-point { grid-template-columns: 1fr; }
+}
+
+/* The reading-width limit is on what's inside, not on the container: the
+   container is also the page's .wrap, and narrowing that centred the whole
+   column in the window, out of line with the header above it. */
+.guide-article > * { max-width: 70ch; }
 .guide-article article { margin-bottom: 2.5rem; }
 .guide-article article:last-child { margin-bottom: 0; }
 .guide-article h2 { font-size: 1.5rem; }
@@ -1499,3 +1899,105 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .food-grid li { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0; }
 .food-grid strong { font-size: 0.95rem; font-weight: 700; }
 .food-grid span { font-size: 0.85rem; color: var(--bark); }
+
+/* =====================================================================
+   One alignment for the whole site
+   Every section follows the same rule: things start at the page's left
+   edge and stack downward - heading, then its intro, then the content -
+   and a row of cards always fills its row. These come last in the file on
+   purpose: they settle the layout the older, per-section rules above set
+   up differently from each other.
+   ===================================================================== */
+
+/* Heading and intro used to sit side by side, the intro pushed to the far
+   right on a different baseline. Now the intro sits directly under its
+   heading, as it does in the page tops. */
+.section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+}
+.section-head p { max-width: 60ch; }
+.section-head .actions { margin-top: 0.6rem; }
+
+/* Front page, "four things we ask": heading on top, the four questions as
+   one even row of cards under it, the button under those - instead of a
+   heading on the left, a bullet list on the right and a button adrift below. */
+.welfare .wrap { display: block; }
+.welfare .wrap > div:first-child { max-width: 60ch; }
+.welfare ul {
+    list-style: none;
+    padding: 0;
+    margin: 1.75rem 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+.welfare li {
+    max-width: none;
+    margin: 0;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid rgba(240, 231, 210, 0.3);
+    border-radius: 10px;
+    background: rgba(251, 247, 236, 0.06);
+}
+.welfare li strong { display: block; margin-bottom: 0.4rem; color: var(--paper); }
+
+/* A row of exactly three product cards (the front page's essentials) fills
+   the row as three, rather than leaving an empty fourth column. */
+.goods:has(> li:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Care guide, "the short version": six cards as two full rows of three,
+   not four and a leftover two. */
+.guide-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Chapter cards: everything after the label belongs in the text column.
+   (A list added under a paragraph used to drop into the narrow label
+   column and wrap one word per line.) */
+.guide-point > :not(h3) { grid-column: 2; }
+.guide-point.guide-point--wide > * { grid-column: 1; }
+
+/* The rate table fits its card: slightly smaller type, and only the short
+   cells are kept on one line. */
+.guide-scroll table { font-size: 0.95rem; }
+.guide-scroll th, .guide-scroll td { padding-inline: 0.6rem; }
+.guide-scroll th:first-child, .guide-scroll td:first-child { padding-left: 0.9rem; }
+/* Headings and the "delivered to" column may wrap; prices and day counts stay whole. */
+.guide-scroll th, .guide-scroll td:nth-child(2) { white-space: normal; }
+
+/* Step headings in the checkout and donation forms: the dividing rule now
+   runs above the heading, full width. (As a fieldset's own border it was
+   drawn through the middle of the heading, stopping where the text started.)
+   A floated legend stops being the fieldset's "legend" and lays out as an
+   ordinary first item. */
+.payment-card fieldset > legend.pay-step { float: left; width: 100%; margin-bottom: 0; }
+
+@media (max-width: 60rem) {
+    .welfare ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 40rem) {
+    .welfare ul, .guide-grid { grid-template-columns: minmax(0, 1fr); }
+    .goods:has(> li:nth-child(3):last-child) { grid-template-columns: minmax(0, 1fr); }
+    .guide-point > :not(h3) { grid-column: 1; }
+}
+
+/* Brand cards: no rule under the name - the logo already sets the card apart. */
+.receipt-card.brand-card h3 { border-bottom: none; padding-bottom: 0; margin-bottom: 0.25rem; }
+.receipt-card.brand-card .field-hint { margin-top: 0.25rem; }
+
+/* A real logo: shown whole on a white plate, since logos are drawn for a
+   white background and come in every shape from square to wide. */
+.brand-logo--image {
+    width: 6.5rem;
+    height: 4.5rem;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+/* Sized to the plate rather than "at most" the plate: an SVG logo with no
+   size of its own would otherwise spill out of it. */
+.brand-logo--image img { width: 100%; height: 100%; object-fit: contain; display: block; min-height: 0; min-width: 0; }

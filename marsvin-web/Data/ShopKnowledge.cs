@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.RegularExpressions;
 using MarsvinWebExample.Models;
 
 namespace MarsvinWebExample.Data;
@@ -15,17 +17,20 @@ public sealed record ShopFact(string Da, string En)
 }
 
 /// <summary>
-/// Everything the support chat is allowed to know - and it is exactly what a
-/// visitor can already read in five public places: the front page, the
-/// accessories page, the guinea pig pages, the footer and the FAQ. Built fresh from
-/// the catalog for every question, so the chat never quotes a price or a
-/// "for sale" that the pages themselves no longer show.
+/// Everything the support chat knows: all of the shop's own public content -
+/// the front page, the guinea pigs, the accessories and brands, the care
+/// guide and food list, delivery and returns, donations, contact details and
+/// the FAQ. Built fresh from the catalog for every question, so the chat
+/// never quotes a price or a "for sale" that the pages themselves no longer show.
 ///
-/// That limit is the chat's main safety property, not just a scope choice:
-/// nothing here is private (no orders, no accounts, no staff data, and the
-/// customer-facing "in stock / low / out" rather than the real stock count),
-/// so no question, however cleverly worded, can make the chat reveal
-/// something that wasn't already public.
+/// What is deliberately NOT here is the chat's main safety property:
+/// - nothing about people: no orders, no accounts, no customers, no staff
+///   (and the customer-facing "in stock / low / out", not the real stock count);
+/// - nothing about how the website is built or protected: no word of logins,
+///   roles, the database or any security measure.
+/// The chat can only repeat what is in this list, so no question, however
+/// cleverly worded, can make it reveal either. (KeywordChatAssistant also
+/// turns such questions away outright instead of answering with a near miss.)
 /// </summary>
 public static class ShopKnowledge
 {
@@ -99,6 +104,60 @@ public static class ShopKnowledge
                 $"The product {item.NameEn ?? item.Name}{brandEn} (category {item.CategoryNameEn}): {item.DescriptionEn ?? item.Description} Price {item.Price:0} kr. {item.StockLevelTextEn}."));
         }
 
+        // ---- About us / contact ----
+        facts.Add(new(
+            "Om os: vi videreformidler primært marsvin i bundne par og sælger det hø, de bure, huse og den strøelse, der hører til. Hvert dyr er opdrættet efter samme standard som i vores pasningsguide.",
+            "About us: we mainly rehome guinea pigs in bonded pairs, and sell the hay, cages, houses and bedding that go with them. Every animal is raised on the same standard as in our care guide."));
+        facts.Add(new(
+            "Kontakt: skriv til os via formularen på kontaktsiden, send en e-mail til kontakt@marsvin.dk, eller ring på 70 12 34 56 torsdag til lørdag i åbningstiden. Vi svarer inden for et par hverdage.",
+            "Contact: write to us through the form on the contact page, email kontakt@marsvin.dk, or call 70 12 34 56 Thursday to Saturday during opening hours. We reply within a couple of weekdays."));
+
+        // ---- Brands ----
+        var brands = catalog.Accessories.Select(a => a.Brand).OfType<string>().Distinct().Order().ToList();
+        if (brands.Count > 0)
+        {
+            facts.Add(new(
+                $"Mærker vi fører: {string.Join(", ", brands)}. På siden Mærker kan du se alt fra hvert mærke.",
+                $"Brands we carry: {string.Join(", ", brands)}. The Brands page shows everything from each brand."));
+        }
+
+        // ---- Delivery (the same numbers the checkout uses) ----
+        foreach (var carrier in Enum.GetValues<ShippingCarrier>())
+        {
+            var (minDays, maxDays) = ShippingCalculator.BusinessDays(carrier);
+            decimal Price(int grams) => ShippingCalculator.Cost(carrier, grams);
+            facts.Add(new(
+                $"Fragt med {carrier.DisplayName()}: leveres til {(carrier.DeliversToParcelShop() ? "et udleveringssted nær din adresse" : "døren")}, {minDays}-{maxDays} hverdage. " +
+                $"Pris pr. pakke: {Price(1_000):0} kr. op til 1 kg, {Price(5_000):0} kr. op til 5 kg, {Price(10_000):0} kr. op til 10 kg, {Price(20_000):0} kr. op til 20 kg.",
+                $"Shipping with {carrier.DisplayName(english: true)}: delivered to {(carrier.DeliversToParcelShop() ? "a pick-up point near your address" : "your door")}, {minDays}-{maxDays} weekdays. " +
+                $"Price per parcel: {Price(1_000):0} kr. up to 1 kg, {Price(5_000):0} kr. up to 5 kg, {Price(10_000):0} kr. up to 10 kg, {Price(20_000):0} kr. up to 20 kg."));
+        }
+        facts.Add(new(
+            "En pakke rummer højst 20 kg. En tungere ordre deles i flere pakker, som hver prissættes efter sin egen vægt. I kassen ser du samlet vægt, antal pakker og forventet leveringsdato, før du betaler.",
+            "A parcel holds at most 20 kg. A heavier order is split into several parcels, each priced on its own weight. At checkout you see the total weight, number of parcels and expected delivery date before you pay."));
+
+        // ---- Care guide, quick guide and food list ----
+        facts.AddRange(CareGuideText.Facts);
+
+        foreach (var section in QuickGuideData.Sections)
+        {
+            facts.Add(new(
+                $"Pasning - {section.TitleDa.ToLowerInvariant()}: {string.Join("; ", section.Items.Select(i => i.NoteDa is null ? i.Da : $"{i.Da} ({i.NoteDa})"))}.",
+                $"Care - {section.TitleEn.ToLowerInvariant()}: {string.Join("; ", section.Items.Select(i => i.NoteEn is null ? i.En : $"{i.En} ({i.NoteEn})"))}."));
+        }
+
+        // One fact per food or plant, so "må marsvin spise agurk?" lands on
+        // cucumber itself rather than on a long list.
+        foreach (var section in FoodListData.FoodSections.Concat(FoodListData.GardenSections))
+        {
+            foreach (var item in section.Items)
+            {
+                facts.Add(new(
+                    $"Foderliste - {item.Da}: {section.TitleDa}.{(item.NoteDa is null ? "" : $" {item.NoteDa}.")}",
+                    $"Food list - {item.En}: {section.TitleEn}.{(item.NoteEn is null ? "" : $" {item.NoteEn}.")}"));
+            }
+        }
+
         // ---- FAQ page ----
         // The same entries the /Faq page shows, so the chat and the page can't disagree.
         foreach (var entry in FaqData.Entries)
@@ -110,6 +169,48 @@ public static class ShopKnowledge
             });
         }
 
+        return facts;
+    }
+}
+
+/// <summary>
+/// The care guide, read straight from its own page (Pages/Pasningsguide.cshtml,
+/// copied next to the app at build time - see the .csproj) rather than typed
+/// in a second time: every paragraph there is already written as Danish text
+/// with its English twin in a data-en attribute, which is exactly a
+/// <see cref="ShopFact"/>. Read once, at first use. If the file isn't there,
+/// the chat simply knows less - it never fails over it.
+/// </summary>
+public static class CareGuideText
+{
+    private static readonly Regex Paragraph = new(
+        """<(p|li|dd|dt)\b[^>]*\sdata-en="([^"]*)"[^>]*>(.*?)</\1>""",
+        RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Lazy<IReadOnlyList<ShopFact>> Loaded = new(Load);
+
+    public static IReadOnlyList<ShopFact> Facts => Loaded.Value;
+
+    private static IReadOnlyList<ShopFact> Load()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Pages", "Pasningsguide.cshtml");
+        if (!File.Exists(path)) return [];
+
+        var facts = new List<ShopFact>();
+        foreach (Match match in Paragraph.Matches(File.ReadAllText(path)))
+        {
+            var english = match.Groups[2].Value;
+            var danish = match.Groups[3].Value;
+            // Plain prose only: anything with markup or Razor code in it isn't a sentence to quote.
+            if (danish.Contains('<') || danish.Contains('@') || english.Contains('@')) continue;
+
+            danish = Regex.Replace(WebUtility.HtmlDecode(danish), @"\s+", " ").Trim();
+            english = WebUtility.HtmlDecode(english).Trim();
+            // Short strings are headings and button labels, not knowledge.
+            if (danish.Length < 60) continue;
+
+            facts.Add(new ShopFact(danish, english));
+        }
         return facts;
     }
 }

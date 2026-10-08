@@ -5,15 +5,18 @@
     ViewData["TitleEn"] = "Guinea pigs";
 }
 
-<div class="wrap section">
-    <div class="section-head">
-        <div>
-            <h2 data-en="Guinea pigs">Marsvinene</h2>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner faq-hero-inner--text">
+        <div class="faq-hero-text">
+            <h1 data-en="Guinea pigs">Marsvinene</h1>
             <p data-en="All animals in the shop right now. Click a name to see the full profile.">
                 Alle dyr i butikken lige nu. Klik på et navn for at se hele profilen.
             </p>
         </div>
     </div>
+</section>
+
+<div class="wrap section">
 
     <div class="pairs">
         @foreach (var group in Model.Groups)

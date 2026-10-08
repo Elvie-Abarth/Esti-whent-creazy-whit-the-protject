@@ -1,0 +1,56 @@
+@model string
+@*
+    A brand's logo for its card on the brands page. The eight brands in the
+    demo catalog have their real logo saved under wwwroot/img/brands (the
+    logos belong to their owners - used here only because this is a school
+    project that never goes online). Any other brand - an admin can type in
+    whatever they like on Admin/Products - gets its initials on a colour
+    picked from its name, so every card has something without anyone having
+    to upload a file. Decorative either way: the name is printed next to it.
+*@
+@{
+    var file = Model switch
+    {
+        "JR Farm" => "jr-farm.svg",
+        "Vitakraft" => "vitakraft.png",
+        "Rosewood" => "rosewood.png",
+        "Savic" => "savic.png",
+        "Trixie" => "trixie.png",
+        "Zolux" => "zolux.png",
+        "Carefresh" => "carefresh.png",
+        "Beaphar" => "beaphar.svg",
+        _ => null
+    };
+}
+@if (file is not null)
+{
+    @* The file name comes from the fixed list above, never from the brand
+       name itself, so nothing typed into the admin form ends up in a URL. *@
+    <span class="brand-logo brand-logo--image"><img src="~/img/brands/@file" alt="" /></span>
+}
+else
+{
+    // (background, mark colour) pairs from the site's own palette.
+    (string Background, string Ink)[] palette =
+    [
+        ("#2C4327", "#F0E7D2"), ("#B83C6E", "#FBF7EC"), ("#74964A", "#FBF7EC"),
+        ("#7A6A4F", "#F0E7D2"), ("#B5643C", "#FBF7EC"), ("#D8C9A6", "#2C4327")
+    ];
+
+    // Not string.GetHashCode(): that differs from run to run, and a brand's
+    // colour shouldn't change every time the app restarts.
+    var hash = Model.Aggregate(0, (sum, c) => (sum * 31 + c) & 0x7FFFFFFF);
+    var (background, ink) = palette[hash % palette.Length];
+    var initials = string.Concat(Model.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+
+    <svg class="brand-logo" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+        <circle cx="24" cy="24" r="24" fill="@background" />
+        @* Razor reserves the tag name "text" for itself, so SVG's own <text>
+           element has to be written out as a string. The initials come from a
+           brand name an admin typed, so they are HTML-encoded here by hand -
+           Html.Raw would otherwise put them on the page as is. *@
+        @Html.Raw($"<text x=\"24\" y=\"25\" text-anchor=\"middle\" dominant-baseline=\"central\" " +
+                  $"font-family=\"Karla, system-ui, sans-serif\" font-size=\"{(initials.Length > 1 ? 18 : 22)}\" " +
+                  $"font-weight=\"700\" fill=\"{ink}\">{System.Net.WebUtility.HtmlEncode(initials)}</text>")
+    </svg>
+}

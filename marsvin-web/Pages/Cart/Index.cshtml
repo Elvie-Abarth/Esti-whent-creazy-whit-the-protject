@@ -5,12 +5,19 @@
     ViewData["TitleEn"] = "Cart";
 }
 
-<div class="wrap section">
-    <div class="section-head">
-        <div>
-            <h2 data-en="Your cart">Din kurv</h2>
+@* The same page top as the rest of the shop: title on the left, photo on the right. *@
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="Your cart">Din kurv</h1>
         </div>
+        <img class="faq-hero-photo cart-hero-photo" src="~/img/kurv-marsvin.jpg" width="612" height="408"
+             alt="Et marsvin, der skubber en lille indkøbsvogn med et æble i"
+             data-en-alt="A guinea pig pushing a tiny shopping trolley with an apple in it" />
     </div>
+</section>
+
+<div class="wrap section">
 
     @if (Model.Lines.Count == 0)
     {

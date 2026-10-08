@@ -4,20 +4,27 @@
     ViewData["TitleEn"] = "Care guide";
 }
 
-<div class="wrap section guide-intro">
-    <div class="section-head">
-        <h1 data-en="How to look after a guinea pig">Sådan passer du et marsvin</h1>
-        <p data-en="Not a leaflet we hand you as you leave. This is what we expect you already know before you come to pick one up — the same standard our own animals live by while they're still with us.">
-            Ikke en folder du får med ud ad døren. Det her er hvad vi forventer du
-            allerede ved, inden du henter et marsvin — samme standard vores egne
-            dyr lever under, mens de stadig er hos os.
-        </p>
-        <div class="actions">
-            <a class="btn btn--quiet" asp-page="/PasningsguideHurtig" data-en="Quick guide — one page, printable">Lynguide — én side, til print</a>
-            <a class="btn btn--quiet" asp-page="/Foderliste" data-en="Food list — printable">Foderliste — til print</a>
+@* Same intro layout as the FAQ page (the .faq-hero styles in site.css): text
+   on the left, photo on the right. *@
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="How to look after a guinea pig">Sådan passer du et marsvin</h1>
+            <p data-en="Not a leaflet we hand you as you leave. This is what we expect you already know before you come to pick one up — the same standard our own animals live by while they're still with us.">
+                Ikke en folder du får med ud ad døren. Det her er hvad vi forventer du
+                allerede ved, inden du henter et marsvin — samme standard vores egne
+                dyr lever under, mens de stadig er hos os.
+            </p>
+            <div class="actions">
+                <a class="btn btn--quiet" asp-page="/PasningsguideHurtig" data-en="Quick guide — one page, printable">Lynguide — én side, til print</a>
+                <a class="btn btn--quiet" asp-page="/Foderliste" data-en="Food list — printable">Foderliste — til print</a>
+            </div>
         </div>
+        <img class="faq-hero-photo guide-hero-photo" src="~/img/pasningsguide-marsvin.jpg" width="413" height="320"
+             alt="Et langhåret, cremefarvet og gråbrunt marsvin med rubinrøde øjne"
+             data-en-alt="A long-haired cream and grey-brown guinea pig with ruby eyes" />
     </div>
-</div>
+</section>
 
 <section class="section section--paper">
     <div class="wrap">
@@ -82,149 +89,244 @@
     </div>
 </section>
 
+@* The guide itself: a chapter list that stays in view on the left (the same
+   layout as the FAQ page), and each chapter as a card whose paragraphs each
+   get a short label - so the page can be scanned, not just read top to
+   bottom. The paragraphs themselves are unchanged; the support chat reads
+   them from this file (see CareGuideText in Data/ShopKnowledge.cs). *@
 <section class="section">
-    <div class="wrap guide-article">
-        <article>
-            <h2 data-en="Cage and setup">Bur og indretning</h2>
-            <p data-en="120 × 60 cm floor space is the minimum for two guinea pigs — that's a floor measurement, not a footprint including a second level. Guinea pigs don't use ramps and levels the way rodents that climb do; extra height is wasted space, extra floor is what they actually need. Each additional guinea pig needs roughly another 0.5 m² of floor.">
-                120 × 60 cm gulvplads er minimum for to marsvin — det er et gulvmål,
-                ikke et areal der tæller en ekstra etage med. Marsvin bruger ikke ramper
-                og niveauer, sådan som klatrende gnavere gør; ekstra højde er spildt
-                plads, ekstra gulv er det de faktisk har brug for. Hvert ekstra marsvin
-                kræver cirka 0,5 m² gulv mere.
-            </p>
-            <p data-en="Skip wire-bottom cages entirely. Wire flooring causes sore, ulcerated feet (bumblefoot) over time — solid flooring with a thick layer of bedding underneath is the only acceptable base. One house per guinea pig, with two exits each, so nobody gets cornered by a cagemate defending a doorway.">
-                Undgå bure med trådbund helt. Trådbund giver ømme, sårede poter
-                (bumblefoot) over tid — massiv bund med et tykt lag strøelse er den
-                eneste acceptable løsning. Ét hus per marsvin, med to udgange hver,
-                så ingen bliver fanget i et hjørne af en burkammerat der forsvarer en dør.
-            </p>
-            <p data-en="Bedding: hay, fleece liners, or dust-extracted hemp all work. Skip pine and cedar shavings — the oils in softwood irritate a guinea pig's respiratory system over weeks of exposure, even if nothing looks wrong at first.">
-                Strøelse: hø, fleecemåtter eller støvfri hampestrøelse virker alle fint.
-                Undgå gran- og cedertræsspåner — olierne i blødt træ irriterer
-                marsvinets luftveje over ugers eksponering, selv når intet ser galt ud i starten.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="Food and water">Foder og vand</h2>
-            <p data-en="Hay is unlimited, always — it's what keeps their constantly-growing teeth worn down and their gut moving. Pellets are a supplement, not the meal: a measured daily portion of a guinea-pig-specific pellet (not a generic &quot;small animal&quot; mix) covers what hay alone doesn't, including vitamin C.">
-                Hø er ubegrænset, altid — det er det der holder de konstant voksende
-                tænder nedslidt og fordøjelsen i gang. Piller er et tilskud, ikke måltidet:
-                en afmålt daglig portion af et pilletype specifikt til marsvin (ikke en
-                generisk "smådyrs"-blanding) dækker det hø alene ikke gør, inklusiv C-vitamin.
-            </p>
-            <p data-en="Fresh vegetables daily in small amounts: bell pepper, cucumber, leafy greens like romaine. Iceberg lettuce is fine occasionally but is mostly water with little nutrition, so it shouldn't be the main vegetable. Avoid avocado, onion, garlic, and anything from the allium family — those are genuinely harmful, not just &quot;not ideal&quot;.">
-                Friske grøntsager dagligt i små mængder: peberfrugt, agurk,
-                bladgrønt som romainesalat. Iceberg-salat er fint en gang
-                imellem, men er mest vand med lidt næring, så det bør ikke
-                være hovedgrøntsagen. Undgå avocado, løg, hvidløg og alt fra
-                løg-familien — de er reelt skadelige, ikke bare "ikke ideelle".
-            </p>
-            <p data-en="Water, always available and checked daily — a blocked bottle spout is easy to miss and a guinea pig won't reliably signal thirst the way a dog would.">
-                Vand, altid tilgængeligt og tjekket dagligt — en tilstoppet
-                flasketud er let at overse, og et marsvin signalerer ikke
-                tørst pålideligt, sådan som en hund gør.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="Vitamin C, specifically">C-vitamin, specifikt</h2>
-            <p data-en="Unlike most mammals, guinea pigs can't synthesise their own vitamin C — they need roughly 10–30 mg a day from food, more if pregnant or unwell. Deficiency (scurvy) shows up as lethargy, joint pain and reluctance to move, a rough or thinning coat, and bleeding gums — and it develops over weeks, not days, so by the time it's obvious it's already been going on for a while.">
-                I modsætning til de fleste pattedyr kan marsvin ikke selv danne
-                C-vitamin — de har brug for cirka 10–30 mg om dagen fra kosten,
-                mere hvis de er drægtige eller syge. Mangel (skørbug) viser sig
-                som sløvhed, ledsmerter og modvilje mod at bevæge sig, en ru
-                eller tyndere pels, og blødende tandkød — og det udvikler sig
-                over uger, ikke dage, så når det er tydeligt, har det allerede stået på et stykke tid.
-            </p>
-            <p data-en="A guinea-pig-specific pellet with stated vitamin C content, fed within its use-by date, covers daily needs — vitamin C degrades in stored pellets over a few months, so an old bag is worth less than the label suggests. Fresh vegetables high in vitamin C (bell pepper especially) are a reliable backup, not a replacement.">
-                Et marsvine-specifikt pillefoder med angivet C-vitaminindhold,
-                fodret inden for holdbarhedsdatoen, dækker det daglige behov —
-                C-vitamin nedbrydes i opbevarede piller over nogle måneder, så
-                en gammel pose er mindre værd end etiketten antyder. Friske
-                grøntsager med højt C-vitaminindhold (især peberfrugt) er en
-                pålidelig backup, ikke en erstatning.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="Behaviour">Adfærd</h2>
-            <p data-en="Guinea pigs are vocal and readable once you know what to listen for. Popcorning — jumping straight up and twisting mid-air — is pure joy, usually right after being let out to run. Wheeking, a loud rising whistle, means &quot;feed me&quot; and gets louder the instant a fridge or a rustling bag is heard. A low, steady purr-like rumble while walking (rumblestrutting) is a dominance or courtship display between any two guinea pigs, not necessarily aggression.">
-                Marsvin er højlydte og til at læse, når man ved hvad man skal
-                lytte efter. Popcorning — at hoppe lige op og sno sig i luften
-                — er ren glæde, som regel lige efter at være sluppet løs for
-                at løbe. At fløjte højlydt (wheeking) betyder "giv mig mad" og
-                bliver højere i samme øjeblik et køleskab eller en raslende
-                pose høres. En lav, jævn snurren mens de går
-                (rumblestrutting) er et dominans- eller parringsdisplay
-                mellem to marsvin, ikke nødvendigvis aggression.
-            </p>
-            <p data-en="Teeth chattering is a warning, not idle noise — give that guinea pig space, a nip can follow. Freezing completely still means startled or frightened, not calm. A low chattering or soft purr while being petted usually means contentment; pulling away and running is the opposite signal, and pushing contact past that point only teaches them that hands mean being chased.">
-                Klapren med tænderne er en advarsel, ikke bare støj — giv det
-                marsvin plads, et nap kan følge efter. At fryse helt stille
-                betyder forskrækket eller bange, ikke roligt. En lav klapren
-                eller blid snurren mens de bliver aet betyder som regel
-                tilfredshed; at trække sig væk og løbe er det modsatte
-                signal, og at presse kontakt forbi det punkt lærer dem kun,
-                at hænder betyder at blive jagtet.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="Companionship and bonding">Selskab og sammenbinding</h2>
-            <p data-en="Guinea pigs are herd animals — a single guinea pig doesn't become calm on its own, it becomes withdrawn. That's why we mainly sell in bonded pairs, and why a single animal only leaves the shop once you confirm it's joining a guinea pig or herd you already have at home.">
-                Marsvin er flokdyr — et enkelt marsvin bliver ikke roligt af sig
-                selv, det bliver tilbagetrukket. Derfor sælger vi primært i
-                bundne par, og derfor kommer et enkelt dyr først herfra, når
-                du bekræfter, det tilføjes et marsvin eller en flok, du allerede har derhjemme.
-            </p>
-            <p data-en="Introducing two guinea pigs that don't already know each other takes patience: neutral territory neither has claimed, supervised time, and enough space to retreat from each other. Some squabbling and chasing while they sort out rank is normal; drawn blood is not — separate them and try again more slowly if that happens.">
-                At introducere to marsvin der ikke allerede kender hinanden
-                kræver tålmodighed: neutralt territorium som ingen af dem har
-                gjort krav på, overvåget tid, og nok plads til at trække sig
-                fra hinanden. Lidt skænderi og jagt mens de finder rangorden er
-                normalt; blod er det ikke — adskil dem og prøv langsommere igen hvis det sker.
-            </p>
-            <p data-en="Expect the process to take anywhere from a few days to a few weeks, not one afternoon. Short, supervised sessions on neutral ground beat one long forced introduction — end a session on a calm note rather than pushing until something goes wrong. Circling each other, mild nipping, and one mounting the other while they sort out rank are normal parts of bonding, not a sign it's failing.">
-                Forvent at processen tager fra et par dage til et par uger,
-                ikke én eftermiddag. Korte, overvågede sessioner på neutral
-                grund er bedre end én lang tvungen introduktion — afslut en
-                session på et roligt tidspunkt i stedet for at presse til
-                noget går galt. At cirkle om hinanden, lette nap og at det
-                ene rider det andet mens de finder rangorden er normale dele
-                af sammenbinding, ikke et tegn på at det mislykkes.
-            </p>
-            <p data-en="Stop and separate them if you see drawn blood, one guinea pig relentlessly chasing without ever backing off, or one hiding and refusing to eat for more than a few hours after an introduction — that's not normal rank-sorting, and pushing it further usually makes the next attempt harder, not easier.">
-                Stop og adskil dem hvis du ser blod, det ene marsvin der
-                vedholdende jagter uden nogensinde at trække sig, eller det
-                ene der gemmer sig og nægter at spise i mere end nogle få
-                timer efter en introduktion — det er ikke normal
-                rangfinding, og at presse det videre gør som regel det næste
-                forsøg sværere, ikke lettere.
-            </p>
-        </article>
-
-        <div class="callout">
-            <h2 data-en="When it's an emergency">Når det er akut</h2>
+    <div class="wrap faq-layout">
+        <nav class="faq-topics" aria-label="Kapitler" data-en-aria-label="Chapters">
+            <h2 data-en="In this guide">I denne guide</h2>
             <ul>
-                <li data-en="Not eating or drinking for 24 hours — their digestive system can shut down (gastrointestinal stasis) and it's genuinely life-threatening, not a wait-and-see.">Ikke spist eller drukket i et døgn — fordøjelsessystemet kan gå i stå (GI-stase), og det er reelt livstruende, ikke noget man venter og ser an med.</li>
-                <li data-en="Laboured breathing, sneezing with discharge, or a head tilt — same-day vet, guinea pigs hide respiratory illness well until it's advanced.">Besværet vejrtrækning, nysen med udflåd, eller skæv hovedholdning — dyrlæge samme dag, marsvin skjuler luftvejssygdom godt indtil den er fremskreden.</li>
-                <li data-en="Sudden weight loss, drooling, or dropped food — a dental problem, since their teeth never stop growing.">Pludseligt vægttab, savlen, eller tabt mad — et tandproblem, da tænderne aldrig holder op med at vokse.</li>
-                <li data-en="Weigh them weekly if you can. A dropping number is often the very first sign something's wrong, well before behaviour changes.">Vej dem ugentligt hvis muligt. Et faldende tal er ofte det allerførste tegn på at noget er galt, længe før adfærden ændrer sig.</li>
+                <li><a href="#bur"><span data-en="Cage and setup">Bur og indretning</span><span class="faq-count">1</span></a></li>
+                <li><a href="#foder"><span data-en="Food and water">Foder og vand</span><span class="faq-count">2</span></a></li>
+                <li><a href="#c-vitamin"><span data-en="Vitamin C, specifically">C-vitamin, specifikt</span><span class="faq-count">3</span></a></li>
+                <li><a href="#adfaerd"><span data-en="Behaviour">Adfærd</span><span class="faq-count">4</span></a></li>
+                <li><a href="#selskab"><span data-en="Companionship and bonding">Selskab og sammenbinding</span><span class="faq-count">5</span></a></li>
+                <li><a href="#akut" class="guide-nav-urgent"><span data-en="When it's an emergency">Når det er akut</span><span class="faq-count">!</span></a></li>
+                <li><a href="#rengoering"><span data-en="Cleaning">Rengøring</span><span class="faq-count">6</span></a></li>
             </ul>
-        </div>
+        </nav>
 
-        <article>
-            <h2 data-en="Cleaning">Rengøring</h2>
-            <p data-en="Spot-clean daily: wet bedding and droppings around their favourite corner, gone before they build up. Full clean weekly: all bedding out, cage surfaces properly cleaned, fresh bedding in. Scrub the water bottle weekly too — algae and biofilm build up inside where you can't easily see it.">
-                Punktrengør dagligt: våd strøelse og efterladenskaber omkring
-                deres foretrukne hjørne, væk før det hober sig op. Fuld
-                rengøring ugentligt: al strøelse ud, burets overflader
-                ordentligt rengjort, frisk strøelse i. Skrub også
-                vandflasken ugentligt — alger og biofilm opbygges indeni, hvor man ikke let kan se det.
-            </p>
-        </article>
+        <div class="guide-chapters">
+            <article class="guide-chapter" id="bur">
+                <header>
+                    <span class="guide-chapter-number">1</span>
+                    <h2 data-en="Cage and setup">Bur og indretning</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Size">Størrelse</h3>
+                        <p data-en="120 × 60 cm floor space is the minimum for two guinea pigs — that's a floor measurement, not a footprint including a second level. Guinea pigs don't use ramps and levels the way rodents that climb do; extra height is wasted space, extra floor is what they actually need. Each additional guinea pig needs roughly another 0.5 m² of floor.">
+                            120 × 60 cm gulvplads er minimum for to marsvin — det er et gulvmål,
+                            ikke et areal der tæller en ekstra etage med. Marsvin bruger ikke ramper
+                            og niveauer, sådan som klatrende gnavere gør; ekstra højde er spildt
+                            plads, ekstra gulv er det de faktisk har brug for. Hvert ekstra marsvin
+                            kræver cirka 0,5 m² gulv mere.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Floor and houses">Bund og huse</h3>
+                        <p data-en="Skip wire-bottom cages entirely. Wire flooring causes sore, ulcerated feet (bumblefoot) over time — solid flooring with a thick layer of bedding underneath is the only acceptable base. One house per guinea pig, with two exits each, so nobody gets cornered by a cagemate defending a doorway.">
+                            Undgå bure med trådbund helt. Trådbund giver ømme, sårede poter
+                            (bumblefoot) over tid — massiv bund med et tykt lag strøelse er den
+                            eneste acceptable løsning. Ét hus per marsvin, med to udgange hver,
+                            så ingen bliver fanget i et hjørne af en burkammerat der forsvarer en dør.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Bedding">Strøelse</h3>
+                        <p data-en="Bedding: hay, fleece liners, or dust-extracted hemp all work. Skip pine and cedar shavings — the oils in softwood irritate a guinea pig's respiratory system over weeks of exposure, even if nothing looks wrong at first.">
+                            Strøelse: hø, fleecemåtter eller støvfri hampestrøelse virker alle fint.
+                            Undgå gran- og cedertræsspåner — olierne i blødt træ irriterer
+                            marsvinets luftveje over ugers eksponering, selv når intet ser galt ud i starten.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="foder">
+                <header>
+                    <span class="guide-chapter-number">2</span>
+                    <h2 data-en="Food and water">Foder og vand</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Hay and pellets">Hø og piller</h3>
+                        <p data-en="Hay is unlimited, always — it's what keeps their constantly-growing teeth worn down and their gut moving. Pellets are a supplement, not the meal: a measured daily portion of a guinea-pig-specific pellet (not a generic &quot;small animal&quot; mix) covers what hay alone doesn't, including vitamin C.">
+                            Hø er ubegrænset, altid — det er det der holder de konstant voksende
+                            tænder nedslidt og fordøjelsen i gang. Piller er et tilskud, ikke måltidet:
+                            en afmålt daglig portion af et pilletype specifikt til marsvin (ikke en
+                            generisk "smådyrs"-blanding) dækker det hø alene ikke gør, inklusiv C-vitamin.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Vegetables">Grøntsager</h3>
+                        <p data-en="Fresh vegetables daily in small amounts: bell pepper, cucumber, leafy greens like romaine. Iceberg lettuce is fine occasionally but is mostly water with little nutrition, so it shouldn't be the main vegetable. Avoid avocado, onion, garlic, and anything from the allium family — those are genuinely harmful, not just &quot;not ideal&quot;.">
+                            Friske grøntsager dagligt i små mængder: peberfrugt, agurk,
+                            bladgrønt som romainesalat. Iceberg-salat er fint en gang
+                            imellem, men er mest vand med lidt næring, så det bør ikke
+                            være hovedgrøntsagen. Undgå avocado, løg, hvidløg og alt fra
+                            løg-familien — de er reelt skadelige, ikke bare "ikke ideelle".
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Water">Vand</h3>
+                        <p data-en="Water, always available and checked daily — a blocked bottle spout is easy to miss and a guinea pig won't reliably signal thirst the way a dog would.">
+                            Vand, altid tilgængeligt og tjekket dagligt — en tilstoppet
+                            flasketud er let at overse, og et marsvin signalerer ikke
+                            tørst pålideligt, sådan som en hund gør.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="c-vitamin">
+                <header>
+                    <span class="guide-chapter-number">3</span>
+                    <h2 data-en="Vitamin C, specifically">C-vitamin, specifikt</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Need and deficiency">Behov og mangel</h3>
+                        <p data-en="Unlike most mammals, guinea pigs can't synthesise their own vitamin C — they need roughly 10–30 mg a day from food, more if pregnant or unwell. Deficiency (scurvy) shows up as lethargy, joint pain and reluctance to move, a rough or thinning coat, and bleeding gums — and it develops over weeks, not days, so by the time it's obvious it's already been going on for a while.">
+                            I modsætning til de fleste pattedyr kan marsvin ikke selv danne
+                            C-vitamin — de har brug for cirka 10–30 mg om dagen fra kosten,
+                            mere hvis de er drægtige eller syge. Mangel (skørbug) viser sig
+                            som sløvhed, ledsmerter og modvilje mod at bevæge sig, en ru
+                            eller tyndere pels, og blødende tandkød — og det udvikler sig
+                            over uger, ikke dage, så når det er tydeligt, har det allerede stået på et stykke tid.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="How to cover it">Sådan dækkes det</h3>
+                        <p data-en="A guinea-pig-specific pellet with stated vitamin C content, fed within its use-by date, covers daily needs — vitamin C degrades in stored pellets over a few months, so an old bag is worth less than the label suggests. Fresh vegetables high in vitamin C (bell pepper especially) are a reliable backup, not a replacement.">
+                            Et marsvine-specifikt pillefoder med angivet C-vitaminindhold,
+                            fodret inden for holdbarhedsdatoen, dækker det daglige behov —
+                            C-vitamin nedbrydes i opbevarede piller over nogle måneder, så
+                            en gammel pose er mindre værd end etiketten antyder. Friske
+                            grøntsager med højt C-vitaminindhold (især peberfrugt) er en
+                            pålidelig backup, ikke en erstatning.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="adfaerd">
+                <header>
+                    <span class="guide-chapter-number">4</span>
+                    <h2 data-en="Behaviour">Adfærd</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Happy sounds">Glade lyde</h3>
+                        <p data-en="Guinea pigs are vocal and readable once you know what to listen for. Popcorning — jumping straight up and twisting mid-air — is pure joy, usually right after being let out to run. Wheeking, a loud rising whistle, means &quot;feed me&quot; and gets louder the instant a fridge or a rustling bag is heard. A low, steady purr-like rumble while walking (rumblestrutting) is a dominance or courtship display between any two guinea pigs, not necessarily aggression.">
+                            Marsvin er højlydte og til at læse, når man ved hvad man skal
+                            lytte efter. Popcorning — at hoppe lige op og sno sig i luften
+                            — er ren glæde, som regel lige efter at være sluppet løs for
+                            at løbe. At fløjte højlydt (wheeking) betyder "giv mig mad" og
+                            bliver højere i samme øjeblik et køleskab eller en raslende
+                            pose høres. En lav, jævn snurren mens de går
+                            (rumblestrutting) er et dominans- eller parringsdisplay
+                            mellem to marsvin, ikke nødvendigvis aggression.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Warning signs">Advarselstegn</h3>
+                        <p data-en="Teeth chattering is a warning, not idle noise — give that guinea pig space, a nip can follow. Freezing completely still means startled or frightened, not calm. A low chattering or soft purr while being petted usually means contentment; pulling away and running is the opposite signal, and pushing contact past that point only teaches them that hands mean being chased.">
+                            Klapren med tænderne er en advarsel, ikke bare støj — giv det
+                            marsvin plads, et nap kan følge efter. At fryse helt stille
+                            betyder forskrækket eller bange, ikke roligt. En lav klapren
+                            eller blid snurren mens de bliver aet betyder som regel
+                            tilfredshed; at trække sig væk og løbe er det modsatte
+                            signal, og at presse kontakt forbi det punkt lærer dem kun,
+                            at hænder betyder at blive jagtet.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="selskab">
+                <header>
+                    <span class="guide-chapter-number">5</span>
+                    <h2 data-en="Companionship and bonding">Selskab og sammenbinding</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Why two">Hvorfor to</h3>
+                        <p data-en="Guinea pigs are herd animals — a single guinea pig doesn't become calm on its own, it becomes withdrawn. That's why we mainly sell in bonded pairs, and why a single animal only leaves the shop once you confirm it's joining a guinea pig or herd you already have at home.">
+                            Marsvin er flokdyr — et enkelt marsvin bliver ikke roligt af sig
+                            selv, det bliver tilbagetrukket. Derfor sælger vi primært i
+                            bundne par, og derfor kommer et enkelt dyr først herfra, når
+                            du bekræfter, det tilføjes et marsvin eller en flok, du allerede har derhjemme.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Introducing them">Introduktion</h3>
+                        <p data-en="Introducing two guinea pigs that don't already know each other takes patience: neutral territory neither has claimed, supervised time, and enough space to retreat from each other. Some squabbling and chasing while they sort out rank is normal; drawn blood is not — separate them and try again more slowly if that happens.">
+                            At introducere to marsvin der ikke allerede kender hinanden
+                            kræver tålmodighed: neutralt territorium som ingen af dem har
+                            gjort krav på, overvåget tid, og nok plads til at trække sig
+                            fra hinanden. Lidt skænderi og jagt mens de finder rangorden er
+                            normalt; blod er det ikke — adskil dem og prøv langsommere igen hvis det sker.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="How long it takes">Hvor længe</h3>
+                        <p data-en="Expect the process to take anywhere from a few days to a few weeks, not one afternoon. Short, supervised sessions on neutral ground beat one long forced introduction — end a session on a calm note rather than pushing until something goes wrong. Circling each other, mild nipping, and one mounting the other while they sort out rank are normal parts of bonding, not a sign it's failing.">
+                            Forvent at processen tager fra et par dage til et par uger,
+                            ikke én eftermiddag. Korte, overvågede sessioner på neutral
+                            grund er bedre end én lang tvungen introduktion — afslut en
+                            session på et roligt tidspunkt i stedet for at presse til
+                            noget går galt. At cirkle om hinanden, lette nap og at det
+                            ene rider det andet mens de finder rangorden er normale dele
+                            af sammenbinding, ikke et tegn på at det mislykkes.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Stop if">Stop hvis</h3>
+                        <p data-en="Stop and separate them if you see drawn blood, one guinea pig relentlessly chasing without ever backing off, or one hiding and refusing to eat for more than a few hours after an introduction — that's not normal rank-sorting, and pushing it further usually makes the next attempt harder, not easier.">
+                            Stop og adskil dem hvis du ser blod, det ene marsvin der
+                            vedholdende jagter uden nogensinde at trække sig, eller det
+                            ene der gemmer sig og nægter at spise i mere end nogle få
+                            timer efter en introduktion — det er ikke normal
+                            rangfinding, og at presse det videre gør som regel det næste
+                            forsøg sværere, ikke lettere.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <section class="guide-emergency" id="akut">
+                <h2 data-en="When it's an emergency">Når det er akut</h2>
+                <ul>
+                    <li data-en="Not eating or drinking for 24 hours — their digestive system can shut down (gastrointestinal stasis) and it's genuinely life-threatening, not a wait-and-see.">Ikke spist eller drukket i et døgn — fordøjelsessystemet kan gå i stå (GI-stase), og det er reelt livstruende, ikke noget man venter og ser an med.</li>
+                    <li data-en="Laboured breathing, sneezing with discharge, or a head tilt — same-day vet, guinea pigs hide respiratory illness well until it's advanced.">Besværet vejrtrækning, nysen med udflåd, eller skæv hovedholdning — dyrlæge samme dag, marsvin skjuler luftvejssygdom godt indtil den er fremskreden.</li>
+                    <li data-en="Sudden weight loss, drooling, or dropped food — a dental problem, since their teeth never stop growing.">Pludseligt vægttab, savlen, eller tabt mad — et tandproblem, da tænderne aldrig holder op med at vokse.</li>
+                    <li data-en="Weigh them weekly if you can. A dropping number is often the very first sign something's wrong, well before behaviour changes.">Vej dem ugentligt hvis muligt. Et faldende tal er ofte det allerførste tegn på at noget er galt, længe før adfærden ændrer sig.</li>
+                </ul>
+            </section>
+
+            <article class="guide-chapter" id="rengoering">
+                <header>
+                    <span class="guide-chapter-number">6</span>
+                    <h2 data-en="Cleaning">Rengøring</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Daily and weekly">Dagligt og ugentligt</h3>
+                        <p data-en="Spot-clean daily: wet bedding and droppings around their favourite corner, gone before they build up. Full clean weekly: all bedding out, cage surfaces properly cleaned, fresh bedding in. Scrub the water bottle weekly too — algae and biofilm build up inside where you can't easily see it.">
+                            Punktrengør dagligt: våd strøelse og efterladenskaber omkring
+                            deres foretrukne hjørne, væk før det hober sig op. Fuld
+                            rengøring ugentligt: al strøelse ud, burets overflader
+                            ordentligt rengjort, frisk strøelse i. Skrub også
+                            vandflasken ugentligt — alger og biofilm opbygges indeni, hvor man ikke let kan se det.
+                        </p>
+                    </div>
+                </div>
+            </article>
+        </div>
     </div>
 </section>
 

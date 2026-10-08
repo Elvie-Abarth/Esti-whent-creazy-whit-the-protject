@@ -16,6 +16,23 @@
     // Hidden until here, so a browser without JavaScript never shows a chat that can't work.
     root.hidden = false;
 
+    // Minimise: the header's button, or Escape while the chat has focus.
+    // Only the <details> is closed - the messages stay in the log, so
+    // opening it again (clicking Pip) picks the conversation back up.
+    function minimise() {
+        root.open = false;
+        root.querySelector("summary").focus();
+    }
+    root.querySelector(".chat-close").addEventListener("click", minimise);
+    root.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && root.open) minimise();
+    });
+
+    // Opening puts the cursor straight in the question box.
+    root.addEventListener("toggle", function () {
+        if (root.open) input.focus();
+    });
+
     function english() {
         return document.documentElement.lang === "en";
     }

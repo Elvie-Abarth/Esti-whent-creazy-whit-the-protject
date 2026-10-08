@@ -11,14 +11,19 @@
         .ToList();
 }
 
-<div class="wrap section guide-intro">
-    <div class="section-head">
-        <h1 data-en="Brands">Mærker</h1>
-        <p data-en="The makers behind our accessories. Pick one to see everything we carry from them.">
-            Producenterne bag vores tilbehør. Vælg et mærke for at se alt, vi fører fra dem.
-        </p>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="Brands">Mærker</h1>
+            <p data-en="The makers behind our accessories. Pick one to see everything we carry from them.">
+                Producenterne bag vores tilbehør. Vælg et mærke for at se alt, vi fører fra dem.
+            </p>
+        </div>
+        <img class="faq-hero-photo guide-hero-photo" src="~/img/maerker-marsvin.jpg" width="1200" height="896"
+             alt="Et krøllet, hvidt og rødbrunt marsvin blandt hø og salatblade"
+             data-en-alt="A curly white and ginger guinea pig among hay and lettuce leaves" />
     </div>
-</div>
+</section>
 
 <section class="section">
     <div class="wrap">
@@ -36,17 +41,21 @@
                     var count = brand.Count();
                     <li>
                         <a asp-page="/Tilbehor/Index" asp-route-maerke="@brand.Key">
-                            <div class="receipt-card">
-                                <h3>@brand.Key</h3>
-                                <p data-en="@categoriesEn">@categoriesDa</p>
-                                <p class="field-hint" data-en="@(count == 1 ? "1 product" : $"{count} products")">@(count == 1 ? "1 vare" : $"{count} varer")</p>
+                            <div class="receipt-card brand-card">
+                                <partial name="_BrandLogo" model="brand.Key" />
+                                <div>
+                                    <h3>@brand.Key</h3>
+                                    <p data-en="@categoriesEn">@categoriesDa</p>
+                                    <p class="field-hint" data-en="@(count == 1 ? "1 product" : $"{count} products")">@(count == 1 ? "1 vare" : $"{count} varer")</p>
+                                </div>
                             </div>
                         </a>
                     </li>
                 }
             </ul>
-            <p class="field-hint" data-en="The brand names here are made up for this example shop.">
-                Mærkenavnene her er opdigtede til denne eksempelbutik.
+            <p class="field-hint" data-en="Names and logos belong to their respective owners. This is an example shop for a school project and is not affiliated with any of these brands.">
+                Navne og logoer tilhører deres respektive ejere. Dette er en eksempelbutik til et skoleprojekt
+                og har ingen tilknytning til nogen af mærkerne.
             </p>
         }
     </div>

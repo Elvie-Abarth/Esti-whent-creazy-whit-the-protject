@@ -5,21 +5,26 @@
     ViewData["TitleEn"] = "Support guinea pigs in need";
 }
 
-<div class="wrap section guide-intro">
-    <div class="section-head">
-        <h1 data-en="Support guinea pigs in need">Støt marsvin i nød</h1>
-        <p data-en="Some guinea pigs come back to us - an allergy, a move, a cage mate that died. We take them in, get them checked by a vet and find them a new home. A donation pays for their food, hay and vet visits while they wait.">
-            Nogle marsvin kommer tilbage til os - en allergi, en flytning, en
-            burkammerat der døde. Vi tager imod dem, får dem tjekket hos
-            dyrlægen og finder dem et nyt hjem. En donation betaler deres
-            foder, hø og dyrlægebesøg, mens de venter.
-        </p>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="Support guinea pigs in need">Støt marsvin i nød</h1>
+            <p data-en="Some guinea pigs come back to us - an allergy, a move, a cage mate that died. We take them in, get them checked by a vet and find them a new home. A donation pays for their food, hay and vet visits while they wait.">
+                Nogle marsvin kommer tilbage til os - en allergi, en flytning, en
+                burkammerat der døde. Vi tager imod dem, får dem tjekket hos
+                dyrlægen og finder dem et nyt hjem. En donation betaler deres
+                foder, hø og dyrlægebesøg, mens de venter.
+            </p>
+        </div>
+        <img class="faq-hero-photo support-hero-photo" src="~/img/stoet-marsvin.jpg" width="570" height="551"
+             alt="Maleri af et rødbrunt og hvidt marsvin, set forfra"
+             data-en-alt="Painting of a ginger and white guinea pig, seen from the front" />
     </div>
-</div>
+</section>
 
 <section class="section">
-    <div class="wrap auth-page payment-wrap">
-        <form method="post" class="auth-form payment-card donation-form">
+    <div class="wrap">
+        <form method="post" class="auth-form payment-card donation-form form-column">
             <div asp-validation-summary="ModelOnly" class="form-errors"></div>
 
             <fieldset>
@@ -45,7 +50,7 @@
                 <label>
                     <span data-en="@($"Amount in kr. ({StoetModel.MinAmount}-{StoetModel.MaxAmount:N0})")">Beløb i kr. (@StoetModel.MinAmount-@StoetModel.MaxAmount.ToString("N0"))</span>
                     <input asp-for="Input.AmountKr" type="number" min="@StoetModel.MinAmount" max="@StoetModel.MaxAmount" step="1" inputmode="numeric" />
-                    <span class="field-hint" data-en="50 kr. is hay for one guinea pig for a month. 300 kr. is a vet check.">50 kr. er hø til ét marsvin i en måned. 300 kr. er et dyrlægetjek.</span>
+                    <span class="field-hint" data-en="50 kr. is hay for one guinea pig for a month. 450 kr. is a vet check-up.">50 kr. er hø til ét marsvin i en måned. 450 kr. er et dyrlægetjek.</span>
                     <span asp-validation-for="Input.AmountKr" class="field-error"></span>
                 </label>
                 <p class="pay-note" data-en="Demo only: no money is taken and no payment details are asked for. The donation is just recorded.">

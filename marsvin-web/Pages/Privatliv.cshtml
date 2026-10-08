@@ -4,141 +4,219 @@
     ViewData["TitleEn"] = "Privacy policy";
 }
 
-<div class="wrap section guide-intro">
-    <div class="section-head">
-        <h1 data-en="Privacy policy">Privatlivspolitik</h1>
-        <p data-en="What we collect, why, how long we keep it, and your rights under the GDPR - the EU's data protection rules, which apply to us as a Danish webshop regardless of how small.">
-            Hvad vi indsamler, hvorfor, hvor længe vi gemmer det, og dine
-            rettigheder under GDPR - EU's databeskyttelsesregler, som gælder
-            for os som dansk webshop, uanset hvor små vi er.
-        </p>
+<section class="faq-hero">
+    <div class="wrap faq-hero-inner">
+        <div class="faq-hero-text">
+            <h1 data-en="Privacy policy">Privatlivspolitik</h1>
+            <p data-en="What we collect, why, how long we keep it, and your rights under the GDPR - the EU's data protection rules, which apply to us as a Danish webshop regardless of how small.">
+                Hvad vi indsamler, hvorfor, hvor længe vi gemmer det, og dine
+                rettigheder under GDPR - EU's databeskyttelsesregler, som gælder
+                for os som dansk webshop, uanset hvor små vi er.
+            </p>
+        </div>
+        <img class="faq-hero-photo faq-hero-photo--wide" src="~/img/privatliv-marsvin.jpg" width="700" height="395"
+             alt="To animerede marsvin med headset og udstyr, som hemmelige agenter"
+             data-en-alt="Two animated guinea pigs wearing headsets and gear, like secret agents" />
     </div>
-</div>
+</section>
 
+@* Same layout as the care guide: a list of the page's chapters that stays in
+   view, and each chapter as a card of short labelled rows. *@
 <section class="section">
-    <div class="wrap guide-article">
-        <article>
-            <h2 data-en="What we collect">Hvad vi indsamler</h2>
-            <p data-en="When you create an account: your name, email address, and a password - never stored as plain text, only as a salted hash (see Om os and the source code, if you want to check). When you order something: what you bought, at what price, and when - kept as your order history.">
-                Når du opretter en konto: dit navn, din e-mailadresse, og en
-                adgangskode - aldrig gemt i klartekst, kun som en saltet hash
-                (se Om os, eller kildekoden, hvis du vil tjekke det). Når du
-                bestiller noget: hvad du købte, til hvilken pris, og hvornår -
-                gemt som din ordrehistorik.
-            </p>
-            <p data-en="We only ask for a physical address if you choose shipping for the accessories in your order at checkout - see Betaling & levering. A guinea pig itself is always picked up in store regardless, so an order that's only guinea pigs never asks for one. If you pick up everything in store instead, we don't ask for one either. A shipping address is stored with that order, the same way the rest of it is - not separately on your account, and not kept for anything beyond fulfilling that delivery.">
-                Vi beder kun om en fysisk adresse, hvis du vælger forsendelse
-                af tilbehøret i din ordre i kassen - se Betaling &amp;
-                levering. Selve marsvinet afhentes altid i butikken uanset
-                hvad, så en ordre der kun består af marsvin beder aldrig om
-                en. Vælger du afhentning af det hele i stedet, beder vi heller
-                ikke om en. En leveringsadresse gemmes sammen med den
-                pågældende ordre, på samme måde som resten af den - ikke
-                separat på din konto, og ikke til andet end at gennemføre den
-                levering.
-            </p>
-            <p data-en="At checkout we ask for a phone number if you choose shipping, because the carrier texts you about the parcel; for pickup in store it's optional. It's stored with that one order, not on your account. If your order contains a guinea pig, we ask you to confirm that you are 16 or older - the law doesn't allow selling an animal to anyone younger without a parent's consent. We store only that you confirmed it, never your age or date of birth.">
-                I kassen beder vi om et telefonnummer, hvis du vælger
-                forsendelse, fordi fragtselskabet sender dig en sms om pakken;
-                ved afhentning i butikken er det valgfrit. Det gemmes sammen
-                med den ene ordre, ikke på din konto. Indeholder din ordre et
-                marsvin, beder vi dig bekræfte, at du er fyldt 16 år - loven
-                tillader ikke salg af dyr til yngre uden forældrenes samtykke.
-                Vi gemmer kun, at du har bekræftet det, aldrig din alder eller
-                fødselsdato.
-            </p>
-            <p data-en="The contact form stores your name, email address and message so staff can answer you - nothing else is done with them. A donation stores what you give, and your name and email only if you enter them (a money donation can be anonymous). If you buy as a company, the company name and CVR number are stored with that order.">
-                Kontaktformularen gemmer dit navn, din e-mailadresse og din
-                besked, så personalet kan svare dig - de bruges ikke til andet.
-                En donation gemmer, hvad du giver, og kun dit navn og din
-                e-mail, hvis du selv skriver dem (en pengedonation kan være
-                anonym). Køber du som virksomhed, gemmes firmanavn og
-                CVR-nummer sammen med den ordre.
-            </p>
-            <p data-en="The chat in the corner of the page is answered by a simple program on our own server that looks your words up in the shop's public pages. What you type there is not stored and not sent to anyone else. The chat knows nothing about you, your account or your orders.">
-                Chatten i hjørnet af siden besvares af et simpelt program på
-                vores egen server, som slår dine ord op i butikkens
-                offentlige sider. Det, du skriver der, gemmes ikke og sendes
-                ikke videre til andre. Chatten ved intet om dig, din konto
-                eller dine ordrer.
-            </p>
-            <p data-en="We don't use tracking cookies or third-party analytics.">
-                Vi bruger ikke tracking-cookies eller tredjeparts-analyse.
-            </p>
-            <p data-en="We use your email for two things beyond your own messages to us: a confirmation link every time someone logs in to your account (a security step, not marketing), and - only if your account is approaching the 2-year inactivity limit below - a warning that it's about to be deleted.">
-                Vi bruger din e-mail til to ting ud over dine egne
-                henvendelser til os: et bekræftelseslink hver gang nogen
-                logger ind på din konto (et sikkerhedstrin, ikke
-                markedsføring), samt - kun hvis din konto nærmer sig
-                2-års-grænsen for inaktivitet nedenfor - en advarsel om at
-                den er ved at blive slettet.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="Why, and on what legal basis">Hvorfor, og med hvilken hjemmel</h2>
-            <p data-en="To create and manage your account, and to fulfil and record your orders - processing necessary to perform our agreement with you (GDPR Article 6(1)(b)). We don't use your data for marketing, and we don't sell or share it with anyone.">
-                For at oprette og administrere din konto, og for at
-                gennemføre og registrere dine bestillinger - behandling der
-                er nødvendig for at opfylde vores aftale med dig (GDPR
-                artikel 6, stk. 1, litra b). Vi bruger ikke dine data til
-                markedsføring, og vi sælger eller deler dem ikke med nogen.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="How long we keep it">Hvor længe vi gemmer det</h2>
-            <p data-en="A customer account with no login for 2 years is deleted automatically - not kept &quot;just in case&quot;. This isn't only a line on this page: it runs as a background job on the server every day, checking for accounts that have crossed that line.">
-                En kundekonto uden login i 2 år bliver slettet automatisk -
-                ikke gemt "for en sikkerheds skyld". Det er ikke kun en linje
-                på denne side: det kører som et baggrundsjob på serveren hver
-                dag, som tjekker for konti der har krydset den grænse.
-            </p>
-            <p data-en="You're not just told about this policy once, here - we email a warning about 2 months before deletion, and again about 1 month before, both with instructions for the one thing that avoids it: log in.">
-                Du bliver ikke kun fortalt om denne politik her, én gang - vi
-                sender en advarsel på e-mail cirka 2 måneder før sletning, og
-                igen cirka 1 måned før, begge med instruktioner til det ene,
-                der undgår den: log ind.
-            </p>
-            <p data-en="Your past orders are kept even after your account is deleted, whether by you, an admin, or this automatic process - as a sales record, no longer linked to any account or personal details beyond what's already snapshotted on the order itself.">
-                Dine tidligere ordrer bliver gemt, selv efter din konto er
-                slettet - uanset om det er dig selv, en admin, eller denne
-                automatiske proces, der sletter den - som et salgsregnskab,
-                ikke længere knyttet til nogen konto eller personoplysninger
-                udover det, der allerede er gemt som et øjebliksbillede på selve ordren.
-            </p>
-        </article>
-
-        <article>
-            <h2 data-en="Your rights">Dine rettigheder</h2>
-            <p data-en="Under the GDPR, you can ask us to:">Under GDPR kan du bede os om at:</p>
-            <ul class="facts">
-                <li><span data-en="Access">Indsigt</span><span data-en="See what we hold about you">Se hvad vi har liggende om dig</span></li>
-                <li><span data-en="Rectification">Berigtigelse</span><span data-en="Correct anything that's wrong - or do it yourself under Kontoindstillinger">Rette noget der er forkert - eller gøre det selv under Kontoindstillinger</span></li>
-                <li><span data-en="Erasure">Sletning</span><span data-en="Delete your account and data before the 2-year mark, without waiting for it">Slette din konto og dine data før 2-års-grænsen, uden at vente på den</span></li>
-                <li><span data-en="Portability">Dataportabilitet</span><span data-en="Get a copy of your data in a usable format">Få en kopi af dine data i et brugbart format</span></li>
-                <li><span data-en="Objection">Indsigelse</span><span data-en="Object to how we process your data">Gøre indsigelse mod vores behandling af dine data</span></li>
+    <div class="wrap faq-layout">
+        <nav class="faq-topics" aria-label="På denne side" data-en-aria-label="On this page">
+            <h2 data-en="On this page">På denne side</h2>
+            <ul>
+                <li><a href="#indsamler"><span data-en="What we collect">Hvad vi indsamler</span><span class="faq-count">1</span></a></li>
+                <li><a href="#hjemmel"><span data-en="Why, and on what legal basis">Hvorfor, og med hvilken hjemmel</span><span class="faq-count">2</span></a></li>
+                <li><a href="#opbevaring"><span data-en="How long we keep it">Hvor længe vi gemmer det</span><span class="faq-count">3</span></a></li>
+                <li><a href="#rettigheder"><span data-en="Your rights">Dine rettigheder</span><span class="faq-count">4</span></a></li>
             </ul>
-            <p data-en="Reach us however suits you - see Kontakt. If you're not satisfied with our answer, you can complain to the Danish Data Protection Agency (Datatilsynet), the authority that oversees this.">
-                Kontakt os som det passer dig bedst - se Kontakt. Er du ikke
-                tilfreds med vores svar, kan du klage til Datatilsynet, den
-                myndighed der fører tilsyn med dette.
-            </p>
-        </article>
+        </nav>
 
-        <div class="callout">
-            <h2 data-en="One honest note">Én ærlig bemærkning</h2>
-            <p data-en="Marsvin is an example webshop built for a Zealand secure-coding project - not a real business. That said, the account handling described above (password hashing, email login confirmation, the 2-year auto-deletion job with its warning emails, orders kept but orphaned rather than personally identifiable) is genuinely how this specific site works, not a generic template - it really does send real email. See Om os for the same note about the shop itself.">
-                Marsvin er en eksempelwebshop bygget til et Zealand-projekt
-                om secure coding - ikke en rigtig forretning. Det sagt, er
-                kontohåndteringen beskrevet ovenfor (adgangskode-hashing,
-                bekræftelse af login via e-mail, 2-års-sletningsjobbet med
-                dets advarselsmails, ordrer der bevares men frigøres fra
-                kontoen i stedet for at være personhenførbare) reelt sådan
-                denne konkrete side fungerer, ikke en generisk skabelon - der
-                sendes rent faktisk rigtige e-mails. Se Om os for samme
-                bemærkning om selve butikken.
-            </p>
+        <div class="guide-chapters">
+            <article class="guide-chapter" id="indsamler">
+                <header>
+                    <span class="guide-chapter-number">1</span>
+                    <h2 data-en="What we collect">Hvad vi indsamler</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Account and orders">Konto og ordrer</h3>
+                        <p data-en="When you create an account: your name, email address, and a password - never stored as plain text, only as a salted hash (see Om os and the source code, if you want to check). When you order something: what you bought, at what price, and when - kept as your order history.">
+                            Når du opretter en konto: dit navn, din e-mailadresse, og en
+                            adgangskode - aldrig gemt i klartekst, kun som en saltet hash
+                            (se Om os, eller kildekoden, hvis du vil tjekke det). Når du
+                            bestiller noget: hvad du købte, til hvilken pris, og hvornår -
+                            gemt som din ordrehistorik.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Address">Adresse</h3>
+                        <p data-en="We only ask for a physical address if you choose shipping for the accessories in your order at checkout - see Betaling & levering. A guinea pig itself is always picked up in store regardless, so an order that's only guinea pigs never asks for one. If you pick up everything in store instead, we don't ask for one either. A shipping address is stored with that order, the same way the rest of it is - not separately on your account, and not kept for anything beyond fulfilling that delivery.">
+                            Vi beder kun om en fysisk adresse, hvis du vælger forsendelse
+                            af tilbehøret i din ordre i kassen - se Betaling &amp;
+                            levering. Selve marsvinet afhentes altid i butikken uanset
+                            hvad, så en ordre der kun består af marsvin beder aldrig om
+                            en. Vælger du afhentning af det hele i stedet, beder vi heller
+                            ikke om en. En leveringsadresse gemmes sammen med den
+                            pågældende ordre, på samme måde som resten af den - ikke
+                            separat på din konto, og ikke til andet end at gennemføre den
+                            levering.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Phone and age">Telefon og alder</h3>
+                        <p data-en="At checkout we ask for a phone number if you choose shipping, because the carrier texts you about the parcel; for pickup in store it's optional. It's stored with that one order, not on your account. If your order contains a guinea pig, we ask you to confirm that you are 16 or older - the law doesn't allow selling an animal to anyone younger without a parent's consent. We store only that you confirmed it, never your age or date of birth.">
+                            I kassen beder vi om et telefonnummer, hvis du vælger
+                            forsendelse, fordi fragtselskabet sender dig en sms om pakken;
+                            ved afhentning i butikken er det valgfrit. Det gemmes sammen
+                            med den ene ordre, ikke på din konto. Indeholder din ordre et
+                            marsvin, beder vi dig bekræfte, at du er fyldt 16 år - loven
+                            tillader ikke salg af dyr til yngre uden forældrenes samtykke.
+                            Vi gemmer kun, at du har bekræftet det, aldrig din alder eller
+                            fødselsdato.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Contact, donations and company">Kontakt, donation og virksomhed</h3>
+                        <p data-en="The contact form stores your name, email address and message so staff can answer you - nothing else is done with them. A donation stores what you give, and your name and email only if you enter them (a money donation can be anonymous). If you buy as a company, the company name and CVR number are stored with that order.">
+                            Kontaktformularen gemmer dit navn, din e-mailadresse og din
+                            besked, så personalet kan svare dig - de bruges ikke til andet.
+                            En donation gemmer, hvad du giver, og kun dit navn og din
+                            e-mail, hvis du selv skriver dem (en pengedonation kan være
+                            anonym). Køber du som virksomhed, gemmes firmanavn og
+                            CVR-nummer sammen med den ordre.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="The chat">Chatten</h3>
+                        <p data-en="The chat in the corner of the page is answered by a simple program on our own server that looks your words up in the shop's public pages. What you type there is not stored and not sent to anyone else. The chat knows nothing about you, your account or your orders.">
+                            Chatten i hjørnet af siden besvares af et simpelt program på
+                            vores egen server, som slår dine ord op i butikkens
+                            offentlige sider. Det, du skriver der, gemmes ikke og sendes
+                            ikke videre til andre. Chatten ved intet om dig, din konto
+                            eller dine ordrer.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Cookies">Cookies</h3>
+                        <p data-en="We don't use tracking cookies or third-party analytics.">
+                            Vi bruger ikke tracking-cookies eller tredjeparts-analyse.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Email">E-mail</h3>
+                        <p data-en="We use your email for two things beyond your own messages to us: a confirmation link every time someone logs in to your account (a security step, not marketing), and - only if your account is approaching the 2-year inactivity limit below - a warning that it's about to be deleted.">
+                            Vi bruger din e-mail til to ting ud over dine egne
+                            henvendelser til os: et bekræftelseslink hver gang nogen
+                            logger ind på din konto (et sikkerhedstrin, ikke
+                            markedsføring), samt - kun hvis din konto nærmer sig
+                            2-års-grænsen for inaktivitet nedenfor - en advarsel om at
+                            den er ved at blive slettet.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="hjemmel">
+                <header>
+                    <span class="guide-chapter-number">2</span>
+                    <h2 data-en="Why, and on what legal basis">Hvorfor, og med hvilken hjemmel</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Purpose and legal basis">Formål og hjemmel</h3>
+                        <p data-en="To create and manage your account, and to fulfil and record your orders - processing necessary to perform our agreement with you (GDPR Article 6(1)(b)). We don't use your data for marketing, and we don't sell or share it with anyone.">
+                            For at oprette og administrere din konto, og for at
+                            gennemføre og registrere dine bestillinger - behandling der
+                            er nødvendig for at opfylde vores aftale med dig (GDPR
+                            artikel 6, stk. 1, litra b). Vi bruger ikke dine data til
+                            markedsføring, og vi sælger eller deler dem ikke med nogen.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="opbevaring">
+                <header>
+                    <span class="guide-chapter-number">3</span>
+                    <h2 data-en="How long we keep it">Hvor længe vi gemmer det</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="Automatic deletion">Automatisk sletning</h3>
+                        <p data-en="A customer account with no login for 2 years is deleted automatically - not kept &quot;just in case&quot;. This isn't only a line on this page: it runs as a background job on the server every day, checking for accounts that have crossed that line.">
+                            En kundekonto uden login i 2 år bliver slettet automatisk -
+                            ikke gemt "for en sikkerheds skyld". Det er ikke kun en linje
+                            på denne side: det kører som et baggrundsjob på serveren hver
+                            dag, som tjekker for konti der har krydset den grænse.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="A warning first">Advarsel først</h3>
+                        <p data-en="You're not just told about this policy once, here - we email a warning about 2 months before deletion, and again about 1 month before, both with instructions for the one thing that avoids it: log in.">
+                            Du bliver ikke kun fortalt om denne politik her, én gang - vi
+                            sender en advarsel på e-mail cirka 2 måneder før sletning, og
+                            igen cirka 1 måned før, begge med instruktioner til det ene,
+                            der undgår den: log ind.
+                        </p>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Orders">Ordrer</h3>
+                        <p data-en="Your past orders are kept even after your account is deleted, whether by you, an admin, or this automatic process - as a sales record, no longer linked to any account or personal details beyond what's already snapshotted on the order itself.">
+                            Dine tidligere ordrer bliver gemt, selv efter din konto er
+                            slettet - uanset om det er dig selv, en admin, eller denne
+                            automatiske proces, der sletter den - som et salgsregnskab,
+                            ikke længere knyttet til nogen konto eller personoplysninger
+                            udover det, der allerede er gemt som et øjebliksbillede på selve ordren.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-chapter" id="rettigheder">
+                <header>
+                    <span class="guide-chapter-number">4</span>
+                    <h2 data-en="Your rights">Dine rettigheder</h2>
+                </header>
+                <div class="guide-points">
+                    <div class="guide-point">
+                        <h3 data-en="You can ask us to">Du kan bede os om</h3>
+                        <p data-en="Under the GDPR, you can ask us to:">Under GDPR kan du bede os om at:</p>
+                        <ul class="facts">
+                            <li><span data-en="Access">Indsigt</span><span data-en="See what we hold about you">Se hvad vi har liggende om dig</span></li>
+                            <li><span data-en="Rectification">Berigtigelse</span><span data-en="Correct anything that's wrong - or do it yourself under Kontoindstillinger">Rette noget der er forkert - eller gøre det selv under Kontoindstillinger</span></li>
+                            <li><span data-en="Erasure">Sletning</span><span data-en="Delete your account and data before the 2-year mark, without waiting for it">Slette din konto og dine data før 2-års-grænsen, uden at vente på den</span></li>
+                            <li><span data-en="Portability">Dataportabilitet</span><span data-en="Get a copy of your data in a usable format">Få en kopi af dine data i et brugbart format</span></li>
+                            <li><span data-en="Objection">Indsigelse</span><span data-en="Object to how we process your data">Gøre indsigelse mod vores behandling af dine data</span></li>
+                        </ul>
+                    </div>
+                    <div class="guide-point">
+                        <h3 data-en="Contact and complaints">Kontakt og klage</h3>
+                        <p data-en="Reach us however suits you - see Kontakt. If you're not satisfied with our answer, you can complain to the Danish Data Protection Agency (Datatilsynet), the authority that oversees this.">
+                            Kontakt os som det passer dig bedst - se Kontakt. Er du ikke
+                            tilfreds med vores svar, kan du klage til Datatilsynet, den
+                            myndighed der fører tilsyn med dette.
+                        </p>
+                    </div>
+                </div>
+            </article>
+
+            <aside class="guide-note">
+                <h2 data-en="One honest note">Én ærlig bemærkning</h2>
+                <p data-en="Marsvin is an example webshop built for a Zealand secure-coding project - not a real business. That said, the account handling described above (password hashing, email login confirmation, the 2-year auto-deletion job with its warning emails, orders kept but orphaned rather than personally identifiable) is genuinely how this specific site works, not a generic template - it really does send real email. See Om os for the same note about the shop itself.">
+                    Marsvin er en eksempelwebshop bygget til et Zealand-projekt
+                    om secure coding - ikke en rigtig forretning. Det sagt, er
+                    kontohåndteringen beskrevet ovenfor (adgangskode-hashing,
+                    bekræftelse af login via e-mail, 2-års-sletningsjobbet med
+                    dets advarselsmails, ordrer der bevares men frigøres fra
+                    kontoen i stedet for at være personhenførbare) reelt sådan
+                    denne konkrete side fungerer, ikke en generisk skabelon - der
+                    sendes rent faktisk rigtige e-mails. Se Om os for samme
+                    bemærkning om selve butikken.
+                </p>
+            </aside>
         </div>
     </div>
 </section>
