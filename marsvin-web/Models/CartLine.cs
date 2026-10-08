@@ -22,5 +22,8 @@ public sealed class CartLine
     /// <summary>Null if the animal/accessory has never had one set - the cart row just shows no thumbnail then.</summary>
     public string? PhotoUrl { get; init; }
 
+    /// <summary>Per unit. 0 for an animal - never shipped, so its weight never matters.</summary>
+    public int WeightGrams { get; init; }
+
     public decimal LineTotal => UnitPrice * Quantity;
 }

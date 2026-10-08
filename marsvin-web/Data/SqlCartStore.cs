@@ -12,7 +12,8 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
             """
             SELECT c.ProductId, c.Quantity, p.Name, p.NameEn, p.Price,
                    CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal,
-                   COALESCE(a.PhotoUrl, sp.PhotoUrl) AS PhotoUrl
+                   COALESCE(a.PhotoUrl, sp.PhotoUrl) AS PhotoUrl,
+                   COALESCE(sp.WeightGrams, 0) AS WeightGrams
             FROM dbo.CartItems c
             JOIN dbo.Products p ON p.ProductId = c.ProductId
             LEFT JOIN dbo.Animals a ON a.ProductId = p.ProductId
@@ -36,7 +37,8 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
                 UnitPrice = reader.GetDecimal(reader.GetOrdinal("Price")),
                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
                 IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1,
-                PhotoUrl = reader.IsDBNull(photoUrlOrdinal) ? null : reader.GetString(photoUrlOrdinal)
+                PhotoUrl = reader.IsDBNull(photoUrlOrdinal) ? null : reader.GetString(photoUrlOrdinal),
+                WeightGrams = reader.GetInt32(reader.GetOrdinal("WeightGrams"))
             });
         }
         return lines;

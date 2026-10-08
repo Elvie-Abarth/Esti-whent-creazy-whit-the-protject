@@ -40,6 +40,63 @@
         </article>
 
         <article>
+            <h2 data-en="Shipping: price, delivery time and where it ends up">Fragt: pris, leveringstid og hvor pakken ender</h2>
+            <p data-en="Pickup in store is free. Shipping is priced per parcel by weight, and checkout shows the exact price, the expected delivery date and the total for each carrier before you choose.">
+                Afhentning i butikken er gratis. Fragt prissættes pr. pakke
+                efter vægt, og i kassen ser du den præcise pris, den
+                forventede leveringsdato og totalen for hvert fragtselskab,
+                inden du vælger.
+            </p>
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th data-en="Carrier">Fragtselskab</th>
+                        <th data-en="Delivered to">Leveres til</th>
+                        <th data-en="Delivery time">Leveringstid</th>
+                        <th data-en="Up to 1 kg">Op til 1 kg</th>
+                        <th data-en="Up to 5 kg">Op til 5 kg</th>
+                        <th data-en="Up to 10 kg">Op til 10 kg</th>
+                        <th data-en="Up to 20 kg">Op til 20 kg</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var carrier in Enum.GetValues<ShippingCarrier>())
+                    {
+                        var (minDays, maxDays) = ShippingCalculator.BusinessDays(carrier);
+                        <tr>
+                            <td>@carrier.DisplayName()</td>
+                            @if (carrier.DeliversToParcelShop())
+                            {
+                                <td data-en="Parcel shop near your address">Pakkeshop nær din adresse</td>
+                            }
+                            else
+                            {
+                                <td data-en="Your door">Din dør</td>
+                            }
+                            <td data-en="@($"{minDays}-{maxDays} weekdays")">@minDays-@maxDays hverdage</td>
+                            @foreach (var grams in new[] { 1_000, 5_000, 10_000, 20_000 })
+                            {
+                                <td>@ShippingCalculator.Cost(carrier, grams).ToString("N0") kr.</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p data-en="A parcel holds at most 20 kg. A heavier order is split into several parcels, each priced on its own weight - checkout tells you how many parcels yours becomes and what it weighs in total. For a parcel shop, the carrier picks the one nearest your address and messages you when the parcel is ready to collect.">
+                En pakke rummer højst 20 kg. En tungere ordre deles i flere
+                pakker, som hver prissættes efter sin egen vægt - i kassen
+                kan du se, hvor mange pakker din ordre bliver til, og hvad
+                den vejer i alt. Ved levering til pakkeshop vælger
+                fragtselskabet den nærmeste på din adresse og giver besked,
+                når pakken kan hentes.
+            </p>
+            <p data-en="Follow an order under My account: received, being prepared, sent (or ready for pickup), delivered (or picked up).">
+                Følg en ordre under Min konto: modtaget, under behandling,
+                afsendt (eller klar til afhentning), leveret (eller afhentet).
+            </p>
+        </article>
+
+        <article>
             <h2 data-en="Payment">Betaling</h2>
             <p data-en="Checkout ends on a demo payment page: it asks for card-shaped details, validates that they're the right shape, and stops there. No card is charged, nothing is sent to a payment provider, and no card details are stored - because there is no real payment integration behind it.">
                 Kassen ender på en demo-betalingsside: den beder om

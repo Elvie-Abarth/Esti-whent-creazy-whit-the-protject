@@ -8,6 +8,9 @@ public sealed class StockProduct : Product
     public int StockQuantity { get; set; }
     public string? Unit { get; init; }
 
+    /// <summary>Packed weight of one unit - what shipping cost and parcel count are worked out from.</summary>
+    public int WeightGrams { get; init; } = 500;
+
     public string? NameEn { get; init; }
     public string? DescriptionEn { get; init; }
 

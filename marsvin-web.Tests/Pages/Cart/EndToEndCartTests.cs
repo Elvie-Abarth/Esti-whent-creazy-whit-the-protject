@@ -1,4 +1,6 @@
 using System.Net;
+using MarsvinWebExample.Data;
+using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace MarsvinWebExample.Tests.Pages.Cart;
@@ -90,6 +92,224 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
         // ...but the cart that order came from is now empty (cleared on checkout).
         var cartAfter = await HttpTestHelpers.Get(client, jar, "/Cart/Index");
         Assert.Contains("kurv er tom", await cartAfter.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    // The two below post the card fields *blank*, the way a real browser
+    // submits an untouched input - model binding turns that into null, which
+    // PaymentModelTests (calling OnPostAsync directly, with Input built by
+    // hand) can't reproduce.
+    [Fact]
+    public async Task GuestCheckout_WithMobilePayAndBlankCardFields_Completes()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var payToken = await AddToCartAndOpenPayment(client, jar);
+
+        var checkoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Guest Buyer",
+            ["Input.GuestEmail"] = $"guest-{Guid.NewGuid():N}@example.com",
+            ["Input.DeliveryMethod"] = "Pickup",
+            ["Input.PaymentMethod"] = "MobilePay",
+            ["Input.CardHolder"] = "",
+            ["Input.CardNumber"] = "",
+            ["Input.Expiry"] = "",
+            ["Input.Cvc"] = ""
+        });
+
+        Assert.Equal(HttpStatusCode.Found, checkoutResponse.StatusCode);
+        Assert.Contains("/Cart/Confirmation/", checkoutResponse.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task GuestCheckout_WithCardAndBlankCardFields_RedisplaysTheFormWithErrors()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var payToken = await AddToCartAndOpenPayment(client, jar);
+
+        var checkoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Guest Buyer",
+            ["Input.GuestEmail"] = $"guest-{Guid.NewGuid():N}@example.com",
+            ["Input.DeliveryMethod"] = "Pickup",
+            ["Input.PaymentMethod"] = "Card",
+            ["Input.CardHolder"] = "",
+            ["Input.CardNumber"] = "",
+            ["Input.Expiry"] = "",
+            ["Input.Cvc"] = ""
+        });
+
+        Assert.Equal(HttpStatusCode.OK, checkoutResponse.StatusCode);
+        Assert.Contains("Kortnummeret ser forkert ud.", await checkoutResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AddingToCartFromAProductPage_AsksWhetherToGoToTheCartOrKeepShopping()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+
+        var tilbehorPage = await HttpTestHelpers.Get(client, jar, "/Tilbehor");
+        var token = CookieJar.ExtractAntiforgeryToken(await tilbehorPage.Content.ReadAsStringAsync());
+        var addResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
+        {
+            ["__RequestVerificationToken"] = token,
+            ["productId"] = "104",
+            ["quantity"] = "1",
+            ["returnUrl"] = "/Tilbehor"
+        });
+        Assert.Equal("/Tilbehor", addResponse.Headers.Location!.ToString());
+
+        var backOnTheShopPage = await (await HttpTestHelpers.Get(client, jar, "/Tilbehor")).Content.ReadAsStringAsync();
+        Assert.Contains("toast--ask", backOnTheShopPage);
+        Assert.Contains("Gå til kurven", backOnTheShopPage);
+        Assert.Contains("Fortsæt med at handle", backOnTheShopPage);
+
+        // "Keep shopping" just loads the same page again - asked once, not on every page view.
+        var afterChoosingToKeepShopping = await (await HttpTestHelpers.Get(client, jar, "/Tilbehor")).Content.ReadAsStringAsync();
+        Assert.DoesNotContain("toast--ask", afterChoosingToKeepShopping);
+    }
+
+    [Fact]
+    public async Task PaymentPage_ShowsPriceDestinationAndDeliveryForEveryCarrier()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        await AddToCartAndOpenPayment(client, jar);
+
+        // Decoded: Razor HTML-encodes non-ASCII letters in anything written from C# ("ø" -> "&#xF8;").
+        var html = WebUtility.HtmlDecode(
+            await (await HttpTestHelpers.Get(client, jar, "/Cart/Payment")).Content.ReadAsStringAsync());
+
+        // Product 104 is 120 g - the cheapest bracket with each carrier.
+        Assert.Contains("55 kr.", html); // PostNord
+        Assert.Contains("39 kr.", html); // DAO
+        Assert.Contains("Samlet vægt", html);
+        Assert.Contains("120 g", html);
+        Assert.Contains("1 pakke", html);
+        Assert.Contains("Forventet levering", html);
+        Assert.Contains("Din dør, på adressen ovenfor", html);
+        Assert.Contains("Udleveringssted nær dig", html);
+        // The order summary above the pay button: what it comes to with each choice.
+        Assert.Contains("At betale", html);
+        Assert.Contains("100 kr.", html); // 45 kr. + 55 kr. PostNord
+        Assert.Contains("84 kr.", html);  // 45 kr. + 39 kr. DAO
+    }
+
+    [Fact]
+    public async Task GuestCheckout_WithShipping_ChargesTheShippingAndShowsItOnTheReceipt()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var payToken = await AddToCartAndOpenPayment(client, jar);
+
+        var checkoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Guest Buyer",
+            ["Input.GuestEmail"] = $"guest-{Guid.NewGuid():N}@example.com",
+            ["Input.DeliveryMethod"] = "Shipping",
+            ["Input.ShippingAddress"] = "Testvej 1, 4000 Roskilde",
+            ["Input.ShippingCarrier"] = "DaoPakkeshop",
+            ["Input.PaymentMethod"] = "MobilePay"
+        });
+        Assert.Equal(HttpStatusCode.Found, checkoutResponse.StatusCode);
+
+        var receiptHtml = WebUtility.HtmlDecode(
+            await (await HttpTestHelpers.Get(client, jar, checkoutResponse.Headers.Location!.ToString()))
+                .Content.ReadAsStringAsync());
+        // 45 kr. for the item + 39 kr. DAO shipping for 120 g.
+        Assert.Contains("fragt: 39 kr.", receiptHtml);
+        Assert.Contains("84 kr.", receiptHtml);
+        Assert.Contains("DAO Pakkeshop nærmest Testvej 1, 4000 Roskilde", receiptHtml);
+        Assert.Contains("Forventet levering", receiptHtml);
+        Assert.Contains("Samlet vægt: 120 g, sendes som 1 pakke", receiptHtml);
+        Assert.Contains("Status: Ordre modtaget", receiptHtml);
+        // Still a guest - offered an account to keep the order under.
+        Assert.Contains("Vil du følge denne ordre?", receiptHtml);
+    }
+
+    [Fact]
+    public async Task GuestWhoRegistersAfterCheckout_WithTheSameEmail_GetsTheOrderInTheirHistoryWithItsStatus()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var email = $"guest-then-account-{Guid.NewGuid():N}@example.com";
+        var orderId = await CheckOutAsGuest(client, jar, email);
+
+        await Register(client, jar, email);
+
+        var profileHtml = await (await HttpTestHelpers.Get(client, jar, "/Account/Profile")).Content.ReadAsStringAsync();
+        Assert.Contains($"Ordre #{orderId}", profileHtml);
+        Assert.Contains("Status: Ordre modtaget", profileHtml);
+
+        // Staff move it along (Admin/Orders) - the customer sees the new status.
+        Assert.True(new SqlOrderStore(MarsvinWebAppFactory.ConnectionString).UpdateStatus(orderId, OrderStatus.Sent));
+        profileHtml = await (await HttpTestHelpers.Get(client, jar, "/Account/Profile")).Content.ReadAsStringAsync();
+        Assert.Contains("Status: Klar til afhentning", profileHtml);
+    }
+
+    [Fact]
+    public async Task GuestOrder_IsNotHandedToAnAccountWithADifferentEmail()
+    {
+        // Same browser session, but not the address the order was placed
+        // with - e.g. the next person at a shared computer signing up.
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var orderId = await CheckOutAsGuest(client, jar, $"guest-{Guid.NewGuid():N}@example.com");
+
+        await Register(client, jar, $"someone-else-{Guid.NewGuid():N}@example.com");
+
+        var profileHtml = await (await HttpTestHelpers.Get(client, jar, "/Account/Profile")).Content.ReadAsStringAsync();
+        Assert.DoesNotContain($"Ordre #{orderId}", profileHtml);
+        Assert.Null(new SqlOrderStore(MarsvinWebAppFactory.ConnectionString).FindById(orderId)!.UserId);
+    }
+
+    private static async Task<int> CheckOutAsGuest(HttpClient client, CookieJar jar, string email)
+    {
+        var payToken = await AddToCartAndOpenPayment(client, jar);
+        var checkoutResponse = await HttpTestHelpers.PostForm(client, jar, "/Cart/Payment", new()
+        {
+            ["__RequestVerificationToken"] = payToken,
+            ["Input.GuestName"] = "Guest Buyer",
+            ["Input.GuestEmail"] = email,
+            ["Input.DeliveryMethod"] = "Pickup",
+            ["Input.PaymentMethod"] = "MobilePay"
+        });
+        return int.Parse(checkoutResponse.Headers.Location!.ToString().Split('/').Last());
+    }
+
+    private static async Task Register(HttpClient client, CookieJar jar, string email)
+    {
+        var (_, _, registerToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
+        await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
+        {
+            ["__RequestVerificationToken"] = registerToken,
+            ["Input.Email"] = email,
+            ["Input.DisplayName"] = "Guest Buyer",
+            ["Input.Password"] = "SomePass123!",
+            ["Input.ConfirmPassword"] = "SomePass123!"
+        });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
+    }
+
+    /// <summary>Puts one accessory in a guest cart and returns the antiforgery token from the payment page.</summary>
+    private static async Task<string> AddToCartAndOpenPayment(HttpClient client, CookieJar jar)
+    {
+        var tilbehorPage = await HttpTestHelpers.Get(client, jar, "/Tilbehor");
+        var addToken = CookieJar.ExtractAntiforgeryToken(await tilbehorPage.Content.ReadAsStringAsync());
+        await HttpTestHelpers.PostForm(client, jar, "/Cart/Index?handler=Add", new()
+        {
+            ["__RequestVerificationToken"] = addToken,
+            ["productId"] = "104",
+            ["quantity"] = "1"
+        });
+
+        var paymentPage = await HttpTestHelpers.Get(client, jar, "/Cart/Payment");
+        return CookieJar.ExtractAntiforgeryToken(await paymentPage.Content.ReadAsStringAsync());
     }
 
     [Fact]

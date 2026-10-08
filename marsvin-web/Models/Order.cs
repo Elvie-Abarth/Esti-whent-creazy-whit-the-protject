@@ -18,9 +18,14 @@ public sealed class OrderItem
     public decimal LineTotal => UnitPrice * Quantity;
 }
 
-public sealed class Order
+// A record rather than a class for `with`: SqlOrderStore reads every order's
+// header first and attaches its items afterwards.
+public sealed record Order
 {
     public int OrderId { get; init; }
+
+    /// <summary>Where the order is on its way to the buyer - moved along by staff from Admin/Orders.</summary>
+    public OrderStatus Status { get; init; } = OrderStatus.Placed;
 
     /// <summary>Null once the buyer's account has been deleted, or always for a guest checkout - the order itself is kept either way.</summary>
     public int? UserId { get; init; }
@@ -36,6 +41,27 @@ public sealed class Order
 
     /// <summary>Only set when <see cref="DeliveryMethod"/> is Shipping.</summary>
     public ShippingCarrier? ShippingCarrier { get; init; }
+
+    /// <summary>Already included in <see cref="TotalPrice"/>. 0 for a pickup order.</summary>
+    public decimal ShippingCost { get; init; }
+
+    /// <summary>
+    /// Weight and parcel count of what's actually shipped (never the animals) -
+    /// snapshots from the moment of purchase, like ShippingCost itself, so a
+    /// later change to a product's weight or to the rates doesn't rewrite an
+    /// old order. Null for a pickup order, or one placed before these existed.
+    /// </summary>
+    public int? ShippingWeightGrams { get; init; }
+
+    public int? ParcelCount { get; init; }
+
+    public decimal ItemsTotal => TotalPrice - ShippingCost;
+
+    /// <summary>Estimated delivery dates, counted from the day the order was placed. Null for a pickup order.</summary>
+    public (DateOnly Earliest, DateOnly Latest)? ExpectedDelivery =>
+        DeliveryMethod == DeliveryMethod.Shipping && ShippingCarrier is ShippingCarrier carrier
+            ? ShippingCalculator.DeliveryWindow(carrier, DateOnly.FromDateTime(CreatedAt))
+            : null;
 
     public PaymentMethod PaymentMethod { get; init; } = PaymentMethod.Card;
 

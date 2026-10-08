@@ -32,6 +32,7 @@
                     <th data-en="Items">Varer</th>
                     <th data-en="Total">I alt</th>
                     <th data-en="Delivery">Levering</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -60,11 +61,31 @@
                             @if (order.DeliveryMethod == DeliveryMethod.Shipping)
                             {
                                 <span data-en="@($"Shipping: {order.ShippingAddress} ({order.ShippingCarrier?.DisplayName(english: true)})")">Fragt: @order.ShippingAddress (@order.ShippingCarrier?.DisplayName())</span>
+                                @if (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels)
+                                {
+                                    <br /><span class="cavy-meta" data-en="@($"{ShippingCalculator.FormatWeight(grams, english: true)}, {(parcels == 1 ? "1 parcel" : $"{parcels} parcels")}, shipping {order.ShippingCost:N0} kr.")">@ShippingCalculator.FormatWeight(grams), @(parcels == 1 ? "1 pakke" : $"{parcels} pakker"), fragt @order.ShippingCost.ToString("N0") kr.</span>
+                                }
+                                @if (order.ExpectedDelivery is var (earliest, latest))
+                                {
+                                    <br /><span class="cavy-meta" data-en="@($"Promised: {ShippingCalculator.FormatWindow(earliest, latest)}")">Lovet: @ShippingCalculator.FormatWindow(earliest, latest)</span>
+                                }
                             }
                             else
                             {
                                 <span data-en="Pickup">Afhentning</span>
                             }
+                        </td>
+                        <td>
+                            <form method="post" asp-page-handler="SetStatus">
+                                <input type="hidden" name="orderId" value="@order.OrderId" />
+                                <select name="status" aria-label="Status">
+                                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                                    {
+                                        <option value="@status" selected="@(status == order.Status)" data-en="@status.DisplayName(order.DeliveryMethod, english: true)">@status.DisplayName(order.DeliveryMethod)</option>
+                                    }
+                                </select>
+                                <button type="submit" class="btn btn--quiet" data-en="Save">Gem</button>
+                            </form>
                         </td>
                     </tr>
                 }

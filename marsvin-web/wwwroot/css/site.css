@@ -865,6 +865,132 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     100% { opacity: 0; visibility: hidden; transform: translate(-50%, 0.5rem); }
 }
 
+/* The "go to cart or keep shopping?" box shown after adding to the cart:
+   the same popup, but it waits for an answer instead of timing itself out. */
+.toast--ask {
+    animation: none;
+    text-align: center;
+    padding: 1rem 1.2rem;
+}
+.toast--ask p { margin: 0 0 0.75rem; }
+.toast-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+.toast--ask .btn--quiet { color: var(--hay); border-color: var(--hay); }
+
+/* ---- Cart/Payment: readable at a glance -------------------------------
+   The shared .auth-form sizes (0.9rem labels) are right for a three-field
+   login form, too small for a page someone is about to pay from. Body-size
+   text throughout, numbered steps, and every fact as a label/value pair. */
+.payment-card,
+.payment-card label,
+.payment-card input { font-size: 1.0625rem; }
+.payment-card p { margin: 0; }
+
+.payment-card .pay-step {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0 0 1rem;
+}
+.pay-step-number {
+    display: inline-grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    background: var(--meadow);
+    color: var(--paper);
+    font-size: 1rem;
+}
+/* A rule between the steps, so each one reads as its own block. */
+.payment-card > fieldset + fieldset,
+.payment-card > .pay-summary {
+    border-top: 1px solid var(--line);
+    padding-top: 1.5rem;
+    margin-top: 0.25rem;
+}
+
+/* Option cards (delivery, carrier, payment method): radio on the left,
+   name and price on one line, the details underneath. */
+.payment-card .delivery-option { align-items: flex-start; gap: 0.75rem; font-weight: 400; }
+.payment-card .delivery-option > input { margin-top: 0.35rem; flex: none; }
+.option-body { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
+.option-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.option-price { font-size: 1.15rem; white-space: nowrap; }
+
+/* Label / value pairs: label in the muted colour, value in bold. */
+.pay-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    /* No column gap - the label carries the spacing as padding instead, so
+       the rule above the "to pay" row runs unbroken across both columns. */
+    gap: 0.4rem 0;
+    margin: 0;
+}
+.pay-facts > dt,
+.pay-facts > span { color: var(--bark); padding-right: 1.5rem; }
+.pay-facts > dd { margin: 0; font-weight: 700; }
+@media (max-width: 30rem) {
+    .pay-facts { grid-template-columns: 1fr; gap: 0.1rem; }
+    .pay-facts > dd, .pay-facts > strong { margin-bottom: 0.5rem; }
+}
+
+.pay-box {
+    background: var(--hay);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+}
+.pay-box h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.pay-note {
+    border-left: 4px solid var(--grass);
+    background: var(--hay);
+    border-radius: 0 6px 6px 0;
+    padding: 0.7rem 0.9rem;
+}
+.field-hint { color: var(--bark); font-size: 0.95rem; font-weight: 400; }
+
+.payment-card .carrier-fieldset { padding-left: 0; gap: 0.75rem; }
+.payment-card .carrier-fieldset legend { font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.75rem; }
+
+/* Address, shipment weight and carriers only exist for a shipped order. */
+.payment-card .ship-only { display: none; flex-direction: column; gap: 1.25rem; }
+.payment-card:has(input[name="Input.DeliveryMethod"][value="Shipping"]:checked) .ship-only { display: flex; }
+
+/* The guest's "or make an account" offer: present, but not louder than
+   the two fields the guest actually has to fill in. */
+.pay-account-offer {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+.pay-account-links { display: flex; gap: 1.25rem; font-weight: 700; }
+
+/* "Your order": one variant per possible choice is rendered, and only the
+   one matching the selected radios is shown (see Payment.cshtml). */
+.pay-summary .pay-step { margin-bottom: 1rem; }
+.pay-summary-variant { display: none; background: var(--hay); border-radius: 8px; padding: 1.1rem 1.2rem; }
+.pay-summary--only,
+.payment-card:has(input[name="Input.DeliveryMethod"][value="Pickup"]:checked) .pay-summary--Pickup,
+.payment-card:has(input[name="Input.DeliveryMethod"][value="Shipping"]:checked):has(input[name="Input.ShippingCarrier"][value="PostNord"]:checked) .pay-summary--PostNord,
+.payment-card:has(input[name="Input.DeliveryMethod"][value="Shipping"]:checked):has(input[name="Input.ShippingCarrier"][value="Gls"]:checked) .pay-summary--Gls,
+.payment-card:has(input[name="Input.DeliveryMethod"][value="Shipping"]:checked):has(input[name="Input.ShippingCarrier"][value="DaoPakkeshop"]:checked) .pay-summary--DaoPakkeshop {
+    display: block;
+}
+.pay-facts > .pay-total {
+    border-top: 2px solid var(--meadow);
+    padding-top: 0.6rem;
+    margin-top: 0.4rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--meadow);
+}
+
 /* Same popup as .toast (see _Layout.cshtml, which renders this whenever any
    page sets TempData ErrorMessage - the same redirect-then-flash pattern
    ToastMessage already uses) but in the site's error colour instead of

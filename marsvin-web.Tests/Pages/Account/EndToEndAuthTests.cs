@@ -1,5 +1,11 @@
 using System.Net;
+using MarsvinWebExample.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MarsvinWebExample.Tests.Pages.Account;
 
@@ -213,5 +219,113 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
         // request - a raw 403 is never what the browser actually sees here.
         Assert.Equal(HttpStatusCode.Found, response.StatusCode);
         Assert.Contains("/Account/AccessDenied", response.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task DeactivatedAccount_LosesItsAlreadySignedInSessionOnTheNextRequest()
+    {
+        // The auth cookie is valid for 8 sliding hours - without
+        // AuthCookiePrincipal.RevalidateAsync re-checking dbo.Users on every
+        // request, deactivating an account would only stop *new* logins.
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var email = await RegisterAndSignIn(client, jar, "deactivated");
+        Assert.Equal(HttpStatusCode.OK, (await HttpTestHelpers.Get(client, jar, "/Account/Profile")).StatusCode);
+
+        await ExecuteSql("UPDATE dbo.Users SET IsActive = 0 WHERE Email = @Email;", email);
+
+        var response = await HttpTestHelpers.Get(client, jar, "/Account/Profile");
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("/Account/Login", response.Headers.Location!.ToString());
+        // And the cookie itself is cleared, not just ignored for this one request.
+        Assert.True(response.Headers.TryGetValues("Set-Cookie", out var cookies));
+        var clearedAuthCookie = Assert.Single(cookies!, c => c.StartsWith(".AspNetCore.Cookies", StringComparison.Ordinal));
+        Assert.Contains("1970", clearedAuthCookie);
+    }
+
+    [Fact]
+    public async Task DeletedAccount_LosesItsAlreadySignedInSessionOnTheNextRequest()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var email = await RegisterAndSignIn(client, jar, "deleted");
+
+        await ExecuteSql("DELETE FROM dbo.Users WHERE Email = @Email;", email);
+
+        var response = await HttpTestHelpers.Get(client, jar, "/Account/Profile");
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("/Account/Login", response.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task RoleChange_TakesEffectOnTheNextRequest_WithoutSigningInAgain()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var email = await RegisterAndSignIn(client, jar, "rolechange");
+
+        // Signed in as a Customer - the staff dashboard is off limits.
+        var asCustomer = await HttpTestHelpers.Get(client, jar, "/Admin/Index");
+        Assert.Equal(HttpStatusCode.Found, asCustomer.StatusCode);
+        Assert.Contains("/Account/AccessDenied", asCustomer.Headers.Location!.ToString());
+
+        await ExecuteSql($"UPDATE dbo.Users SET Role = {(int)UserRole.Employee} WHERE Email = @Email;", email);
+        Assert.Equal(HttpStatusCode.OK, (await HttpTestHelpers.Get(client, jar, "/Admin/Index")).StatusCode);
+
+        // The direction that matters: demoted, same cookie, access gone.
+        await ExecuteSql($"UPDATE dbo.Users SET Role = {(int)UserRole.Customer} WHERE Email = @Email;", email);
+        var afterDemotion = await HttpTestHelpers.Get(client, jar, "/Admin/Index");
+        Assert.Equal(HttpStatusCode.Found, afterDemotion.StatusCode);
+        Assert.Contains("/Account/AccessDenied", afterDemotion.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public void EveryPage_RequiresLoginUnlessExplicitlyListedAsPublic()
+    {
+        // Deny by default (see AddRazorPages in Program.cs): a page with no
+        // authorization metadata at all would mean the convention is gone and
+        // a forgotten [Authorize] is public again.
+        var pages = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .Where(e => e.Metadata.GetMetadata<PageActionDescriptor>() is not null)
+            .ToList();
+        Assert.NotEmpty(pages);
+
+        Assert.All(pages, e => Assert.NotNull(e.Metadata.GetMetadata<IAuthorizeData>()));
+
+        var mustNotBePublic = pages.Where(e =>
+        {
+            var viewPath = e.Metadata.GetMetadata<PageActionDescriptor>()!.ViewEnginePath;
+            return viewPath.StartsWith("/Admin/", StringComparison.Ordinal) || viewPath == "/Account/Profile";
+        }).ToList();
+        Assert.NotEmpty(mustNotBePublic);
+        Assert.All(mustNotBePublic, e => Assert.Null(e.Metadata.GetMetadata<IAllowAnonymous>()));
+    }
+
+    /// <summary>Registers a fresh Customer and completes the email confirmation, leaving <paramref name="jar"/> signed in. Returns the account's email.</summary>
+    private static async Task<string> RegisterAndSignIn(HttpClient client, CookieJar jar, string label)
+    {
+        var email = $"{label}-{Guid.NewGuid():N}@example.com";
+        var (_, _, registerToken) = await HttpTestHelpers.GetWithToken(client, jar, "/Account/Register");
+        await HttpTestHelpers.PostForm(client, jar, "/Account/Register", new()
+        {
+            ["__RequestVerificationToken"] = registerToken,
+            ["Input.Email"] = email,
+            ["Input.DisplayName"] = "Revalidated",
+            ["Input.Password"] = "SomePass123!",
+            ["Input.ConfirmPassword"] = "SomePass123!"
+        });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, jar, email);
+        return email;
+    }
+
+    // Straight at MarsvinDb_WebTest, standing in for what an admin does
+    // through /Admin/Users in a different browser session.
+    private static async Task ExecuteSql(string sql, string email)
+    {
+        using var connection = new SqlConnection(MarsvinWebAppFactory.ConnectionString);
+        await connection.OpenAsync();
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@Email", email);
+        Assert.Equal(1, await command.ExecuteNonQueryAsync());
     }
 }

@@ -78,9 +78,17 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
                 ? shippingCarrier ?? ShippingCarrier.PostNord
                 : (ShippingCarrier?)null;
 
+            // Worked out here from the lines themselves (their weights come
+            // straight from the catalog), never from anything the form sent -
+            // the price shown per carrier on the payment page is the same
+            // calculation, but only this one decides what's charged.
+            var shipping = effectiveCarrier is ShippingCarrier carrier
+                ? ShippingCalculator.Quote(carrier, ShippingCalculator.ShippableWeightGrams(lines), DateOnly.FromDateTime(DateTime.UtcNow))
+                : null;
+
             var orderId = InsertOrder(connection, transaction, userId, lines, deliveryMethod,
                 deliveryMethod == DeliveryMethod.Shipping ? shippingAddress!.Trim() : null,
-                effectiveCarrier, paymentMethod, guestName?.Trim(), guestEmail?.Trim());
+                effectiveCarrier, paymentMethod, guestName?.Trim(), guestEmail?.Trim(), shipping);
 
             foreach (var line in lines)
                 ApplyStockChange(connection, transaction, line);
@@ -107,58 +115,22 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         return order is not null && order.UserId == userId ? order : null;
     }
 
+    // Every read below selects the same header columns through this one list,
+    // so a column added to Orders only has to be added here and in ReadHeader.
+    private const string OrderColumns =
+        "o.OrderId, o.UserId, o.TotalPrice, o.CreatedAt, o.DeliveryMethod, o.ShippingAddress, o.ShippingCarrier, " +
+        "o.PaymentMethod, o.GuestName, o.GuestEmail, o.ShippingCost, o.ShippingWeightGrams, o.ParcelCount, o.Status";
+
     public Order? FindById(int orderId)
     {
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
-        using var orderCommand = new SqlCommand(
-            "SELECT OrderId, UserId, TotalPrice, CreatedAt, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod, GuestName, GuestEmail " +
-            "FROM dbo.Orders WHERE OrderId = @OrderId;", connection);
-        orderCommand.Parameters.AddWithValue("@OrderId", orderId);
+        using var command = new SqlCommand(
+            $"SELECT {OrderColumns} FROM dbo.Orders o WHERE o.OrderId = @OrderId;", connection);
+        command.Parameters.AddWithValue("@OrderId", orderId);
 
-        int? foundUserId;
-        decimal totalPrice;
-        DateTime createdAt;
-        DeliveryMethod deliveryMethod;
-        string? shippingAddress;
-        ShippingCarrier? shippingCarrier;
-        PaymentMethod paymentMethod;
-        string? guestName;
-        string? guestEmail;
-        using (var reader = orderCommand.ExecuteReader())
-        {
-            if (!reader.Read()) return null;
-            var userIdOrdinal = reader.GetOrdinal("UserId");
-            foundUserId = reader.IsDBNull(userIdOrdinal) ? null : reader.GetInt32(userIdOrdinal);
-            totalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice"));
-            createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
-            deliveryMethod = (DeliveryMethod)reader.GetByte(reader.GetOrdinal("DeliveryMethod"));
-            var shippingAddressOrdinal = reader.GetOrdinal("ShippingAddress");
-            shippingAddress = reader.IsDBNull(shippingAddressOrdinal) ? null : reader.GetString(shippingAddressOrdinal);
-            var shippingCarrierOrdinal = reader.GetOrdinal("ShippingCarrier");
-            shippingCarrier = reader.IsDBNull(shippingCarrierOrdinal) ? null : (ShippingCarrier)reader.GetByte(shippingCarrierOrdinal);
-            paymentMethod = (PaymentMethod)reader.GetByte(reader.GetOrdinal("PaymentMethod"));
-            var guestNameOrdinal = reader.GetOrdinal("GuestName");
-            guestName = reader.IsDBNull(guestNameOrdinal) ? null : reader.GetString(guestNameOrdinal);
-            var guestEmailOrdinal = reader.GetOrdinal("GuestEmail");
-            guestEmail = reader.IsDBNull(guestEmailOrdinal) ? null : reader.GetString(guestEmailOrdinal);
-        }
-
-        return new Order
-        {
-            OrderId = orderId,
-            UserId = foundUserId,
-            TotalPrice = totalPrice,
-            CreatedAt = createdAt,
-            Items = LoadOrderItems(connection, null, orderId),
-            DeliveryMethod = deliveryMethod,
-            ShippingAddress = shippingAddress,
-            ShippingCarrier = shippingCarrier,
-            PaymentMethod = paymentMethod,
-            GuestName = guestName,
-            GuestEmail = guestEmail
-        };
+        return LoadOrders(connection, command, withBuyer: false).FirstOrDefault();
     }
 
     public IReadOnlyList<Order> GetOrdersForUser(int userId)
@@ -166,53 +138,17 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
-        var orders = new List<Order>();
-        using var orderCommand = new SqlCommand(
+        using var command = new SqlCommand(
             // OrderId DESC as a tiebreaker: two checkouts in quick succession (easily
             // seconds or less apart for a real customer, let alone in automated tests)
             // can land in the same CreatedAt tick, and CreatedAt alone then sorts them
             // in whatever order the storage engine feels like, not necessarily recency.
             // OrderId is IDENTITY(1,1), so it's a reliable "definitely later" signal.
-            "SELECT OrderId, TotalPrice, CreatedAt, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod FROM dbo.Orders " +
-            "WHERE UserId = @UserId ORDER BY CreatedAt DESC, OrderId DESC;", connection);
-        orderCommand.Parameters.AddWithValue("@UserId", userId);
+            $"SELECT {OrderColumns} FROM dbo.Orders o " +
+            "WHERE o.UserId = @UserId ORDER BY o.CreatedAt DESC, o.OrderId DESC;", connection);
+        command.Parameters.AddWithValue("@UserId", userId);
 
-        var headers = new List<(int OrderId, decimal TotalPrice, DateTime CreatedAt, DeliveryMethod DeliveryMethod,
-            string? ShippingAddress, ShippingCarrier? ShippingCarrier, PaymentMethod PaymentMethod)>();
-        using (var reader = orderCommand.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                var shippingAddressOrdinal = reader.GetOrdinal("ShippingAddress");
-                var shippingCarrierOrdinal = reader.GetOrdinal("ShippingCarrier");
-                headers.Add((
-                    reader.GetInt32(reader.GetOrdinal("OrderId")),
-                    reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
-                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                    (DeliveryMethod)reader.GetByte(reader.GetOrdinal("DeliveryMethod")),
-                    reader.IsDBNull(shippingAddressOrdinal) ? null : reader.GetString(shippingAddressOrdinal),
-                    reader.IsDBNull(shippingCarrierOrdinal) ? null : (ShippingCarrier)reader.GetByte(shippingCarrierOrdinal),
-                    (PaymentMethod)reader.GetByte(reader.GetOrdinal("PaymentMethod"))));
-            }
-        }
-
-        foreach (var (orderId, totalPrice, createdAt, deliveryMethod, shippingAddress, shippingCarrier, paymentMethod) in headers)
-        {
-            orders.Add(new Order
-            {
-                OrderId = orderId,
-                UserId = userId,
-                TotalPrice = totalPrice,
-                CreatedAt = createdAt,
-                Items = LoadOrderItems(connection, null, orderId),
-                DeliveryMethod = deliveryMethod,
-                ShippingAddress = shippingAddress,
-                ShippingCarrier = shippingCarrier,
-                PaymentMethod = paymentMethod
-            });
-        }
-
-        return orders;
+        return LoadOrders(connection, command, withBuyer: false);
     }
 
     public IReadOnlyList<Order> GetAllOrders()
@@ -220,69 +156,88 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
-        var orders = new List<Order>();
-        using var orderCommand = new SqlCommand(
+        using var command = new SqlCommand(
             // LEFT JOIN, not JOIN: UserId is nullable (see Order.UserId) once
             // the buyer's account has been deleted, or always for a guest
             // order - BuyerDisplayName/BuyerEmail just come back null then
             // (GuestName/GuestEmail are what the admin list falls back to,
             // to tell "guest" apart from "account since deleted").
-            "SELECT o.OrderId, o.UserId, o.TotalPrice, o.CreatedAt, o.DeliveryMethod, o.ShippingAddress, o.ShippingCarrier, o.PaymentMethod, " +
-            "       o.GuestName, o.GuestEmail, u.DisplayName AS BuyerDisplayName, u.Email AS BuyerEmail " +
+            $"SELECT {OrderColumns}, u.DisplayName AS BuyerDisplayName, u.Email AS BuyerEmail " +
             "FROM dbo.Orders o LEFT JOIN dbo.Users u ON u.UserId = o.UserId " +
             "ORDER BY o.CreatedAt DESC, o.OrderId DESC;", connection);
 
-        var headers = new List<(int OrderId, int? UserId, decimal TotalPrice, DateTime CreatedAt,
-            DeliveryMethod DeliveryMethod, string? ShippingAddress, ShippingCarrier? ShippingCarrier, PaymentMethod PaymentMethod,
-            string? GuestName, string? GuestEmail, string? BuyerDisplayName, string? BuyerEmail)>();
-        using (var reader = orderCommand.ExecuteReader())
+        return LoadOrders(connection, command, withBuyer: true);
+    }
+
+    public bool UpdateStatus(int orderId, OrderStatus status)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        using var command = new SqlCommand(
+            "UPDATE dbo.Orders SET Status = @Status WHERE OrderId = @OrderId;", connection);
+        command.Parameters.AddWithValue("@Status", (byte)status);
+        command.Parameters.AddWithValue("@OrderId", orderId);
+        return command.ExecuteNonQuery() == 1;
+    }
+
+    public bool ClaimGuestOrder(int orderId, int userId, string email)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        // UserId IS NULL: only ever an order that is still a guest order -
+        // never one that already belongs to an account. GuestEmail = @Email
+        // also rules out an order orphaned by its account being deleted
+        // (GuestEmail is null there).
+        using var command = new SqlCommand(
+            """
+            UPDATE dbo.Orders SET UserId = @UserId, GuestName = NULL, GuestEmail = NULL
+            WHERE OrderId = @OrderId AND UserId IS NULL AND GuestEmail = @Email;
+            """, connection);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.Parameters.AddWithValue("@OrderId", orderId);
+        command.Parameters.AddWithValue("@Email", email);
+        return command.ExecuteNonQuery() == 1;
+    }
+
+    // Headers first, items after: a second command can't run on the same
+    // connection while the first one's reader is still open.
+    private static List<Order> LoadOrders(SqlConnection connection, SqlCommand command, bool withBuyer)
+    {
+        var headers = new List<Order>();
+        using (var reader = command.ExecuteReader())
         {
             while (reader.Read())
-            {
-                var userIdOrdinal = reader.GetOrdinal("UserId");
-                var shippingAddressOrdinal = reader.GetOrdinal("ShippingAddress");
-                var shippingCarrierOrdinal = reader.GetOrdinal("ShippingCarrier");
-                var guestNameOrdinal = reader.GetOrdinal("GuestName");
-                var guestEmailOrdinal = reader.GetOrdinal("GuestEmail");
-                var buyerNameOrdinal = reader.GetOrdinal("BuyerDisplayName");
-                var buyerEmailOrdinal = reader.GetOrdinal("BuyerEmail");
-                headers.Add((
-                    reader.GetInt32(reader.GetOrdinal("OrderId")),
-                    reader.IsDBNull(userIdOrdinal) ? null : reader.GetInt32(userIdOrdinal),
-                    reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
-                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                    (DeliveryMethod)reader.GetByte(reader.GetOrdinal("DeliveryMethod")),
-                    reader.IsDBNull(shippingAddressOrdinal) ? null : reader.GetString(shippingAddressOrdinal),
-                    reader.IsDBNull(shippingCarrierOrdinal) ? null : (ShippingCarrier)reader.GetByte(shippingCarrierOrdinal),
-                    (PaymentMethod)reader.GetByte(reader.GetOrdinal("PaymentMethod")),
-                    reader.IsDBNull(guestNameOrdinal) ? null : reader.GetString(guestNameOrdinal),
-                    reader.IsDBNull(guestEmailOrdinal) ? null : reader.GetString(guestEmailOrdinal),
-                    reader.IsDBNull(buyerNameOrdinal) ? null : reader.GetString(buyerNameOrdinal),
-                    reader.IsDBNull(buyerEmailOrdinal) ? null : reader.GetString(buyerEmailOrdinal)));
-            }
+                headers.Add(ReadHeader(reader, withBuyer));
         }
 
-        foreach (var header in headers)
+        return headers.Select(h => h with { Items = LoadOrderItems(connection, null, h.OrderId) }).ToList();
+    }
+
+    private static Order ReadHeader(SqlDataReader reader, bool withBuyer)
+    {
+        var shippingCarrierOrdinal = reader.GetOrdinal("ShippingCarrier");
+        return new Order
         {
-            orders.Add(new Order
-            {
-                OrderId = header.OrderId,
-                UserId = header.UserId,
-                TotalPrice = header.TotalPrice,
-                CreatedAt = header.CreatedAt,
-                Items = LoadOrderItems(connection, null, header.OrderId),
-                DeliveryMethod = header.DeliveryMethod,
-                ShippingAddress = header.ShippingAddress,
-                ShippingCarrier = header.ShippingCarrier,
-                PaymentMethod = header.PaymentMethod,
-                GuestName = header.GuestName,
-                GuestEmail = header.GuestEmail,
-                BuyerDisplayName = header.BuyerDisplayName,
-                BuyerEmail = header.BuyerEmail
-            });
-        }
-
-        return orders;
+            OrderId = reader.GetInt32(reader.GetOrdinal("OrderId")),
+            UserId = reader.GetNullableInt32("UserId"),
+            TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
+            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+            Items = [],
+            DeliveryMethod = (DeliveryMethod)reader.GetByte(reader.GetOrdinal("DeliveryMethod")),
+            ShippingAddress = reader.GetNullableString("ShippingAddress"),
+            ShippingCarrier = reader.IsDBNull(shippingCarrierOrdinal) ? null : (ShippingCarrier)reader.GetByte(shippingCarrierOrdinal),
+            PaymentMethod = (PaymentMethod)reader.GetByte(reader.GetOrdinal("PaymentMethod")),
+            GuestName = reader.GetNullableString("GuestName"),
+            GuestEmail = reader.GetNullableString("GuestEmail"),
+            ShippingCost = reader.GetDecimal(reader.GetOrdinal("ShippingCost")),
+            ShippingWeightGrams = reader.GetNullableInt32("ShippingWeightGrams"),
+            ParcelCount = reader.GetNullableInt32("ParcelCount"),
+            Status = (OrderStatus)reader.GetByte(reader.GetOrdinal("Status")),
+            BuyerDisplayName = withBuyer ? reader.GetNullableString("BuyerDisplayName") : null,
+            BuyerEmail = withBuyer ? reader.GetNullableString("BuyerEmail") : null
+        };
     }
 
     private static List<OrderItem> LoadOrderItems(SqlConnection connection, SqlTransaction? transaction, int orderId)
@@ -313,10 +268,12 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         using var command = new SqlCommand(
             """
             SELECT c.ProductId, c.Quantity, p.Name, p.NameEn, p.Price,
-                   CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal
+                   CASE WHEN a.ProductId IS NULL THEN 0 ELSE 1 END AS IsAnimal,
+                   COALESCE(sp.WeightGrams, 0) AS WeightGrams
             FROM dbo.CartItems c
             JOIN dbo.Products p ON p.ProductId = c.ProductId
             LEFT JOIN dbo.Animals a ON a.ProductId = p.ProductId
+            LEFT JOIN dbo.StockProducts sp ON sp.ProductId = p.ProductId
             WHERE c.UserId = @UserId;
             """, connection, transaction);
         command.Parameters.AddWithValue("@UserId", userId);
@@ -333,7 +290,8 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
                 ProductNameEn = reader.IsDBNull(nameEnOrdinal) ? null : reader.GetString(nameEnOrdinal),
                 UnitPrice = reader.GetDecimal(reader.GetOrdinal("Price")),
                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
-                IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1
+                IsAnimal = reader.GetInt32(reader.GetOrdinal("IsAnimal")) == 1,
+                WeightGrams = reader.GetInt32(reader.GetOrdinal("WeightGrams"))
             });
         }
         return lines;
@@ -401,15 +359,17 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
     private static int InsertOrder(
         SqlConnection connection, SqlTransaction transaction, int? userId, IReadOnlyList<CartLine> lines,
         DeliveryMethod deliveryMethod, string? shippingAddress, ShippingCarrier? shippingCarrier, PaymentMethod paymentMethod,
-        string? guestName, string? guestEmail)
+        string? guestName, string? guestEmail, ShippingQuote? shipping)
     {
-        var total = lines.Sum(l => l.LineTotal);
+        var total = lines.Sum(l => l.LineTotal) + (shipping?.Cost ?? 0);
 
         using var orderCommand = new SqlCommand(
             """
-            INSERT INTO dbo.Orders (UserId, TotalPrice, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod, GuestName, GuestEmail)
+            INSERT INTO dbo.Orders (UserId, TotalPrice, DeliveryMethod, ShippingAddress, ShippingCarrier, PaymentMethod, GuestName, GuestEmail,
+                                    ShippingCost, ShippingWeightGrams, ParcelCount)
             OUTPUT INSERTED.OrderId
-            VALUES (@UserId, @TotalPrice, @DeliveryMethod, @ShippingAddress, @ShippingCarrier, @PaymentMethod, @GuestName, @GuestEmail);
+            VALUES (@UserId, @TotalPrice, @DeliveryMethod, @ShippingAddress, @ShippingCarrier, @PaymentMethod, @GuestName, @GuestEmail,
+                    @ShippingCost, @ShippingWeightGrams, @ParcelCount);
             """, connection, transaction);
         orderCommand.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
         orderCommand.Parameters.AddWithValue("@TotalPrice", total);
@@ -419,6 +379,9 @@ public sealed class SqlOrderStore(string connectionString) : IOrderStore
         orderCommand.Parameters.AddWithValue("@PaymentMethod", (byte)paymentMethod);
         orderCommand.Parameters.AddWithValue("@GuestName", (object?)guestName ?? DBNull.Value);
         orderCommand.Parameters.AddWithValue("@GuestEmail", (object?)guestEmail ?? DBNull.Value);
+        orderCommand.Parameters.AddWithValue("@ShippingCost", shipping?.Cost ?? 0);
+        orderCommand.Parameters.AddWithValue("@ShippingWeightGrams", (object?)shipping?.WeightGrams ?? DBNull.Value);
+        orderCommand.Parameters.AddWithValue("@ParcelCount", (object?)shipping?.ParcelCount ?? DBNull.Value);
         var orderId = (int)orderCommand.ExecuteScalar()!;
 
         foreach (var line in lines)

@@ -54,6 +54,39 @@ public enum PaymentMethod
     MobilePay
 }
 
+/// <summary>Stored as a number in dbo.Orders.Status - only ever add to the end.</summary>
+public enum OrderStatus
+{
+    Placed,
+    Processing,
+    /// <summary>Handed to the carrier - or, for a pickup order, ready to be collected.</summary>
+    Sent,
+    /// <summary>Delivered - or, for a pickup order, collected.</summary>
+    Completed
+}
+
+public static class OrderStatusExtensions
+{
+    // The last two steps mean something different for an order that's being
+    // collected in store than for one that's being shipped.
+    public static string DisplayName(this OrderStatus status, DeliveryMethod deliveryMethod, bool english = false)
+    {
+        var shipping = deliveryMethod == DeliveryMethod.Shipping;
+        return status switch
+        {
+            OrderStatus.Placed => english ? "Order placed" : "Ordre modtaget",
+            OrderStatus.Processing => english ? "Being prepared" : "Under behandling",
+            OrderStatus.Sent => shipping
+                ? (english ? "Sent" : "Afsendt")
+                : (english ? "Ready for pickup" : "Klar til afhentning"),
+            OrderStatus.Completed => shipping
+                ? (english ? "Delivered" : "Leveret")
+                : (english ? "Picked up" : "Afhentet"),
+            _ => status.ToString()
+        };
+    }
+}
+
 // PostNord/GLS are the same name in Danish and English; only "Pakkeshop"
 // (parcel shop) needs translating, so one method covers both languages
 // rather than duplicating a switch per call site (Confirmation, Profile's
@@ -67,4 +100,26 @@ public static class ShippingCarrierExtensions
         ShippingCarrier.DaoPakkeshop => english ? "DAO parcel shop" : "DAO Pakkeshop",
         _ => carrier.ToString()
     };
+
+    /// <summary>PostNord brings the parcel to the door; GLS and DAO leave it at a parcel shop for the buyer to collect.</summary>
+    public static bool DeliversToParcelShop(this ShippingCarrier carrier) => carrier != ShippingCarrier.PostNord;
+
+    /// <summary>
+    /// Where the parcel ends up, for the given address. Which parcel shop
+    /// exactly is the carrier's call (the one nearest the address), not
+    /// something this demo can look up without their API.
+    /// </summary>
+    public static string DestinationText(this ShippingCarrier carrier, string? address, bool english = false)
+    {
+        if (!carrier.DeliversToParcelShop())
+            return english ? $"your door at {address}" : $"din dør på {address}";
+
+        // DAO's DisplayName already says "parcel shop"; GLS's doesn't.
+        var shop = carrier == ShippingCarrier.Gls
+            ? (english ? "GLS parcel shop" : "GLS Pakkeshop")
+            : carrier.DisplayName(english);
+        return english
+            ? $"the {shop} nearest {address} - the carrier messages you when it's ready to collect"
+            : $"{shop} nærmest {address} - fragtselskabet giver besked, når pakken kan hentes";
+    }
 }

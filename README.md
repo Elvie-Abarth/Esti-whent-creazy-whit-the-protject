@@ -166,6 +166,14 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   handler where a page is shared across roles (e.g. Admin/Schedule); an
   Employee who navigates straight to an Admin-only URL gets redirected to
   `/Account/AccessDenied`, not just a missing link in the nav.
+- **Deny by default**: every page requires a signed-in user unless it's on
+  the explicit public list in `Program.cs` (`AddRazorPages`), so a new page
+  that forgets its `[Authorize]` ends up behind the login page, not public.
+- **Role and account status are re-checked on every request**
+  (`AuthCookiePrincipal.RevalidateAsync`): the auth cookie is only a snapshot
+  from sign-in, so without this a deactivated, deleted, or demoted account
+  would keep its old access until the cookie expired (8 sliding hours). Now
+  it's gone on that account's very next request.
 - **IDOR guard on orders**: `/Cart/Confirmation/{orderId}` looks up the order
   *and* checks it belongs to the logged-in user in the same query
   (`IOrderStore.FindForUser`) — you can't view someone else's order by
@@ -173,6 +181,20 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   to use, so it's gated a different way instead: the new order's id is
   stamped into that same browser's own session right after checkout, and
   only an exact match is ever trusted — not just "any guest order".
+- **Shipping is priced server-side, never from the form.** The payment page
+  shows each carrier's price, destination (door or parcel shop), expected
+  delivery, total weight and parcel count (`ShippingCalculator` - demo rates,
+  max. 20 kg per parcel), but `SqlOrderStore.Checkout` runs the same
+  calculation itself from the catalog's own product weights and stores the
+  result on the order; a tampered POST can pick a carrier, not a price.
+- **Order status** (received → being prepared → sent/ready for pickup →
+  delivered/picked up) is moved along by staff on `/Admin/Orders` (audit
+  logged) and shown to the customer under Min konto.
+- **A guest order can be moved into an account** created right afterwards,
+  but only when both hold: it's the same browser session that placed the
+  order, and the account's email is the one the order was placed with
+  (`ClaimGuestOrderIntoAccount`) - so the next person at a shared computer
+  can't sign up and inherit someone else's order and address.
 - **Checkout re-validates inside a transaction, with row locks.** The cart
   can go stale between "add to cart" and "check out" (someone else buys the
   last unit, an animal gets marked not-for-sale); `SqlOrderStore.Checkout`

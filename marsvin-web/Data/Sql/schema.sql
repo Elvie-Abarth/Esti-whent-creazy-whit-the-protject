@@ -62,8 +62,17 @@ BEGIN
         Category      TINYINT       NOT NULL,             -- 0 Hay,1 Food,2 Cage,3 House,4 Toy,5 Bedding,6 Care
         StockQuantity INT           NOT NULL,
         Unit          NVARCHAR(20)  NULL,
-        PhotoUrl      NVARCHAR(300) NULL
+        PhotoUrl      NVARCHAR(300) NULL,
+        WeightGrams   INT           NOT NULL DEFAULT 500  -- packed weight of one unit; drives shipping cost and parcel count
     );
+END
+
+-- Added after StockProducts already existed on live databases - safe to run
+-- every time. Existing rows get the 500 g default here; DbInitializer then
+-- fills in the real weights of the demo catalog's own products, once.
+IF COL_LENGTH('dbo.StockProducts', 'WeightGrams') IS NULL
+BEGIN
+    ALTER TABLE dbo.StockProducts ADD WeightGrams INT NOT NULL DEFAULT 500;
 END
 
 -- Column added after StockProducts already existed on live databases (create-once
@@ -187,7 +196,10 @@ BEGIN
         ShippingCarrier TINYINT NULL,                 -- 0 PostNord, 1 GLS, 2 DAO Pakkeshop; only set when DeliveryMethod = Shipping
         PaymentMethod   TINYINT NOT NULL DEFAULT 0,   -- 0 Card (demo), 1 MobilePay (demo)
         GuestName       NVARCHAR(200) NULL,           -- only set for a guest checkout (UserId NULL, never had an account)
-        GuestEmail      NVARCHAR(256) NULL
+        GuestEmail      NVARCHAR(256) NULL,
+        ShippingCost        DECIMAL(10, 2) NOT NULL DEFAULT 0, -- included in TotalPrice; 0 for Pickup
+        ShippingWeightGrams INT NULL,                 -- snapshot of the shipped lines' weight; only set when DeliveryMethod = Shipping
+        ParcelCount         INT NULL                  -- snapshot too; only set when DeliveryMethod = Shipping
     );
 END
 
@@ -231,6 +243,29 @@ END
 IF COL_LENGTH('dbo.Orders', 'GuestEmail') IS NULL
 BEGIN
     ALTER TABLE dbo.Orders ADD GuestEmail NVARCHAR(256) NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'ShippingCost') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD ShippingCost DECIMAL(10, 2) NOT NULL DEFAULT 0;
+END
+
+IF COL_LENGTH('dbo.Orders', 'ShippingWeightGrams') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD ShippingWeightGrams INT NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'ParcelCount') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD ParcelCount INT NULL;
+END
+
+-- 0 Placed, 1 Processing, 2 Sent / ready for pickup, 3 Delivered / picked up
+-- (see OrderStatus). Not in the CREATE TABLE above - added here for new and
+-- existing databases alike; orders from before it existed start at Placed.
+IF COL_LENGTH('dbo.Orders', 'Status') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD Status TINYINT NOT NULL DEFAULT 0;
 END
 
 -- Orders has no index covering UserId (only the OrderId primary key) -

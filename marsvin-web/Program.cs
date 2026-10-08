@@ -11,7 +11,38 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorPages();
+// Deny by default: every page requires a signed-in user unless it's listed
+// here, so a new page that forgets its [Authorize] attribute ends up behind
+// the login page instead of public. The role rules themselves still live on
+// each page model ([Authorize(Roles = "...")]) - this is only the floor
+// underneath them. A convention rather than AuthorizationOptions.FallbackPolicy
+// on purpose: the fallback policy also applies to requests that match no
+// endpoint at all, which would turn every 404 into a redirect to the login
+// page for an anonymous visitor instead of the Error page below.
+// Never AllowAnonymousToFolder("/Account") - [AllowAnonymous] beats
+// [Authorize], so that would open Account/Profile up too.
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/");
+
+    string[] publicPages =
+    [
+        "/Index", "/OmOs", "/Kontakt", "/Privatliv", "/BetalingOgLevering",
+        "/Pasningsguide", "/PasningsguideHurtig", "/PasningsguideHurtigPdf",
+        "/Foderliste", "/FoderlistePdf",
+        "/Marsvin/Index", "/Marsvin/Details", "/Tilbehor/Index",
+        // Guest checkout - see the comments on each Cart page model.
+        "/Cart/Index", "/Cart/Payment", "/Cart/Confirmation",
+        "/Account/Login", "/Account/Register", "/Account/CheckEmail",
+        "/Account/ConfirmLogin", "/Account/VerifyTotp",
+        "/Account/ForgotPassword", "/Account/ResetPassword",
+        "/Account/Logout", "/Account/AccessDenied",
+        // Re-executed for 404s/500s (see below) - must render for anyone.
+        "/Error", "/ServerError"
+    ];
+    foreach (var page in publicPages)
+        options.Conventions.AllowAnonymousToPage(page);
+});
 
 // Framework defaults are max-age=30 days, no includeSubDomains, no preload -
 // tightened to the standard recommendation (2 years, cover subdomains too,
@@ -200,6 +231,11 @@ builder.Services
         // this were applied there too.
         if (!builder.Environment.IsDevelopment())
             options.Cookie.Name = "__Host-MarsvinAuth";
+        // The cookie's claims are a snapshot from sign-in - re-checked against
+        // dbo.Users on every request, so deactivating or demoting an account
+        // in /Admin/Users takes effect immediately instead of up to 8 (sliding)
+        // hours later. One extra indexed lookup per signed-in request.
+        options.Events.OnValidatePrincipal = AuthCookiePrincipal.RevalidateAsync;
     });
 builder.Services.AddAuthorization();
 

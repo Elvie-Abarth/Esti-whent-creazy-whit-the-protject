@@ -57,4 +57,18 @@ public interface IOrderStore
 
     /// <summary>Every order ever placed, across every customer, most recent first - the admin order list.</summary>
     IReadOnlyList<Order> GetAllOrders();
+
+    /// <summary>Staff moving an order along (see Admin/Orders). False if no such order exists.</summary>
+    bool UpdateStatus(int orderId, OrderStatus status);
+
+    /// <summary>
+    /// Hands a guest order over to an account, so it shows up in that
+    /// account's order history - used when a guest creates an account right
+    /// after checking out. Only ever touches an order that is still a guest
+    /// order placed with this same email address; the caller is additionally
+    /// responsible for knowing the order came from this browser (the same
+    /// session stamp that lets a guest view their own receipt). False if
+    /// nothing was claimed.
+    /// </summary>
+    bool ClaimGuestOrder(int orderId, int userId, string email);
 }

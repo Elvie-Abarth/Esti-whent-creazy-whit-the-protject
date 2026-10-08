@@ -52,7 +52,8 @@ public sealed class SessionCartStore(ISession session, ICatalog catalog) : ICart
                     Animal a => a.PhotoUrl,
                     StockProduct s => s.PhotoUrl,
                     _ => null
-                }
+                },
+                WeightGrams = product is StockProduct stock ? stock.WeightGrams : 0
             });
         }
         return lines;

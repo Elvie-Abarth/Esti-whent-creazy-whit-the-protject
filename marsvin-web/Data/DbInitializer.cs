@@ -22,7 +22,9 @@ public static class DbInitializer
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
+        var weightsNeedBackfill = StockProductsLackWeightColumn(connection);
         RunSchemaScript(connection);
+        if (weightsNeedBackfill) BackfillDemoWeights(connection);
         SeedIfEmpty(connection);
         SeedAccountsIfEmpty(connection);
     }
@@ -55,6 +57,36 @@ public static class DbInitializer
 
         using var command = new SqlCommand(schemaSql, connection);
         command.ExecuteNonQuery();
+    }
+
+    // True only for a database from before WeightGrams existed (an existing
+    // StockProducts table without the column) - never for a brand new one,
+    // which SeedIfEmpty fills with the right weights anyway.
+    private static bool StockProductsLackWeightColumn(SqlConnection connection)
+    {
+        using var command = new SqlCommand(
+            """
+            SELECT CASE WHEN OBJECT_ID('dbo.StockProducts', 'U') IS NOT NULL
+                         AND COL_LENGTH('dbo.StockProducts', 'WeightGrams') IS NULL THEN 1 ELSE 0 END;
+            """, connection);
+        return (int)command.ExecuteScalar()! == 1;
+    }
+
+    // Runs exactly once, on the startup that adds the column: every existing
+    // row just got the 500 g default, which is wrong for a 16 kg cage. Matched
+    // by Sku, so a product an admin created themselves keeps the default
+    // until they set its weight - and since this never runs again, a weight
+    // an admin later edits is never overwritten.
+    private static void BackfillDemoWeights(SqlConnection connection)
+    {
+        foreach (var item in new DemoCatalog().Accessories)
+        {
+            using var command = new SqlCommand(
+                "UPDATE dbo.StockProducts SET WeightGrams = @WeightGrams WHERE Sku = @Sku;", connection);
+            command.Parameters.AddWithValue("@WeightGrams", item.WeightGrams);
+            command.Parameters.AddWithValue("@Sku", item.Sku);
+            command.ExecuteNonQuery();
+        }
     }
 
     private static void SeedIfEmpty(SqlConnection connection)
@@ -189,8 +221,8 @@ public static class DbInitializer
     {
         using var command = new SqlCommand(
             """
-            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl)
-            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl);
+            INSERT INTO dbo.StockProducts (ProductId, Sku, Category, StockQuantity, Unit, PhotoUrl, WeightGrams)
+            VALUES (@ProductId, @Sku, @Category, @StockQuantity, @Unit, @PhotoUrl, @WeightGrams);
             """, connection);
 
         command.Parameters.AddWithValue("@ProductId", item.ProductId);
@@ -199,6 +231,7 @@ public static class DbInitializer
         command.Parameters.AddWithValue("@StockQuantity", item.StockQuantity);
         command.Parameters.AddWithValue("@Unit", (object?)item.Unit ?? DBNull.Value);
         command.Parameters.AddWithValue("@PhotoUrl", (object?)item.PhotoUrl ?? DBNull.Value);
+        command.Parameters.AddWithValue("@WeightGrams", item.WeightGrams);
         command.ExecuteNonQuery();
     }
 }

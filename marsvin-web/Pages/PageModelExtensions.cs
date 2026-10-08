@@ -3,6 +3,7 @@ using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MarsvinWebExample.Pages;
@@ -58,19 +59,9 @@ public static class PageModelExtensions
     /// profile update (to refresh the name/email claims immediately rather
     /// than waiting for the next login).
     /// </summary>
-    public static async Task SignInAsync(this PageModel page, ApplicationUser user)
-    {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Name, user.DisplayName),
-            new(ClaimTypes.Role, user.Role.ToString())
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    public static async Task SignInAsync(this PageModel page, ApplicationUser user) =>
         await page.HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-    }
+            CookieAuthenticationDefaults.AuthenticationScheme, AuthCookiePrincipal.Build(user));
 
     /// <summary>
     /// Folds a just-signed-in user's guest cart into their account's real
@@ -103,6 +94,30 @@ public static class PageModelExtensions
             accountCart.AddOrIncrement(userId, line.ProductId, line.Quantity);
         }
         guestCart.Clear(0);
+    }
+
+    /// <summary>
+    /// A guest who creates an account (or logs in) right after checking out
+    /// gets that order moved into the account, so it shows up - with its
+    /// status - in their order history. Two things both have to hold: this
+    /// browser session is the one that placed the order (the same
+    /// "GuestOrderId" stamp Cart/Confirmation trusts for showing a guest
+    /// their receipt), and the order was placed with the account's own email
+    /// address (checked in IOrderStore.ClaimGuestOrder). Either alone isn't
+    /// enough - someone else signing up on a shared computer shouldn't
+    /// inherit the previous person's order, address and all.
+    /// </summary>
+    public static void ClaimGuestOrderIntoAccount(this PageModel page, IOrderStore orders, ApplicationUser user)
+    {
+        if (user.Role != UserRole.Customer) return;
+        // No session at all on a PageModel constructed directly in a unit test.
+        if (page.HttpContext.Features.Get<ISessionFeature>() is null) return;
+
+        var guestOrderId = page.HttpContext.Session.GetInt32("GuestOrderId");
+        if (guestOrderId is null) return;
+
+        if (orders.ClaimGuestOrder(guestOrderId.Value, user.UserId, user.Email))
+            page.HttpContext.Session.Remove("GuestOrderId");
     }
 
     // Deliberately not PageModel.Url.IsLocalUrl: that needs an IUrlHelper wired up

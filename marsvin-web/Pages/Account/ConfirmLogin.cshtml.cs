@@ -9,7 +9,7 @@ namespace MarsvinWebExample.Pages.Account;
 // opening this link (proof of access to the account's inbox, not just its
 // password) is what actually creates the signed-in session.
 public class ConfirmLoginModel(
-    IUserAccountStore users, IPendingLoginStore pendingLogins, ICartStore cart, SqlCartStore accountCart)
+    IUserAccountStore users, IPendingLoginStore pendingLogins, ICartStore cart, SqlCartStore accountCart, IOrderStore orders)
     : PageModel
 {
     public async Task<IActionResult> OnGetAsync(string? token)
@@ -32,6 +32,8 @@ public class ConfirmLoginModel(
         // anything added to the cart earlier in this same browser session
         // while still anonymous shouldn't just vanish now that it's signed in.
         MergeGuestCartIntoAccount(cart, accountCart, user.UserId);
+        // Same idea for an order placed as a guest just before signing up.
+        this.ClaimGuestOrderIntoAccount(orders, user);
 
         return !string.IsNullOrEmpty(ticket!.ReturnUrl) ? LocalRedirect(ticket.ReturnUrl) : RedirectToPage("/Index");
     }

@@ -26,6 +26,12 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
     [TempData]
     public string? ToastMessage { get; set; }
 
+    // Set alongside ToastMessage after a successful add from a product page:
+    // _Layout.cshtml then shows the message as a box that stays put and asks
+    // "go to the cart, or keep shopping?" instead of one that fades by itself.
+    [TempData]
+    public bool AskWhereNext { get; set; }
+
     public void OnGet() => Lines = cart.GetLines(this.CurrentUserIdOrZero());
 
     public IActionResult OnPostAdd(
@@ -86,7 +92,7 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
             {
                 ToastMessage = new Bilingual($"{animal.Name} er lagt i kurven.", $"{animal.Name} has been added to the cart.");
             }
-            return RedirectAfterAdd(returnUrl);
+            return RedirectAfterSuccessfulAdd(returnUrl);
         }
 
         var product = catalog.Accessories.FirstOrDefault(p => p.ProductId == productId);
@@ -114,6 +120,14 @@ public class IndexModel(ICartStore cart, ICatalog catalog) : PageModel
         ToastMessage = new Bilingual(
             $"{product.Name} er lagt i kurven.",
             $"{product.NameEn ?? product.Name} has been added to the cart.");
+        return RedirectAfterSuccessfulAdd(returnUrl);
+    }
+
+    // Only worth asking when the buyer is being sent back to the page they
+    // added from - with no returnUrl the redirect lands on the cart itself.
+    private IActionResult RedirectAfterSuccessfulAdd(string? returnUrl)
+    {
+        AskWhereNext = !string.IsNullOrEmpty(returnUrl) && IsSafeLocalUrl(returnUrl);
         return RedirectAfterAdd(returnUrl);
     }
 

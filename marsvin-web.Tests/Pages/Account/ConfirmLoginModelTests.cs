@@ -31,7 +31,7 @@ public class ConfirmLoginModelTests(SqlCatalogFixture fixture)
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
         var guestCart = new FakeCartStore();
-        var model = new ConfirmLoginModel(_users, _pendingLogins, guestCart, _accountCart)
+        var model = new ConfirmLoginModel(_users, _pendingLogins, guestCart, _accountCart, new SqlOrderStore(fixture.ConnectionString))
         {
             PageContext = new PageContext { HttpContext = httpContext }
         };

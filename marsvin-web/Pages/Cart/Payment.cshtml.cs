@@ -27,6 +27,16 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     public bool CanShip => Lines.Any(l => !l.IsAnimal);
     public bool HasAnimal => Lines.Any(l => l.IsAnimal);
 
+    // What the buyer is shown before choosing a carrier: price, parcel count
+    // and estimated delivery for each. Display only - SqlOrderStore.Checkout
+    // runs the same calculation itself and never reads a price off the form.
+    public int ShippableWeightGrams => ShippingCalculator.ShippableWeightGrams(Lines);
+    public int ParcelCount => ShippingCalculator.ParcelCount(ShippableWeightGrams);
+    public IReadOnlyList<ShippingQuote> ShippingOptions =>
+        Enum.GetValues<ShippingCarrier>()
+            .Select(c => ShippingCalculator.Quote(c, ShippableWeightGrams, DateOnly.FromDateTime(DateTime.UtcNow)))
+            .ToList();
+
     [BindProperty]
     public PaymentInputModel Input { get; set; } = new();
 
@@ -75,11 +85,11 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         {
             if (string.IsNullOrWhiteSpace(Input.CardHolder))
                 ModelState.AddModelError("Input.CardHolder", "Udfyld navnet på kortet.");
-            if (!CardNumberPattern.IsMatch(Input.CardNumber))
+            if (!CardNumberPattern.IsMatch(Input.CardNumber ?? ""))
                 ModelState.AddModelError("Input.CardNumber", "Kortnummeret ser forkert ud.");
-            if (!ExpiryPattern.IsMatch(Input.Expiry))
+            if (!ExpiryPattern.IsMatch(Input.Expiry ?? ""))
                 ModelState.AddModelError("Input.Expiry", "Brug formatet MM/ÅÅ.");
-            if (!CvcPattern.IsMatch(Input.Cvc))
+            if (!CvcPattern.IsMatch(Input.Cvc ?? ""))
                 ModelState.AddModelError("Input.Cvc", "CVC skal være 3-4 cifre.");
         }
 
@@ -155,7 +165,12 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         var itemLines = string.Join("\n", order.Items.Select(i =>
             $"- {i.ProductName} x{i.Quantity}: {i.LineTotal:N0} kr."));
         var deliveryLine = order.DeliveryMethod == DeliveryMethod.Shipping
-            ? $"Sendes til: {order.ShippingAddress} ({order.ShippingCarrier?.DisplayName()})" +
+            ? $"Fragt ({order.ShippingCarrier?.DisplayName()}): {order.ShippingCost:N0} kr. - allerede med i beløbet ovenfor.\n" +
+              $"Leveres til: {order.ShippingCarrier?.DestinationText(order.ShippingAddress)}\n" +
+              (order.ExpectedDelivery is var (earliest, latest)
+                  ? $"Forventet levering: {ShippingCalculator.FormatWindow(earliest, latest)}\n" : "") +
+              (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels
+                  ? $"Samlet vægt: {ShippingCalculator.FormatWeight(grams)}, sendes i {parcels} {(parcels == 1 ? "pakke" : "pakker")}." : "") +
               (order.Items.Any(i => i.IsAnimal)
                   ? $"\n{string.Join(" og ", order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName))} afhentes i butikken separat."
                   : "")
@@ -208,13 +223,16 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         // No [Required]/[RegularExpression] here - these only apply when
         // PaymentMethod is Card, checked by hand in OnPostAsync, since
         // DataAnnotations has no clean "required if" for a sibling property.
+        // Nullable on purpose: a blank form field binds as null, not "", and
+        // a non-nullable string would get an implicit [Required] from MVC -
+        // rejecting a MobilePay checkout for leaving the card fields empty.
         [StringLength(200)]
-        public string CardHolder { get; set; } = "";
+        public string? CardHolder { get; set; }
 
-        public string CardNumber { get; set; } = "";
+        public string? CardNumber { get; set; }
 
-        public string Expiry { get; set; } = "";
+        public string? Expiry { get; set; }
 
-        public string Cvc { get; set; } = "";
+        public string? Cvc { get; set; }
     }
 }

@@ -41,6 +41,7 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
             Category = item.Category,
             Price = item.Price,
             StockQuantity = item.StockQuantity,
+            WeightGrams = item.WeightGrams,
             Unit = item.Unit,
             PhotoUrl = item.PhotoUrl
         };
@@ -70,6 +71,7 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
             Category = Input.Category,
             Price = Input.Price,
             StockQuantity = Input.StockQuantity,
+            WeightGrams = Input.WeightGrams,
             Unit = Input.Unit,
             PhotoUrl = Input.PhotoUrl
         };
@@ -113,6 +115,10 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
 
         [Range(0, 100000)]
         public int StockQuantity { get; set; }
+
+        // Shipping cost and parcel count are worked out from this - 1 g to 100 kg.
+        [Range(1, 100000)]
+        public int WeightGrams { get; set; } = 500;
 
         [StringLength(20)]
         public string? Unit { get; set; }

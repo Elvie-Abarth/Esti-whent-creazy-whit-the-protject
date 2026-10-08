@@ -48,6 +48,11 @@
             <input asp-for="Input.StockQuantity" type="number" />
         </label>
         <label>
+            <span data-en="Packed weight per unit, in grams (used for shipping)">Vægt pr. stk. inkl. emballage, i gram (bruges til fragt)</span>
+            <input asp-for="Input.WeightGrams" type="number" min="1" />
+            <span asp-validation-for="Input.WeightGrams" class="field-error"></span>
+        </label>
+        <label>
             <span data-en="Unit (e.g. bag, pcs)">Enhed (fx pose, stk)</span>
             <input asp-for="Input.Unit" />
         </label>

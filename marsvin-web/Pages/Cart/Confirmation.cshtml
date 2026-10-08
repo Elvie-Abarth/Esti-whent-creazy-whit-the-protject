@@ -36,9 +36,19 @@
             </tbody>
         </table>
         <div class="cart-summary">
+            @if (Model.Order.DeliveryMethod == DeliveryMethod.Shipping)
+            {
+                <span data-en="@($"Items: {Model.Order.ItemsTotal:N0} kr. + shipping: {Model.Order.ShippingCost:N0} kr.")">
+                    Varer: @Model.Order.ItemsTotal.ToString("N0") kr. + fragt: @Model.Order.ShippingCost.ToString("N0") kr.
+                </span>
+            }
             <span class="cart-total"><span data-en="Total">I alt</span>: @Model.Order.TotalPrice.ToString("N0") kr.</span>
         </div>
     </div>
+
+    <p data-en="@($"Status: {Model.Order.Status.DisplayName(Model.Order.DeliveryMethod, english: true)}")">
+        Status: @Model.Order.Status.DisplayName(Model.Order.DeliveryMethod)
+    </p>
 
     <p data-en="@($"Paid with: {(Model.Order.PaymentMethod == PaymentMethod.Card ? "Card" : "MobilePay")} (demo)")">
         Betalt med: @(Model.Order.PaymentMethod == PaymentMethod.Card ? "Kort" : "MobilePay") (demo)
@@ -49,13 +59,25 @@
     }
     @if (Model.Order.DeliveryMethod == DeliveryMethod.Shipping)
     {
-        <p data-en="@($"The accessories in this order will be shipped to: {Model.Order.ShippingAddress}")">
-            Tilbehøret i denne ordre sendes til: @Model.Order.ShippingAddress
-        </p>
         @if (Model.Order.ShippingCarrier is ShippingCarrier carrier)
         {
             <p data-en="@($"Carrier: {carrier.DisplayName(english: true)}")">
                 Fragtselskab: @carrier.DisplayName()
+            </p>
+            <p data-en="@($"The accessories in this order are delivered to {carrier.DestinationText(Model.Order.ShippingAddress, english: true)}.")">
+                Tilbehøret i denne ordre leveres til @carrier.DestinationText(Model.Order.ShippingAddress).
+            </p>
+        }
+        @if (Model.Order.ExpectedDelivery is var (earliest, latest))
+        {
+            <p data-en="@($"Expected delivery: {ShippingCalculator.FormatWindow(earliest, latest)} (an estimate, weekdays only).")">
+                Forventet levering: @ShippingCalculator.FormatWindow(earliest, latest) (et skøn, kun hverdage).
+            </p>
+        }
+        @if (Model.Order.ShippingWeightGrams is int grams && Model.Order.ParcelCount is int parcels)
+        {
+            <p data-en="@($"Total weight: {ShippingCalculator.FormatWeight(grams, english: true)}, sent as {(parcels == 1 ? "1 parcel" : $"{parcels} parcels")}.")">
+                Samlet vægt: @ShippingCalculator.FormatWeight(grams), sendes som @(parcels == 1 ? "1 pakke" : $"{parcels} pakker").
             </p>
         }
         @if (animalNames.Count > 0)
@@ -74,9 +96,34 @@
         </p>
     }
 
-    <div class="actions">
-        <a class="btn btn--quiet" asp-page="/Index" data-en="Back to the front page">Til forsiden</a>
-    </div>
+    @if (Model.Order.UserId is null)
+    {
+        @* A guest's receipt lives only in this browser session and the
+           confirmation email. Registering with the same email address, from
+           this same browser, moves this order into the new account's order
+           history (see PageModelExtensions.ClaimGuestOrderIntoAccount). *@
+        <div class="callout">
+            <h3 data-en="Want to follow this order?">Vil du følge denne ordre?</h3>
+            <p data-en="@($"Create an account with the same email address ({Model.Order.GuestEmail}) and this order is saved to it - with its status (received, being prepared, sent, delivered) under My account, and your details ready for next time.")">
+                Opret en konto med den samme e-mailadresse (@Model.Order.GuestEmail), så gemmes
+                denne ordre på den - med status (modtaget, under behandling, afsendt, leveret)
+                under Min konto, og dine oplysninger klar til næste gang.
+            </p>
+            <div class="actions">
+                <a class="btn" asp-page="/Account/Register" asp-route-returnUrl="/Account/Profile" data-en="Create an account">Opret konto</a>
+                <a class="btn btn--quiet" asp-page="/Index" data-en="No thanks">Nej tak</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="cavy-meta" data-en="You can follow this order's status under My account.">
+            Du kan følge ordrens status under Min konto.
+        </p>
+        <div class="actions">
+            <a class="btn btn--quiet" asp-page="/Index" data-en="Back to the front page">Til forsiden</a>
+        </div>
+    }
 </div>
 
 <script src="~/js/confetti.js" asp-append-version="true"></script>

@@ -3,6 +3,15 @@
 @{
     ViewData["Title"] = "Betaling";
     ViewData["TitleEn"] = "Payment";
+
+    // The steps are numbered as they're rendered - a signed-in customer has
+    // no "your details" step, so the numbers can't be hard-coded.
+    var step = 0;
+    var animalNames = Model.Lines.Where(l => l.IsAnimal).Select(l => l.ProductName).ToList();
+    var parcelsDa = Model.ParcelCount == 1 ? "1 pakke" : $"{Model.ParcelCount} pakker";
+    var parcelsEn = Model.ParcelCount == 1 ? "1 parcel" : $"{Model.ParcelCount} parcels";
+    var weightDa = ShippingCalculator.FormatWeight(Model.ShippableWeightGrams);
+    var weightEn = ShippingCalculator.FormatWeight(Model.ShippableWeightGrams, english: true);
 }
 
 <div class="wrap section">
@@ -21,6 +30,7 @@
                 <tr>
                     <th data-en="Item">Vare</th>
                     <th data-en="Quantity">Antal</th>
+                    <th data-en="Weight">Vægt</th>
                     <th data-en="Price">Pris</th>
                 </tr>
             </thead>
@@ -38,13 +48,21 @@
                             </div>
                         </td>
                         <td>@line.Quantity</td>
+                        @if (line.IsAnimal)
+                        {
+                            <td data-en="Picked up in store">Afhentes i butikken</td>
+                        }
+                        else
+                        {
+                            <td data-en="@ShippingCalculator.FormatWeight(line.WeightGrams * line.Quantity, english: true)">@ShippingCalculator.FormatWeight(line.WeightGrams * line.Quantity)</td>
+                        }
                         <td>@line.LineTotal.ToString("N0") kr.</td>
                     </tr>
                 }
             </tbody>
         </table>
         <div class="cart-summary">
-            <span class="cart-total"><span data-en="Total">I alt</span>: @Model.Total.ToString("N0") kr.</span>
+            <span class="cart-total"><span data-en="Items total">Varer i alt</span>: @Model.Total.ToString("N0") kr.</span>
         </div>
     </div>
 </div>
@@ -60,9 +78,9 @@
         @if (Model.IsGuest)
         {
             <fieldset>
-                <legend data-en="Your details">Dine oplysninger</legend>
-                <p class="cavy-meta" data-en="Checking out as a guest - no account needed. Only used for your receipt.">
-                    Køber som gæst - ingen konto nødvendig. Bruges kun til din kvittering.
+                <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Your details">Dine oplysninger</span></legend>
+                <p data-en="You're checking out as a guest - no account needed. Your name and email are only used for the receipt.">
+                    Du køber som gæst - ingen konto nødvendig. Navn og e-mail bruges kun til din kvittering.
                 </p>
                 <label>
                     <span data-en="Name">Navn</span>
@@ -74,118 +92,217 @@
                     <input asp-for="Input.GuestEmail" autocomplete="email" type="email" />
                     <span asp-validation-for="Input.GuestEmail" class="field-error"></span>
                 </label>
+                <div class="pay-account-offer">
+                    <p data-en="Prefer an account? Then your details are saved and you can follow each order's status. Your cart comes with you.">
+                        Hellere en konto? Så gemmes dine oplysninger, og du kan følge hver ordres status. Din kurv følger med.
+                    </p>
+                    <div class="pay-account-links">
+                        <a asp-page="/Account/Register" asp-route-returnUrl="/Cart/Payment" data-en="Create an account">Opret konto</a>
+                        <a asp-page="/Account/Login" asp-route-returnUrl="/Cart/Payment" data-en="Log in">Log ind</a>
+                    </div>
+                </div>
             </fieldset>
         }
 
         <fieldset>
-            <legend data-en="Delivery">Levering</legend>
+            <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Delivery">Levering</span></legend>
             @if (Model.CanShip)
             {
                 <label class="checkbox-label delivery-option">
-                    <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" checked="checked" />
-                    @if (Model.HasAnimal)
-                    {
-                        <span data-en="Pick up everything in store">Afhent det hele i butikken</span>
-                    }
-                    else
-                    {
-                        <span data-en="Pick up in store">Afhent i butikken</span>
-                    }
+                    <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" />
+                    <span class="option-body">
+                        <span class="option-head">
+                            <strong data-en="@(Model.HasAnimal ? "Pick up everything in store" : "Pick up in store")">@(Model.HasAnimal ? "Afhent det hele i butikken" : "Afhent i butikken")</strong>
+                            <strong class="option-price" data-en="Free">Gratis</strong>
+                        </span>
+                        <span data-en="Marsvin, Havnegade 12, 6700 Esbjerg">Marsvin, Havnegade 12, 6700 Esbjerg</span>
+                    </span>
                 </label>
                 <label class="checkbox-label delivery-option">
                     <input type="radio" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Shipping" />
-                    @if (Model.HasAnimal)
-                    {
-                        <span data-en="Ship the accessories - pick up the guinea pig in store">Send tilbehøret - afhent marsvinet i butikken</span>
-                    }
-                    else
-                    {
-                        <span data-en="Ship to my address">Send til min adresse</span>
-                    }
+                    <span class="option-body">
+                        <span class="option-head">
+                            <strong data-en="@(Model.HasAnimal ? "Ship the accessories" : "Have it shipped")">@(Model.HasAnimal ? "Få tilbehøret sendt" : "Få det sendt")</strong>
+                            <strong class="option-price" data-en="@($"from {Model.ShippingOptions.Min(o => o.Cost):N0} kr.")">fra @Model.ShippingOptions.Min(o => o.Cost).ToString("N0") kr.</strong>
+                        </span>
+                        <span data-en="To your door or to a pick-up point near you">Til din dør eller til et udleveringssted nær dig</span>
+                    </span>
                 </label>
                 @if (Model.HasAnimal)
                 {
-                    <p class="cavy-meta" data-en="The guinea pig always needs picking up in store, whichever you choose above - only the accessories in this order can be shipped.">
-                        Marsvinet skal under alle omstændigheder afhentes i
-                        butikken, uanset hvad du vælger ovenfor - det er kun
-                        tilbehøret i ordren, der kan sendes.
+                    <p class="pay-note" data-en="@($"{string.Join(" and ", animalNames)} must always be picked up in store - a guinea pig can't be shipped. Only the accessories can be sent.")">
+                        @string.Join(" og ", animalNames) skal altid afhentes i butikken - et
+                        marsvin kan ikke sendes. Kun tilbehøret kan sendes.
                     </p>
                 }
-                <label>
-                    <span data-en="Delivery address (only needed if you choose shipping above)">Leveringsadresse (kun nødvendig hvis du vælger forsendelse ovenfor)</span>
-                    <input asp-for="Input.ShippingAddress" autocomplete="street-address" />
-                    <span asp-validation-for="Input.ShippingAddress" class="field-error"></span>
-                </label>
 
-                <fieldset class="carrier-fieldset">
-                    <legend data-en="Shipping carrier (only needed if you choose shipping above)">Fragtselskab (kun nødvendig hvis du vælger forsendelse ovenfor)</legend>
-                    <label class="checkbox-label">
-                        <input type="radio" asp-for="Input.ShippingCarrier" value="@ShippingCarrier.PostNord" checked="checked" />
-                        <span>PostNord</span>
+                @* Everything below only matters once "shipped" is chosen - hidden
+                   until then (see .ship-only in site.css) instead of sitting there
+                   labelled "only needed if...". *@
+                <div class="ship-only">
+                    <label>
+                        <span data-en="Delivery address">Leveringsadresse</span>
+                        <input asp-for="Input.ShippingAddress" autocomplete="street-address" placeholder="Vejnavn 12, 4000 Roskilde" />
+                        <span class="field-hint" data-en="Street and number, postcode and city.">Vej og husnummer, postnummer og by.</span>
+                        <span asp-validation-for="Input.ShippingAddress" class="field-error"></span>
                     </label>
-                    <label class="checkbox-label">
-                        <input type="radio" asp-for="Input.ShippingCarrier" value="@ShippingCarrier.Gls" />
-                        <span>GLS</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="radio" asp-for="Input.ShippingCarrier" value="@ShippingCarrier.DaoPakkeshop" />
-                        <span data-en="DAO parcel shop">DAO Pakkeshop</span>
-                    </label>
-                </fieldset>
+
+                    <div class="pay-box">
+                        <h3 data-en="Your shipment">Din forsendelse</h3>
+                        <dl class="pay-facts">
+                            <dt data-en="Total weight">Samlet vægt</dt>
+                            <dd data-en="@weightEn">@weightDa</dd>
+                            <dt data-en="Number of parcels">Antal pakker</dt>
+                            <dd data-en="@($"{parcelsEn} (max. 20 kg each)")">@parcelsDa (højst 20 kg pr. pakke)</dd>
+                        </dl>
+                    </div>
+
+                    <fieldset class="carrier-fieldset">
+                        <legend data-en="Choose a carrier">Vælg fragtselskab</legend>
+                        @foreach (var option in Model.ShippingOptions)
+                        {
+                            var toShop = option.Carrier.DeliversToParcelShop();
+                            <label class="checkbox-label delivery-option carrier-option">
+                                <input type="radio" asp-for="Input.ShippingCarrier" value="@option.Carrier" />
+                                <span class="option-body">
+                                    <span class="option-head">
+                                        <strong data-en="@option.Carrier.DisplayName(english: true)">@option.Carrier.DisplayName()</strong>
+                                        <strong class="option-price">@option.Cost.ToString("N0") kr.</strong>
+                                    </span>
+                                    <span class="pay-facts">
+                                        <span data-en="Delivered to">Leveres til</span>
+                                        @if (toShop)
+                                        {
+                                            <strong data-en="Pick-up point near you">Udleveringssted nær dig</strong>
+                                        }
+                                        else
+                                        {
+                                            <strong data-en="Your door, at the address above">Din dør, på adressen ovenfor</strong>
+                                        }
+                                        <span data-en="Expected delivery">Forventet levering</span>
+                                        <strong>@option.DeliveryWindowText</strong>
+                                    </span>
+                                </span>
+                            </label>
+                        }
+                        <p class="field-hint" data-en="Dates are day/month and an estimate: weekdays only, counted from today. For a pick-up point, the carrier picks the one nearest your address and messages you when the parcel is ready.">
+                            Datoer er dag/måned og et skøn: kun hverdage, regnet fra i dag. Ved udleveringssted
+                            vælger fragtselskabet den nærmeste på din adresse og giver besked, når pakken er klar.
+                        </p>
+                    </fieldset>
+                </div>
             }
             else
             {
                 <input type="hidden" asp-for="Input.DeliveryMethod" value="@DeliveryMethod.Pickup" />
-                <p data-en="This order is only guinea pigs, so it's always picked up in store - a guinea pig can't be shipped.">
-                    Denne ordre består kun af marsvin, og afhentes derfor
-                    altid i butikken - et marsvin kan ikke sendes med fragt.
+                <p data-en="This order is only guinea pigs, so it's picked up in store - a guinea pig can't be shipped. Pickup is free.">
+                    Denne ordre består kun af marsvin og afhentes derfor
+                    i butikken - et marsvin kan ikke sendes. Afhentning er gratis.
                 </p>
             }
         </fieldset>
 
         <fieldset>
-            <legend data-en="Payment method">Betalingsmetode</legend>
-            <label class="checkbox-label">
-                <input type="radio" asp-for="Input.PaymentMethod" value="@PaymentMethod.Card" checked="checked" />
-                <span data-en="Card">Kort</span>
+            <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Payment method">Betalingsmetode</span></legend>
+            <label class="checkbox-label delivery-option">
+                <input type="radio" asp-for="Input.PaymentMethod" value="@PaymentMethod.Card" />
+                <strong data-en="Card">Kort</strong>
             </label>
-            <label class="checkbox-label">
+            <label class="checkbox-label delivery-option">
                 <input type="radio" asp-for="Input.PaymentMethod" value="@PaymentMethod.MobilePay" />
-                <span>MobilePay</span>
+                <strong>MobilePay</strong>
             </label>
+
+            <div class="card-fields">
+                <label>
+                    <span data-en="Name on card">Navn på kortet</span>
+                    <input asp-for="Input.CardHolder" autocomplete="cc-name" />
+                    <span asp-validation-for="Input.CardHolder" class="field-error"></span>
+                </label>
+
+                <label>
+                    <span data-en="Card number (demo)">Kortnummer (demo)</span>
+                    <input asp-for="Input.CardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
+                    <span asp-validation-for="Input.CardNumber" class="field-error"></span>
+                </label>
+
+                <div class="card-expiry-row">
+                    <label>
+                        <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
+                        <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
+                        <span asp-validation-for="Input.Expiry" class="field-error"></span>
+                    </label>
+
+                    <label>
+                        <span>CVC</span>
+                        <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
+                        <span asp-validation-for="Input.Cvc" class="field-error"></span>
+                    </label>
+                </div>
+            </div>
+
+            <p class="pay-note mobilepay-note" data-en="You'll get a payment request in the MobilePay app once you confirm (demo only - nothing is actually sent or charged).">
+                Du får en betalingsanmodning i MobilePay-appen, når du bekræfter (kun demo - der sendes og trækkes intet i virkeligheden).
+            </p>
         </fieldset>
 
-        <div class="card-fields">
-            <label>
-                <span data-en="Name on card">Navn på kortet</span>
-                <input asp-for="Input.CardHolder" autocomplete="cc-name" />
-                <span asp-validation-for="Input.CardHolder" class="field-error"></span>
-            </label>
+        @* One summary per possible choice (pickup, or shipping with each
+           carrier), all rendered up front; site.css shows only the one that
+           matches the radios currently selected. No JS, so the amount the
+           buyer is about to pay is always right there above the button. *@
+        <section class="pay-summary">
+            <h3 class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Your order">Din ordre</span></h3>
 
-            <label>
-                <span data-en="Card number (demo)">Kortnummer (demo)</span>
-                <input asp-for="Input.CardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
-                <span asp-validation-for="Input.CardNumber" class="field-error"></span>
-            </label>
-
-            <div class="card-expiry-row">
-                <label>
-                    <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
-                    <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
-                    <span asp-validation-for="Input.Expiry" class="field-error"></span>
-                </label>
-
-                <label>
-                    <span>CVC</span>
-                    <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
-                    <span asp-validation-for="Input.Cvc" class="field-error"></span>
-                </label>
+            <div class="pay-summary-variant @(Model.CanShip ? "pay-summary--Pickup" : "pay-summary--only")">
+                <dl class="pay-facts">
+                    <dt data-en="Items">Varer</dt>
+                    <dd>@Model.Total.ToString("N0") kr.</dd>
+                    <dt data-en="Delivery">Levering</dt>
+                    <dd data-en="Pickup in store - free">Afhentning i butikken - gratis</dd>
+                    <dt data-en="Where">Hvor</dt>
+                    <dd data-en="Marsvin, Havnegade 12, 6700 Esbjerg">Marsvin, Havnegade 12, 6700 Esbjerg</dd>
+                    <dt data-en="Opening hours">Åbningstider</dt>
+                    <dd data-en="Thursday and Friday 14-18, Saturday 10-14">Torsdag og fredag 14-18, lørdag 10-14</dd>
+                    <dt class="pay-total" data-en="To pay">At betale</dt>
+                    <dd class="pay-total">@Model.Total.ToString("N0") kr.</dd>
+                </dl>
             </div>
-        </div>
 
-        <p class="cavy-meta mobilepay-note" data-en="You'll get a payment request in the MobilePay app once you submit (demo only - nothing is actually sent or charged).">
-            Du får en betalingsanmodning i MobilePay-appen, når du bekræfter (kun demo - der sendes og trækkes intet i virkeligheden).
-        </p>
+            @if (Model.CanShip)
+            {
+                @foreach (var option in Model.ShippingOptions)
+                {
+                    <div class="pay-summary-variant pay-summary--@option.Carrier">
+                        <dl class="pay-facts">
+                            <dt data-en="Items">Varer</dt>
+                            <dd>@Model.Total.ToString("N0") kr.</dd>
+                            <dt data-en="@($"Shipping ({option.Carrier.DisplayName(english: true)})")">Fragt (@option.Carrier.DisplayName())</dt>
+                            <dd>@option.Cost.ToString("N0") kr.</dd>
+                            <dt data-en="Delivered to">Leveres til</dt>
+                            @if (option.Carrier.DeliversToParcelShop())
+                            {
+                                <dd data-en="Pick-up point near you">Udleveringssted nær dig</dd>
+                            }
+                            else
+                            {
+                                <dd data-en="Your door">Din dør</dd>
+                            }
+                            <dt data-en="Expected delivery">Forventet levering</dt>
+                            <dd>@option.DeliveryWindowText</dd>
+                            <dt data-en="Shipment">Forsendelse</dt>
+                            <dd data-en="@($"{weightEn} in {parcelsEn}")">@weightDa i @parcelsDa</dd>
+                            @if (Model.HasAnimal)
+                            {
+                                <dt data-en="Picked up in store">Afhentes i butikken</dt>
+                                <dd>@string.Join(", ", animalNames)</dd>
+                            }
+                            <dt class="pay-total" data-en="To pay">At betale</dt>
+                            <dd class="pay-total">@((Model.Total + option.Cost).ToString("N0")) kr.</dd>
+                        </dl>
+                    </div>
+                }
+            }
+        </section>
 
         <button type="submit" class="btn" data-en="Pay now (demo)">Betal nu (demo)</button>
     </form>

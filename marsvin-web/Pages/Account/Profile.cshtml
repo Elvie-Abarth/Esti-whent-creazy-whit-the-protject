@@ -217,6 +217,9 @@
                             <div>
                                 <h3 data-en="@($"Order #{order.OrderId}")">Ordre #@order.OrderId</h3>
                                 <p class="cavy-meta">@order.CreatedAt.ToString("d MMM yyyy HH:mm")</p>
+                                <p data-en="@($"Status: {order.Status.DisplayName(order.DeliveryMethod, english: true)}")">
+                                    Status: @order.Status.DisplayName(order.DeliveryMethod)
+                                </p>
                             </div>
                         </div>
 
@@ -249,19 +252,32 @@
                         }
                         @if (order.DeliveryMethod == DeliveryMethod.Shipping)
                         {
-                            <p class="cavy-meta" data-en="@($"Shipped to: {order.ShippingAddress} ({order.ShippingCarrier?.DisplayName(english: true)})")">
-                                Sendt til: @order.ShippingAddress (@order.ShippingCarrier?.DisplayName())
+                            <p class="cavy-meta" data-en="@($"Shipping ({order.ShippingCarrier?.DisplayName(english: true)}): {order.ShippingCost:N0} kr., included in the total. Delivered to {order.ShippingCarrier?.DestinationText(order.ShippingAddress, english: true)}.")">
+                                Fragt (@order.ShippingCarrier?.DisplayName()): @order.ShippingCost.ToString("N0") kr., med i beløbet.
+                                Leveres til @order.ShippingCarrier?.DestinationText(order.ShippingAddress).
                             </p>
+                            @if (order.Status != OrderStatus.Completed && order.ExpectedDelivery is var (earliest, latest))
+                            {
+                                <p class="cavy-meta" data-en="@($"Expected delivery: {ShippingCalculator.FormatWindow(earliest, latest)} (estimate).")">
+                                    Forventet levering: @ShippingCalculator.FormatWindow(earliest, latest) (skøn).
+                                </p>
+                            }
+                            @if (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels)
+                            {
+                                <p class="cavy-meta" data-en="@($"Total weight: {ShippingCalculator.FormatWeight(grams, english: true)}, {(parcels == 1 ? "1 parcel" : $"{parcels} parcels")}.")">
+                                    Samlet vægt: @ShippingCalculator.FormatWeight(grams), @(parcels == 1 ? "1 pakke" : $"{parcels} pakker").
+                                </p>
+                            }
                             @if (animalNamesInOrder.Count > 0)
                             {
-                                <p class="cavy-meta" data-en="@($"{string.Join(" and ", animalNamesInOrder)} picked up in store separately.")">
-                                    @string.Join(" og ", animalNamesInOrder) afhentet i butikken separat.
+                                <p class="cavy-meta" data-en="@($"{string.Join(" and ", animalNamesInOrder)}: picked up in store separately.")">
+                                    @string.Join(" og ", animalNamesInOrder): afhentes i butikken separat.
                                 </p>
                             }
                         }
                         else
                         {
-                            <p class="cavy-meta" data-en="Picked up in store.">Afhentet i butikken.</p>
+                            <p class="cavy-meta" data-en="Pickup in store.">Afhentning i butikken.</p>
                         }
 
                         <form method="post" asp-page-handler="Reorder">

@@ -92,7 +92,23 @@
 @if (TempData["ToastMessage"] is string toastMessageRaw)
 {
     var toastMessage = Bilingual.Parse(toastMessageRaw);
-    <p class="toast" role="status" aria-live="polite" data-en="@toastMessage.En">@toastMessage.Da</p>
+    @if (TempData["AskWhereNext"] is true)
+    {
+        @* After "Læg i kurv" (see Cart/Index's OnPostAdd): stays until the
+           buyer picks one. "Keep shopping" is just a link back to this same
+           page - TempData is read-once, so it comes back without the box. *@
+        <div class="toast toast--ask" role="alertdialog" aria-labelledby="cart-ask-title">
+            <p id="cart-ask-title" data-en="@toastMessage.En">@toastMessage.Da</p>
+            <div class="toast-actions">
+                <a class="btn" asp-page="/Cart/Index" data-en="Go to cart">Gå til kurven</a>
+                <a class="btn btn--quiet" href="@(Context.Request.Path + Context.Request.QueryString)" data-en="Keep shopping">Fortsæt med at handle</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="toast" role="status" aria-live="polite" data-en="@toastMessage.En">@toastMessage.Da</p>
+    }
 }
 @if (TempData["ErrorMessage"] is string errorToastMessageRaw)
 {
