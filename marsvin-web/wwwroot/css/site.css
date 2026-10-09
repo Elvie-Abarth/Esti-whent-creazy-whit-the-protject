@@ -2381,3 +2381,9 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     /* As chips above the products, the brands just wrap - nothing to scroll. */
     .filter-group--long ul { max-height: none; overflow: visible; mask-image: none; -webkit-mask-image: none; margin-right: 0; padding: 0; }
 }
+
+/* Two images that used to carry a style="" attribute - which the site's own
+   Content-Security-Policy (style-src 'self') blocks, so the styling never
+   applied. As classes it does. */
+.photo-preview { display: block; max-width: 160px; margin: 4px 0 12px; border-radius: 8px; }
+.totp-qr { display: block; margin: 0.5rem 0 1rem; image-rendering: pixelated; }

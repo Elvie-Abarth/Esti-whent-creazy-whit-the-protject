@@ -129,6 +129,7 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
         public string? Brand { get; set; }
 
         [StringLength(300)]
+        [RegularExpression(PhotoUploadHelper.LocalPhotoUrlPattern, ErrorMessage = PhotoUploadHelper.LocalPhotoUrlMessage)]
         public string? PhotoUrl { get; set; }
     }
 }

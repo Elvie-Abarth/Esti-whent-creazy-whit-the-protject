@@ -1,0 +1,151 @@
+MARSVIN AND JWT - WHY THIS PROJECT USES COOKIES INSTEAD
+=======================================================
+
+SHORT ANSWER
+------------
+Marsvin does not use JWT (JSON Web Token). There is no JWT package, no
+bearer authentication and no REST API controller anywhere in the project.
+Login is handled with cookie authentication instead. This file explains
+why, how the two compare, and what it would take to add JWT properly if
+an assignment requires it.
+
+For how the cookie login itself works (the email link, 2FA, session
+limits, the security stamp), see WEBSITE-ARCHITECTURE.md, section 4.
+
+
+WHAT JWT IS FOR
+---------------
+JWT is a stateless way to authenticate between a client and a server. The
+course material describes it for one particular setup: a separate
+frontend (for example Vue.js) that calls a REST API. The frontend logs
+in, gets a token back, stores it, and sends it in an "Authorization:
+Bearer ..." header with every API call.
+
+A JWT has three parts, separated by dots:
+
+  Header     - which algorithm signed it, e.g. { "alg": "HS256", "typ": "JWT" }
+  Payload    - the claims: who the user is, their role, when it expires
+  Signature  - a hash of header + payload made with a secret key, so the
+               server can tell if anything was changed
+
+Header and payload are only Base64Url-encoded, not encrypted. Anyone who
+holds the token can read them.
+
+
+WHY MARSVIN IS NOT BUILT THAT WAY
+---------------------------------
+Marsvin is an ASP.NET Core Razor Pages site. The server builds the
+finished HTML page and sends it to the browser; there is no separate
+frontend application and no API for one to call. In that setup the
+browser only needs a login cookie, which it sends by itself on every
+request. A token that JavaScript has to store and attach by hand would
+add work and risk without solving anything.
+
+
+THE SAME IDEAS, IN COOKIE FORM
+------------------------------
+Everything a JWT carries has a counterpart in Marsvin's login cookie:
+
+  JWT concept                         What Marsvin does
+  ----------------------------------  ------------------------------------------
+  Payload with claims                 The cookie holds the same kind of claims:
+  (user id, name, role)               user id, email, display name and role
+
+  Signature, so the token             The cookie is signed AND encrypted by
+  cannot be changed                   ASP.NET Core's data protection - it cannot
+                                      be changed, and it cannot even be read
+
+  "exp" (expiration)                  30 minutes of inactivity, 8 hours at most
+
+  [Authorize] and roles               [Authorize(Roles = "...")] on pages, plus
+  on API endpoints                    deny-by-default for every page
+
+  Token sent in the                   Cookie sent automatically by the browser
+  Authorization header
+
+The claims are built in one place: Data/AuthCookiePrincipal.cs.
+
+
+WHERE THE COOKIE APPROACH IS STRONGER HERE
+------------------------------------------
+1. Logging out actually works.
+   A JWT is stateless: once issued it stays valid until it expires, and
+   the server has no way to take it back. Marsvin looks the account up in
+   the database on every request (AuthCookiePrincipal.RevalidateAsync),
+   so these take effect on the very next click:
+     - an admin deactivates or deletes the account
+     - the role is changed
+     - the password is changed or reset (the security stamp changes)
+     - the user presses "log out everywhere"
+   With plain JWT none of this is possible without adding a server-side
+   list of revoked tokens - which makes it stateful again.
+
+2. JavaScript cannot read the login.
+   The cookie is HttpOnly. In the typical JWT example the token is kept
+   in localStorage, where any script on the page can read it - so a
+   single XSS hole means a stolen login.
+
+3. The contents are hidden.
+   A JWT payload is readable by anyone who has the token. The cookie is
+   encrypted, so the claims are not visible to the browser's user or to
+   anything that intercepts it.
+
+THE TRADE-OFF
+A cookie is sent automatically, which is what makes cross-site request
+forgery (CSRF) possible; a token in a header is not sent automatically
+and does not have that problem. Marsvin covers it with the antiforgery
+token that every form post requires, and SameSite=Lax on the cookie.
+
+Neither approach is "the secure one". JWT fits an API used by a separate
+frontend, a mobile app or another service. Cookies fit a server-rendered
+site. Marsvin is the second kind.
+
+
+WHAT IS WRONG WITH THE TYPICAL EXAMPLE CODE
+-------------------------------------------
+The step-by-step JWT guide in the course material (the ChatGPT-written
+C# + Vue.js one) shows the idea well, but several things in it should not
+be copied into real code:
+
+  - The secret key is written in the source ("SuperSecretKey123456789!").
+    Anyone who sees the code can forge a token for any user, including
+    an admin. A key belongs in user-secrets or an environment variable.
+
+  - ValidateIssuer = false and ValidateAudience = false.
+    A token made for a different system that happens to share the key
+    would be accepted.
+
+  - RequireHttpsMetadata = false.
+    Allows the token to travel over plain HTTP, where it can be read.
+
+  - The token is stored in localStorage (the XSS risk described above).
+
+  - Dummy login (username "test", password "password") and no password
+    hashing.
+
+  - No way to revoke a token and no refresh tokens, so the choice is
+    between long-lived tokens (risky if stolen) and logging in again
+    every hour.
+
+  - The key is created with Encoding.ASCII from a short string. HS256
+    needs at least 256 bits of real randomness to be safe.
+
+
+IF JWT IS REQUIRED LATER
+------------------------
+Replacing the cookie login with JWT would make this site less secure, for
+the reasons above. If an assignment explicitly asks for JWT, the sensible
+way is to ADD a small REST API next to the site and leave the website's
+own cookie login alone:
+
+  - a login endpoint that checks the password with the existing
+    PasswordHasher and issues a JWT
+  - one or two protected endpoints, e.g. a read-only /api/products
+  - the signing key from user-secrets, never in the code
+  - issuer and audience both set and validated
+  - a short lifetime (minutes, not hours), with the role as a claim
+  - HTTPS required outside Development
+  - the same rate limiting as the login pages
+
+That would demonstrate JWT done properly, without weakening anything
+that already works.

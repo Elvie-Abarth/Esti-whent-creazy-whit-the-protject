@@ -32,7 +32,7 @@ public sealed class SmtpEmailSender(
             await client.DisconnectAsync(true);
         }
 
-        logger.LogInformation("Sent {Subject} to {ToEmail}.", subject, toEmail);
+        logger.LogInformation("Sent {Subject} to {ToEmail}.", LogSafe.Line(subject), LogSafe.Line(toEmail));
     }
 
     // Multipart/alternative: a plain-text part identical to what every email

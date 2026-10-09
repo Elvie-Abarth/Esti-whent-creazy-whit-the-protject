@@ -714,6 +714,11 @@ inline in the request/background-job that triggered it).
 
 ## 9. Security practices (a summary - see the code comments for the "why")
 
+For the same ground organised by concept - authentication, authorization,
+RBAC, least privilege, session management, SQL injection, XSS, input
+validation, output sanitising, and the known gaps - see
+`SECURITY-NOTES.txt`.
+
 - **SQL injection**: every query is parameterised, no exceptions -
   see `DATABASE-ARCHITECTURE.md` §5.
 - **Passwords**: PBKDF2 via `PasswordHasher<ApplicationUser>`, never
@@ -803,7 +808,7 @@ inline in the request/background-job that triggered it).
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 566 tests (all of them need
+`dotnet test` from the solution root runs 585 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

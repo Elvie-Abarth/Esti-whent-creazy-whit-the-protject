@@ -13,7 +13,9 @@ public sealed class LoggingEmailSender(ILogger<LoggingEmailSender> logger) : IEm
         logger.LogWarning(
             "No SMTP credentials configured (see DocumentationInformation/DATABASE-NOTES.txt) - " +
             "logging this email instead of sending it.\nTo: {ToEmail}\nSubject: {Subject}\n{Body}",
-            toEmail, subject, body);
+            // The address and subject can contain text a visitor typed (a
+            // display name ends up in several subjects) - see LogSafe.
+            LogSafe.Line(toEmail), LogSafe.Line(subject), LogSafe.Block(body));
         return Task.CompletedTask;
     }
 }

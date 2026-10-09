@@ -160,6 +160,7 @@ public class EditModel(ICatalog catalog, ICatalogAdmin catalogAdmin, IAuditLogSt
         public string? PersonalityEn { get; set; }
 
         [StringLength(300)]
+        [RegularExpression(PhotoUploadHelper.LocalPhotoUrlPattern, ErrorMessage = PhotoUploadHelper.LocalPhotoUrlMessage)]
         public string? PhotoUrl { get; set; }
 
         [Range(0, 100000)]

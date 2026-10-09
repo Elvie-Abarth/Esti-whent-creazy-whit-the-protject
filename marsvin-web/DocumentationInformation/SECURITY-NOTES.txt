@@ -1,0 +1,444 @@
+MARSVIN SECURITY NOTES
+======================
+
+WHAT THIS FILE IS
+-----------------
+This file follows the security topics of the course and says, for each
+one, how Marsvin implements it, where in the code, and where the project
+falls short of the ideal.
+
+  Part 1 - Access: authentication, authorization, role-based access
+           control (RBAC), least privilege and session management
+  Part 2 - Injection: SQL injection, cross-site scripting (XSS), input
+           validation and output sanitising
+
+It is an overview; the full technical walk-through is in
+WEBSITE-ARCHITECTURE.md (section 4 for login and sessions, section 9 for
+the security summary).
+
+
+PART 1 - ACCESS
+===============
+
+
+OVERVIEW
+--------
+  Concept                    In Marsvin
+  -------------------------  ---------------------------------------------
+  Authentication             Email + password; passwords stored hashed
+                             (PBKDF2, salted), never in plain text
+  Multi-factor (MFA)         Always two steps: the password, then a
+                             one-time link sent by email - or a code from
+                             an authenticator app, if the user enabled it
+  Authorization              Checked on the server for every page and
+                             every action, not by hiding buttons
+  RBAC                       Three roles: Customer, Employee, Admin
+  Least privilege            Each role gets only what it needs (see below)
+  Session management         Login cookie: 30 minutes of inactivity, 8
+                             hours at most, re-checked against the
+                             database on every request
+
+
+1. AUTHENTICATION - PROVING WHO YOU ARE
+---------------------------------------
+- Passwords are at least 8 characters and are hashed with ASP.NET Core's
+  PasswordHasher (PBKDF2). The plain password is never stored or logged.
+
+- A correct password alone does not log anyone in. It only proves the
+  first factor; the session is created at the second step.
+
+- Second step, by default: a single-use link sent to the account's email
+  address, valid for 15 minutes. Only the hash of the token is stored in
+  the database (table PendingLogins), so a leaked database cannot be
+  turned into working login links.
+
+- Second step, optional: a 6-digit code from an authenticator app (TOTP,
+  the standard behind Google and Microsoft Authenticator). The secret is
+  stored encrypted. When enabled, it replaces the email link.
+
+- Wrong passwords are slowed down and stopped: each failure adds a longer
+  delay, the third sends the account owner a warning email, and the fifth
+  locks the account until the password is reset.
+
+- Login, registration and password reset are rate limited per IP address.
+
+- "Forgot password" answers the same way whether or not the email exists,
+  so it cannot be used to find out who has an account.
+
+  Code: Pages/Account/Login, ConfirmLogin, VerifyTotp, Register,
+        ForgotPassword, ResetPassword; Data/LoginLockoutTracker.cs,
+        Data/Totp.cs, Data/SqlPendingLoginStore.cs
+
+
+2. AUTHORIZATION AND RBAC - WHAT YOU MAY DO
+-------------------------------------------
+Every account has exactly one role, stored on the Users table. Pages are
+restricted with [Authorize(Roles = "...")] on the page model, and the
+check runs on the server before any page code does.
+
+  Role       Can do
+  ---------  ------------------------------------------------------------
+  Guest      Browse the shop, use the cart, check out without an account
+  Customer   The above, plus: own profile, own order history, cancel own
+             orders, delete own account
+  Employee   Stock levels, orders (status and tracking), contact
+             messages, donations, see own shifts, request time off
+  Admin      Everything an Employee can, plus: products, guinea pigs,
+             promotions, user accounts and roles, the audit log,
+             assigning shifts and deciding time-off requests
+
+Which pages each staff role reaches:
+
+  Admin and Employee   /Admin, /Admin/Shop, /Admin/Stock, /Admin/Orders,
+                       /Admin/Messages, /Admin/Donations, /Admin/Schedule
+  Admin only           /Admin/Products, /Admin/Animals, /Admin/Promotions,
+                       /Admin/Users, /Admin/AuditLog
+
+Three things go beyond plain role checks:
+
+- Deny by default. A page is public only if it is on an explicit list in
+  Program.cs. A new page that someone forgets to protect ends up behind
+  the login page, not open to everyone.
+
+- Ownership checks. Being a Customer is not enough to see an order - it
+  has to be your own order. The lookup takes both the order id and the
+  user id (IOrderStore.FindForUser), so guessing another order number
+  just shows "not found". A guest's receipt is tied to that guest's own
+  browser session instead.
+
+- Checks inside shared pages. /Admin/Schedule is open to both staff
+  roles, but only an Admin may create or delete a shift or decide a
+  time-off request; the handler itself checks the role again.
+
+A wrong role is redirected to an "access denied" page; a visitor who is
+not logged in is sent to the login page.
+
+
+3. LEAST PRIVILEGE - NO MORE RIGHTS THAN NEEDED
+-----------------------------------------------
+- An Employee can run the shop day to day, but cannot change prices,
+  delete products or manage accounts.
+
+- Staff accounts cannot buy from the shop: the cart and payment pages
+  turn Employee and Admin accounts away.
+
+- An Admin cannot change their own role or deactivate their own account,
+  and the last active Admin cannot be demoted, deactivated or deleted by
+  anyone - the shop can never end up with no administrator.
+
+- Customers are shown "in stock / low stock / sold out", never the real
+  stock number.
+
+- The support chat (Pip) has no access at all to orders, accounts,
+  customers or staff, and knows nothing about how the site is built.
+
+- Only the data that is needed is collected: "I am 16 or older" is a
+  yes/no rather than a date of birth, and a phone number is stored with
+  the order, not on the account.
+
+- Privilege comes with accountability: every change made by staff
+  (prices, stock, roles, deletions, order status) is written to an audit
+  log that only an Admin can read and nobody can edit.
+
+
+4. SESSION MANAGEMENT - STAYING LOGGED IN, SAFELY
+-------------------------------------------------
+- The login is a cookie that is signed and encrypted, HttpOnly (scripts
+  cannot read it), SameSite=Lax, and Secure outside development.
+
+- It ends after 30 minutes without activity, and after 8 hours however
+  active the user has been.
+
+- It is only a snapshot, so it is checked against the database on every
+  request. The session ends on the next click when:
+    - the account is deactivated or deleted
+    - the password is changed or reset (the account's security stamp
+      changes, so every older cookie is rejected)
+    - the user presses "log out everywhere" on the profile page
+  A changed role takes effect on the next click as well.
+
+- Logging out also clears the server-side session, and pages with
+  personal data are sent with "do not store", so the Back button on a
+  shared computer cannot bring them back.
+
+- Every form post needs an antiforgery token tied to the visitor's own
+  cookie, which protects the session against cross-site request forgery.
+
+  Code: Data/AuthCookiePrincipal.cs, Program.cs (cookie and session
+        configuration), Pages/Account/Logout, Pages/Account/Profile
+
+
+PART 2 - INJECTION
+==================
+An injection attack is when an attacker gets data that the application
+then treats as code or as a command: SQL sent on to the database
+(SQL injection), JavaScript sent on to another visitor's browser (XSS).
+Both come from the same mistake - input that is not validated on the way
+in, or not made harmless on the way out.
+
+All data from outside - a form, a URL, a cookie, a header - is treated as
+"tainted" until it has been checked. The two controls are:
+
+  Input validation     at the entrance: does this make sense at all?
+  Output sanitising    at the exit: can this be mistaken for code where
+                       it is going?
+
+
+5. SQL INJECTION
+----------------
+The five defences from the course, and what Marsvin does:
+
+  Defence                              Marsvin
+  -----------------------------------  ----------------------------------
+  Always prepared statements with      Yes, everywhere. All 101 SQL
+  parameters                           commands use parameters (@OrderId,
+                                       @Email, ...). User input is never
+                                       put into the SQL text itself.
+  Stored procedures                    Not used. Parameterised queries
+                                       give the same protection, so this
+                                       is a choice, not a gap.
+  Validate input                       Yes, on the server (section 7).
+  Generic error messages               Yes outside development: a crash
+                                       shows "something went wrong",
+                                       never a database error.
+  Least privilege                      Not for the database account - see
+                                       "Where the project falls short".
+
+There is no ORM and no query builder - every query is hand-written SQL
+through ADO.NET - so parameters are the whole defence, and it is the same
+pattern in all ten Sql*Store classes:
+
+    using var command = new SqlCommand(
+        "SELECT ... FROM dbo.Users WHERE Email = @Email;", connection);
+    command.Parameters.AddWithValue("@Email", email);
+
+A parameter is sent to the database separately from the statement. The
+database never parses it as SQL, so an apostrophe or "OR 1=1" is just
+characters in a value.
+
+Three queries in Data/SqlOrderStore.cs do build their SQL text with
+string interpolation. What is inserted is a constant list of column
+names written in the code (OrderColumns), not anything a visitor can
+influence, so they are safe. One statement at startup builds
+"CREATE DATABASE <name>" dynamically, because a database name cannot be
+a parameter; the name comes from the configuration file, not from a
+visitor, and goes through QUOTENAME().
+
+How the attacks described in the course go against Marsvin
+(tested against the running site):
+
+  Probe                                 Result
+  ------------------------------------  ---------------------------------
+  /Marsvin/Details/1'                   404. The id must be a number; the
+  (the apostrophe test)                 request is rejected before any
+                                        SQL runs.
+  /Marsvin/Details/2-1                  404, for the same reason.
+  (the plus/minus test)
+  /Tilbehor?q=' OR 1=1--                Normal page. Treated as a search
+                                        word that matches nothing.
+  Error-based                           No database error text reaches
+                                        the visitor outside development.
+  Union-based                           Not possible: input can never
+                                        become part of the statement.
+
+  Code: Data/Sql*.cs (every query), Data/DbInitializer.cs
+
+
+6. CROSS-SITE SCRIPTING (XSS)
+-----------------------------
+XSS does not attack the server. It gets a script onto a page so that it
+runs in another visitor's browser, with that visitor's login.
+
+Reflected XSS - input that is sent straight back in the response.
+In Marsvin that is the search box on /Tilbehor, form fields redisplayed
+after an error, and messages shown after a redirect. All are printed by
+Razor, which HTML-encodes everything by default.
+
+  Tested: searching for <script>alert(1)</script> gives a page that
+  contains &lt;script&gt;alert(1)&lt;/script&gt; - shown as text, three
+  times, and never as a real script tag.
+
+Stored XSS - input that is saved and later shown to someone else. The
+more dangerous kind, because it hits everyone who opens the page. The
+places where one person's text is shown to another:
+
+  - contact messages and donation messages      read by staff
+  - customer names and addresses on orders      read by staff
+  - reasons on time-off requests                read by admins
+  - product and guinea pig names and texts      typed by an admin, shown
+                                                to every visitor
+  - display names in the audit log              read by admins
+
+All of them are HTML-encoded when displayed. There is no place where
+visitors can post HTML or rich text.
+
+Places that need more than the default, and how they are handled:
+
+  - Raw HTML is written in exactly one place (the brand logo's SVG text,
+    Pages/Shared/_BrandLogo.cshtml), and the text is encoded by hand
+    first.
+  - Delete buttons put a name into a confirmation dialog. The name is
+    read from a data-confirm attribute by a script, never built into
+    JavaScript code - an attribute is decoded by the browser before it
+    would be parsed as script, so encoding alone would not be enough
+    there.
+  - The chat writes every answer with textContent, never innerHTML.
+  - No script anywhere uses innerHTML, eval or document.write.
+
+The second layer: Content-Security-Policy. Every response carries a
+policy that allows scripts and styles only from the site's own files -
+no inline <script>, no inline style="" and nothing from another site. So
+even if a script did get onto a page, the browser would refuse to run it.
+
+What the course says an attacker can do with XSS, and what stops it:
+
+  Attack                                What stops it in Marsvin
+  ------------------------------------  ---------------------------------
+  Steal the session cookie              The cookie is HttpOnly - scripts
+                                        cannot read it
+  Read the browser's local storage      It holds only the language
+                                        choice (da/en), no tokens
+  Redirect to a fake login page         Redirect addresses are checked to
+                                        stay inside the site
+                                        (IsSafeLocalUrl)
+  A hidden form that sends data to a    The policy allows forms to post
+  third party                           only to the site itself
+                                        (form-action 'self')
+  Act on the user's behalf              Every form post needs an
+                                        antiforgery token
+  Load a keylogger from elsewhere       The policy blocks scripts from
+                                        other sites and all inline
+                                        scripts
+  Deface the page                       Needs a script or markup to get
+                                        in, which encoding prevents
+
+  Code: Program.cs (the policy), Pages/Shared/_BrandLogo.cshtml,
+        wwwroot/js/confirm-delete.js, wwwroot/js/chat.js
+
+
+7. INPUT VALIDATION
+-------------------
+Validation happens at three layers. Only the middle one is security; the
+first is for the user's convenience and the last is a safety net.
+
+  Layer                     In Marsvin
+  ------------------------  ---------------------------------------------
+  UI (usability)            required, maxlength and type="email" on
+                            fields; the password meter; card-number
+                            formatting. Can be bypassed by anyone - never
+                            relied on.
+  Service layer (security)  Validation rules on every form model, plus
+                            hand-written checks in the page handlers and
+                            again inside the checkout transaction.
+                            Nothing is trusted because a browser already
+                            checked it.
+  Data layer (last          CHECK constraints (quantity above 0, discount
+  defence)                  between 1 and 100, a promotion cannot end
+                            before it starts), UNIQUE and foreign keys,
+                            column types and lengths.
+
+Two levels of "is this valid":
+
+  Syntactic - is the format right?
+    an email looks like an email; a CVR number is 8 digits; an id is a
+    number; a phone number is digits and spaces
+
+  Semantic - does it make sense here?
+    the CVR check digit is correct; a shift does not overlap another; a
+    promotion ends after it starts; you cannot buy more than is in
+    stock; an order of only guinea pigs cannot be shipped; a buyer of a
+    guinea pig has confirmed being 16 or older
+
+Wherever the set of valid values is known, input is matched against that
+list (an allow-list) instead of being cleaned:
+
+  - Filters on /Tilbehor: category, brand, price range, sort order and
+    page number are each matched against known values. Anything else is
+    ignored and never appears in the page or in a link.
+  - The error page shows only the status codes it knows.
+  - Redirect addresses must be local paths.
+  - A photo address typed by an admin must point at an image inside the
+    site's own /img folder (no other site, no "..", no query string).
+
+File uploads (product and guinea pig photos, admin only) are checked
+three ways before anything is written: the declared type must be JPEG,
+PNG, WebP or GIF; the file's own first bytes must be those of that type
+(the declared type is only what the browser claims); and it must be at
+most 5 MB. The file is saved under a new random name - the name the
+browser sent is never used, so it cannot carry a path or a second
+extension.
+
+  Code: the InputModel classes in Pages/**, Data/PhotoUploadHelper.cs,
+        Pages/Tilbehor/Index.cshtml.cs, Data/Sql/schema.sql (constraints)
+
+
+8. OUTPUT SANITISING
+--------------------
+Encoding is done where the data is used, and in the way that place
+needs - the same text is made safe differently for a page, a link, an
+email and a log.
+
+  Where the data goes     How it is made safe
+  ----------------------  -----------------------------------------------
+  HTML page               Razor encodes automatically: < becomes &lt;
+  URL / link              Filter links are built with URL-escaping
+                          (Uri.EscapeDataString)
+  JSON (the chat)         Written by the framework's JSON writer, then
+                          put into the page with textContent
+  Email                   User text is HTML-encoded before it goes into
+                          the message (Data/EmailHtmlBody.cs)
+  Log                     Control characters, including line breaks, are
+                          removed from single-line values, and every
+                          line of a multi-line text is prefixed - so
+                          text a visitor typed cannot pass for a log
+                          entry of its own (Data/LogSafe.cs)
+  SQL                     Not encoded at all - sent as parameters
+
+
+WHERE THE PROJECT FALLS SHORT
+=============================
+Honest gaps, worth knowing for a report or an exam:
+
+- The Admin role is all-or-nothing. There are no finer permissions, so
+  an admin who only needs to edit products can also manage accounts.
+  Normal for a small shop, but not strict least privilege.
+
+- The application connects to the database with full rights. With
+  LocalDB it logs in as the developer's own Windows account
+  (Trusted_Connection), which owns the database. A real deployment
+  should use a database user that can only read and write the tables the
+  application needs, and cannot drop them or change the schema.
+
+- The authenticator app is optional for everyone. Staff accounts can see
+  every customer's orders and addresses; requiring the authenticator for
+  Employee and Admin would fit "stronger login for accounts that can see
+  more". (The email link is still always required, so no account is
+  password-only.)
+
+- The login lockout counter and guest sessions are kept in memory. They
+  are lost when the application restarts and would not work across
+  several servers.
+
+- In development mode a crash shows full technical details. Running the
+  project with "dotnet run" uses the developer error page, which prints
+  the exception - including database errors. The generic "something went
+  wrong" page is what a production deployment shows.
+
+- No stored procedures. Every query is parameterised, which closes SQL
+  injection on its own; stored procedures would add a second layer and
+  would make it possible to give the database account no direct table
+  access at all.
+
+- An uploaded photo is recognised by its first bytes, not fully decoded.
+  That stops a file that merely claims to be an image; it does not prove
+  the rest of the file is a valid picture. The file is stored under a
+  fixed image extension and served with "nosniff", so a browser will not
+  run it as anything else.
+
+
+RELATED DOCUMENTS
+-----------------
+WEBSITE-ARCHITECTURE.md   section 4: roles, the login flow, 2FA, sessions
+                          section 9: the full list of security practices
+DATABASE-ARCHITECTURE.md  the Users and PendingLogins tables, the audit log
+JWT-NOTES.txt             why the login uses cookies rather than JWT

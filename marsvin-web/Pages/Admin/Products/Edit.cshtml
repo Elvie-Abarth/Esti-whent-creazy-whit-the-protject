@@ -66,7 +66,7 @@
         </label>
         @if (!string.IsNullOrEmpty(Model.Input.PhotoUrl))
         {
-            <img src="@Model.Input.PhotoUrl" alt="" style="max-width:160px;border-radius:8px;display:block;margin:4px 0 12px;" />
+            <img class="photo-preview" src="@Model.Input.PhotoUrl" alt="" />
         }
         <label>
             <span data-en="...or photo URL (optional - shows a category icon if empty)">...eller foto-URL (valgfri - viser et kategori-ikon hvis tom)</span>

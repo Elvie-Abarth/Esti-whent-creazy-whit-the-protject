@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-566 tests, three layers:
+585 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -341,6 +341,12 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
 - **`DATABASE-CREATION-SCRIPT.md`** — the literal commands that build the
   database: what `dotnet run` does automatically, the full schema script,
   and the equivalent `sqlcmd` steps to do it by hand.
+- **`SECURITY-NOTES.txt`** — the course's security topics one by one:
+  authentication, authorization, RBAC, least privilege, sessions, SQL
+  injection, XSS, input validation and output sanitising - how each is
+  implemented here, with test results, and where the project falls short.
+- **`JWT-NOTES.txt`** — why the project uses cookie authentication and
+  not JWT, how the two compare, and what adding JWT properly would take.
 - **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,
   auth flow, site map, checkout and shipping, the bilingual DA/EN system,
   security practices, testing strategy, and how the support chat works.

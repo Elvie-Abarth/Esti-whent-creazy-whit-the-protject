@@ -116,7 +116,7 @@
             <p data-en="Scan this with your authenticator app (or enter the code below by hand), then enter the 6-digit code it shows to finish enabling 2FA.">
                 Scan denne med din authenticator-app (eller indtast koden nedenfor manuelt), og indtast derefter den 6-cifrede kode den viser for at aktivere 2FA.
             </p>
-            <img src="@Model.PendingTotpQrCodeDataUri" alt="QR-kode til opsætning af 2FA" width="200" height="200" style="display:block;margin:0.5rem 0 1rem;image-rendering:pixelated;" />
+            <img src="@Model.PendingTotpQrCodeDataUri" alt="QR-kode til opsætning af 2FA" width="200" height="200" class="totp-qr" />
             <p><code>@Model.PendingTotpSecret</code></p>
 
             <form method="post" asp-page-handler="ConfirmTotp" class="auth-form">
