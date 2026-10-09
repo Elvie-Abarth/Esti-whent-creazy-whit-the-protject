@@ -44,9 +44,15 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
     [TempData]
     public string? ErrorMessage { get; set; }
 
-    private static readonly Regex CardNumberPattern = new(@"^[0-9 ]{12,19}$", RegexOptions.Compiled);
-    private static readonly Regex ExpiryPattern = new(@"^(0[1-9]|1[0-2])\/[0-9]{2}$", RegexOptions.Compiled);
+    // The card fields are checked on their digits alone, so "4242 4242 4242
+    // 4242", "4242-4242-..." and the bare 16 digits are all fine, and the
+    // expiry can be typed as 12/29, 12-29, 12 / 29 or just 1229.
+    private static readonly Regex CardNumberPattern = new(@"^[0-9]{12,19}$", RegexOptions.Compiled);
+    private static readonly Regex ExpiryPattern = new(@"^(0[1-9]|1[0-2])[0-9]{2}$", RegexOptions.Compiled);
     private static readonly Regex CvcPattern = new(@"^[0-9]{3,4}$", RegexOptions.Compiled);
+    private static readonly Regex CardSeparators = new(@"[\s\-/.]", RegexOptions.Compiled);
+
+    private static string DigitsOf(string? value) => CardSeparators.Replace(value ?? "", "");
     // Digits and spaces, optional leading +, e.g. "12 34 56 78" or "+45 12345678".
     private static readonly Regex PhonePattern = new(@"^\+?[0-9 ]{8,20}$", RegexOptions.Compiled);
     private static readonly Regex GuestEmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
@@ -88,11 +94,11 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
         {
             if (string.IsNullOrWhiteSpace(Input.CardHolder))
                 ModelState.AddModelError("Input.CardHolder", "Udfyld navnet på kortet.");
-            if (!CardNumberPattern.IsMatch(Input.CardNumber ?? ""))
-                ModelState.AddModelError("Input.CardNumber", "Kortnummeret ser forkert ud.");
-            if (!ExpiryPattern.IsMatch(Input.Expiry ?? ""))
-                ModelState.AddModelError("Input.Expiry", "Brug formatet MM/ÅÅ.");
-            if (!CvcPattern.IsMatch(Input.Cvc ?? ""))
+            if (!CardNumberPattern.IsMatch(DigitsOf(Input.CardNumber)))
+                ModelState.AddModelError("Input.CardNumber", "Kortnummeret skal have 12-19 cifre.");
+            if (!ExpiryPattern.IsMatch(DigitsOf(Input.Expiry)))
+                ModelState.AddModelError("Input.Expiry", "Skriv måned og år, f.eks. 12/29.");
+            if (!CvcPattern.IsMatch((Input.Cvc ?? "").Trim()))
                 ModelState.AddModelError("Input.Cvc", "CVC skal være 3-4 cifre.");
         }
 

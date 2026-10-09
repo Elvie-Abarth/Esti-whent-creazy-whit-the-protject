@@ -281,7 +281,7 @@ else
 // with an error status code and no body yet - an unmatched route, or an
 // explicit NotFound()/Forbid() result from a page handler - instead of
 // leaving the visitor looking at a blank page.
-app.UseStatusCodePagesWithReExecute("/Error");
+app.UseStatusCodePagesWithReExecute("/Error", "?code={0}");
 
 // Defence in depth alongside Razor's automatic HTML-encoding and the
 // anti-forgery token on every POST: none of these cost anything to add, and

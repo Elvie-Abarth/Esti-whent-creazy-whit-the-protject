@@ -74,6 +74,12 @@
 <div class="wrap auth-page payment-wrap">
     <form method="post" class="auth-form payment-card">
         <div asp-validation-summary="ModelOnly" class="form-errors"></div>
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <p class="form-errors" role="alert" data-en="Nothing has been paid yet - something is missing or looks wrong. See the fields marked in red below.">
+                Der er ikke betalt endnu - noget mangler eller ser forkert ud. Se felterne markeret med rødt nedenfor.
+            </p>
+        }
 
         <fieldset>
             <legend class="pay-step"><span class="pay-step-number">@(++step)</span> <span data-en="Your details">Dine oplysninger</span></legend>
@@ -289,6 +295,8 @@
             </label>
 
             <div class="card-fields">
+                @* Shown by payment.js - it's what fills the fields in. *@
+                <button type="button" class="btn btn--quiet demo-card" data-demo-card hidden data-en="Fill in a demo card">Udfyld et demokort</button>
                 <label>
                     <span data-en="Name on card">Navn på kortet</span>
                     <input asp-for="Input.CardHolder" autocomplete="cc-name" />
@@ -297,20 +305,20 @@
 
                 <label>
                     <span data-en="Card number (demo)">Kortnummer (demo)</span>
-                    <input asp-for="Input.CardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
+                    <input asp-for="Input.CardNumber" autocomplete="cc-number" inputmode="numeric" maxlength="23" placeholder="4242 4242 4242 4242" />
                     <span asp-validation-for="Input.CardNumber" class="field-error"></span>
                 </label>
 
                 <div class="card-expiry-row">
                     <label>
                         <span data-en="Expiry (MM/YY)">Udløb (MM/ÅÅ)</span>
-                        <input asp-for="Input.Expiry" autocomplete="cc-exp" placeholder="12/29" />
+                        <input asp-for="Input.Expiry" autocomplete="cc-exp" inputmode="numeric" maxlength="7" placeholder="12/29" />
                         <span asp-validation-for="Input.Expiry" class="field-error"></span>
                     </label>
 
                     <label>
                         <span>CVC</span>
-                        <input asp-for="Input.Cvc" autocomplete="cc-csc" placeholder="123" />
+                        <input asp-for="Input.Cvc" autocomplete="cc-csc" inputmode="numeric" maxlength="4" placeholder="123" />
                         <span asp-validation-for="Input.Cvc" class="field-error"></span>
                     </label>
                 </div>
@@ -393,3 +401,5 @@
         <a class="btn btn--quiet" asp-page="/Cart/Index" data-en="Back to cart">Tilbage til kurven</a>
     </div>
 </div>
+
+<script src="~/js/payment.js" asp-append-version="true"></script>

@@ -1,16 +1,47 @@
 @page
 @model ErrorModel
 @{
-    ViewData["Title"] = "Siden findes ikke";
-    ViewData["TitleEn"] = "Page not found";
+    var (titleDa, titleEn) = Model.Code switch
+    {
+        400 => ("Det gik ikke igennem", "That didn't go through"),
+        403 => ("Ingen adgang", "No access"),
+        429 => ("For mange forsøg", "Too many attempts"),
+        _ => ("Siden findes ikke", "Page not found")
+    };
+    ViewData["Title"] = titleDa;
+    ViewData["TitleEn"] = titleEn;
 }
 
 <div class="wrap section">
-    <h1 data-en="This page doesn't exist">Den side findes ikke</h1>
-    <p data-en="The link points nowhere. Try the guinea pigs or the accessories — or call the shop if you were looking for a specific animal.">
-        Linket peger ingen steder hen. Prøv marsvinene eller tilbehøret —
-        eller ring til butikken hvis du ledte efter et bestemt dyr.
-    </p>
+    @switch (Model.Code)
+    {
+        case 400:
+            <h1 data-en="That didn't go through">Det gik ikke igennem</h1>
+            <p data-en="The page had been open too long, or the form was sent in a way we couldn't accept. Nothing was saved, ordered or paid. Go back, reload the page and try again.">
+                Siden havde stået åben for længe, eller formularen blev sendt på en måde, vi ikke kunne tage imod.
+                Intet er gemt, bestilt eller betalt. Gå tilbage, genindlæs siden, og prøv igen.
+            </p>
+            break;
+        case 403:
+            <h1 data-en="You don't have access to this page">Du har ikke adgang til den side</h1>
+            <p data-en="Your account isn't allowed to see this. If you think that's a mistake, write to us on the contact page.">
+                Din konto har ikke lov til at se den. Tror du, det er en fejl, så skriv til os på kontaktsiden.
+            </p>
+            break;
+        case 429:
+            <h1 data-en="Too many attempts">For mange forsøg</h1>
+            <p data-en="You've tried a lot of times in a short while, so we've paused it for a moment. Wait a minute and try again.">
+                Du har prøvet mange gange på kort tid, så vi har sat det på pause et øjeblik. Vent et minut, og prøv igen.
+            </p>
+            break;
+        default:
+            <h1 data-en="This page doesn't exist">Den side findes ikke</h1>
+            <p data-en="The link points nowhere. Try the guinea pigs or the accessories — or call the shop if you were looking for a specific animal.">
+                Linket peger ingen steder hen. Prøv marsvinene eller tilbehøret —
+                eller ring til butikken hvis du ledte efter et bestemt dyr.
+            </p>
+            break;
+    }
     <div class="actions">
         <a class="btn" asp-page="/Marsvin/Index" data-en="See the guinea pigs">Se marsvinene</a>
         <a class="btn btn--quiet" asp-page="/Index" data-en="Back to the front page">Til forsiden</a>

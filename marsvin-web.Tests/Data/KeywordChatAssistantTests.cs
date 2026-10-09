@@ -45,6 +45,34 @@ public class KeywordChatAssistantTests
         Assert.Contains(expectedInAnswer, _pip.Answer(question, english: false), StringComparison.OrdinalIgnoreCase);
 
     [Fact]
+    public void Answer_ToAHowOftenQuestion_LeadsWithTheAdvice_NotTheProductListing()
+    {
+        var answer = _pip.Answer("how many timse do i trim the nails?", english: true);
+
+        Assert.StartsWith("Trim every 4-6 weeks.", answer);
+        Assert.Contains("We sell Small-animal nail clippers by Beaphar for 65 kr.", answer);
+        Assert.DoesNotContain("category", answer);
+    }
+
+    [Theory]
+    [InlineData("hvad koster en negleklipper", false, "Negleklipper til smådyr fra Beaphar koster 65 kr.")]
+    [InlineData("how much is the water bottle", true, "costs")]
+    [InlineData("hvor tit skal jeg klippe negle", false, "Klip hver 4.-6. uge.")]
+    public void Answer_WordsAProductAnswerToFitTheQuestion(string question, bool english, string expectedInAnswer) =>
+        Assert.Contains(expectedInAnswer, _pip.Answer(question, english));
+
+    [Theory]
+    [InlineData("hvilke bure har I", false, "Vi har blandt andet:")]
+    [InlineData("do you sell hay", true, "We have, among others:")]
+    public void Answer_ListsSeveralProducts_WhenAskedWhatTheShopCarries(string question, bool english, string expectedStart)
+    {
+        var answer = _pip.Answer(question, english);
+
+        Assert.StartsWith(expectedStart, answer);
+        Assert.True(answer.Split((char)10).Count(line => line.StartsWith("- ")) >= 2);
+    }
+
+    [Fact]
     public void Answer_KnowsDeliveryPricesPerCarrier() =>
         Assert.Contains("55 kr. op til 1 kg", _pip.Answer("hvad koster fragt med PostNord", english: false));
 

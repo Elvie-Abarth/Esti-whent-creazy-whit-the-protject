@@ -256,10 +256,61 @@
                     <span data-en="The shop's chat guinea pig">Butikkens chat-marsvin</span>
                 </div>
                 @* Minimises the window (chat.js) - the conversation is still there when it's opened again. *@
+                <button type="button" class="chat-info" aria-expanded="false" aria-controls="chat-help"
+                        aria-label="Hvad kan jeg spørge Pip om?" data-en-aria-label="What can I ask Pip?">i</button>
                 <button type="button" class="chat-close" aria-label="Minimér chatten" data-en-aria-label="Minimise the chat">&minus;</button>
             </div>
-            <p class="chat-msg chat-msg--bot" data-en="Wheek! I'm Pip, the shop's chatbot. Ask me about our guinea pigs, the accessories, care, delivery or the shop. Please don't type personal details here.">Wheek! Jeg er Pip, butikkens chatbot. Spørg mig om vores marsvin, tilbehøret, pasning, levering eller butikken. Skriv ikke personlige oplysninger her.</p>
-            <div class="chat-log" role="log" aria-live="polite"></div>
+
+            @* Opened by the "i" button (chat.js): what Pip can be asked, with
+               examples that ask themselves when clicked - and what it can't do. *@
+            <div class="chat-help" id="chat-help" hidden>
+                <h3 data-en="What you can ask Pip">Det kan du spørge Pip om</h3>
+                <p class="chat-help-lead" data-en="Click an example to ask it, or type your own question.">Klik på et eksempel for at stille det, eller skriv dit eget spørgsmål.</p>
+                @foreach (var topic in MarsvinWebExample.Data.ChatHelp.Topics)
+                {
+                    <section>
+                        <h4 data-en="@topic.En">@topic.Da</h4>
+                        <div class="chat-suggestions">
+                            @foreach (var example in topic.Examples)
+                            {
+                                <button type="button" data-en="@example.En">@example.Da</button>
+                            }
+                        </div>
+                    </section>
+                }
+                <section>
+                    <h4 data-en="Good to know">Godt at vide</h4>
+                    <ul>
+                        @foreach (var tip in MarsvinWebExample.Data.ChatHelp.Tips)
+                        {
+                            <li data-en="@tip.En">@tip.Da</li>
+                        }
+                    </ul>
+                </section>
+                <section class="chat-help-limits">
+                    <h4 data-en="What Pip can't do">Det kan Pip ikke</h4>
+                    <ul>
+                        @foreach (var limit in MarsvinWebExample.Data.ChatHelp.Limits)
+                        {
+                            <li data-en="@limit.En">@limit.Da</li>
+                        }
+                    </ul>
+                    <p data-en="Don't type personal details here. Pip is a small program that looks things up in the shop's own pages - not a person, and not an AI service.">
+                        Skriv ikke personlige oplysninger her. Pip er et lille program, der slår op i butikkens egne sider - ikke et menneske og ikke en AI-tjeneste.
+                    </p>
+                </section>
+                <button type="button" class="btn btn--quiet chat-help-back" data-en="Back to the chat">Tilbage til chatten</button>
+            </div>
+            <div class="chat-log" role="log" aria-live="polite">
+                <p class="chat-msg chat-msg--bot" data-en="Wheek! I'm Pip, the shop's chatbot. Ask me about our guinea pigs, the accessories, care, delivery or the shop. Please don't type personal details here.">Wheek! Jeg er Pip, butikkens chatbot. Spørg mig om vores marsvin, tilbehøret, pasning, levering eller butikken. Skriv ikke personlige oplysninger her.</p>
+            </div>
+            @* Ready-made questions: one click asks it (see chat.js). *@
+            <div class="chat-suggestions">
+                <button type="button" data-en="What do guinea pigs eat?">Hvad spiser marsvin?</button>
+                <button type="button" data-en="What does shipping cost?">Hvad koster fragt?</button>
+                <button type="button" data-en="Which cages do you have?">Hvilke bure har I?</button>
+                <button type="button" data-en="When are you open?">Hvornår har I åbent?</button>
+            </div>
             <form method="post" asp-page="/Chat" class="chat-form">
                 <input type="text" name="message" maxlength="@MarsvinWebExample.Pages.ChatModel.MaxQuestionLength" required autocomplete="off"
                        placeholder="Skriv et spørgsmål..." data-en-placeholder="Type a question..."

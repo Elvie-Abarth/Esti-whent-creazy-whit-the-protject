@@ -2267,3 +2267,85 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
     .product-desc { display: none; }
     .product-foot { flex-direction: column; gap: 0.1rem; }
 }
+
+/* Ready-made questions in the chat: small chips, one click each. */
+.chat-suggestions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.6rem 0; }
+.chat-suggestions button {
+    font: inherit;
+    font-size: 0.82rem;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--meadow);
+    cursor: pointer;
+}
+.chat-suggestions button:hover { border-color: var(--fleece); color: var(--fleece); }
+
+/* Payment form: a field the server sent back gets a red edge, so it can be
+   found without reading every line; and the demo-card shortcut. */
+.payment-card input.input-validation-error { border-color: #7A1F3D; box-shadow: 0 0 0 1px #7A1F3D; }
+.payment-card .field-error { font-weight: 700; }
+.demo-card { align-self: flex-start; padding: 0.4rem 0.9rem; font-size: 0.9rem; margin-bottom: 0.25rem; }
+.payment-card button[type="submit"]:disabled { opacity: 0.7; cursor: progress; }
+
+.chat-suggestions--inline { margin: 0; align-self: flex-start; }
+
+/* The chat's "i" button and the help page it opens: what Pip can be asked,
+   as clickable examples by topic, and what it can't do. While it's open the
+   conversation is hidden (not cleared) - .is-help on the panel does that. */
+.chat-info {
+    margin-left: auto;
+    align-self: flex-start;
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--meadow);
+    font-family: Georgia, "Times New Roman", serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.chat-info:hover, .chat-info[aria-expanded="true"] { background: var(--meadow); border-color: var(--meadow); color: var(--paper); }
+.chat-info + .chat-close { margin-left: 0; }
+
+.chat-panel.is-help > .chat-msg,
+.chat-panel.is-help > .chat-log,
+.chat-panel.is-help > .chat-suggestions { display: none; }
+
+.chat-help { max-height: 24rem; overflow-y: auto; padding-right: 0.35rem; }
+.chat-help h3 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+.chat-help-lead { margin: 0 0 0.6rem; font-size: 0.88rem; color: var(--bark); }
+.chat-help section { padding: 0.55rem 0; border-top: 1px solid var(--line); }
+.chat-help h4 {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-body);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--bark);
+}
+.chat-help .chat-suggestions { margin: 0; }
+.chat-help ul { margin: 0; padding-left: 1.1rem; font-size: 0.88rem; }
+.chat-help li + li { margin-top: 0.2rem; }
+.chat-help-limits p { margin: 0.5rem 0 0; font-size: 0.82rem; color: var(--bark); }
+.chat-help-back { width: 100%; margin-top: 0.4rem; padding: 0.45rem 0.9rem; font-size: 0.9rem; }
+
+/* The chat window never grows taller than the screen: it stops short of the
+   top edge, and the conversation (or the help page) is the part that
+   shrinks and scrolls - the header with its buttons and the question box
+   always stay in view. */
+.chat-panel {
+    max-height: calc(100vh - 7.5rem);
+    max-height: calc(100dvh - 7.5rem);
+}
+.chat-head, .chat-form, .chat-panel > .chat-suggestions { flex: none; }
+.chat-log, .chat-help { flex: 1 1 auto; min-height: 0; }
+.chat-panel > .chat-suggestions { margin: 0; }
+.chat-panel.has-chat > .chat-suggestions { display: none; }

@@ -143,7 +143,7 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
         });
 
         Assert.Equal(HttpStatusCode.OK, checkoutResponse.StatusCode);
-        Assert.Contains("Kortnummeret ser forkert ud.", await checkoutResponse.Content.ReadAsStringAsync());
+        Assert.Contains("Kortnummeret skal have 12-19 cifre.", await checkoutResponse.Content.ReadAsStringAsync());
     }
 
     [Fact]

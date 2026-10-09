@@ -21,7 +21,7 @@ public class ChatModel(IChatAssistant assistant) : PageModel
     // Nothing to see on a GET - the chat lives in the bubble, not on a page.
     public IActionResult OnGet() => RedirectToPage("/Faq");
 
-    public IActionResult OnPost(string? message, string? lang)
+    public IActionResult OnPost(string? message, string? lang, string? previous = null)
     {
         var english = lang == "en";
         var question = message?.Trim() ?? "";
@@ -35,6 +35,13 @@ public class ChatModel(IChatAssistant assistant) : PageModel
             });
         }
 
-        return new JsonResult(new { answer = assistant.Answer(question, english) });
+        // The visitor's own previous question, sent along by the page so a
+        // follow-up ("what does she cost?") makes sense. Same length cap;
+        // anything longer is simply left out.
+        var before = previous?.Trim();
+        if (before is { Length: 0 or > MaxQuestionLength }) before = null;
+
+        var reply = assistant.Reply(question, english, before);
+        return new JsonResult(new { answer = reply.Answer, suggestions = reply.Suggestions });
     }
 }

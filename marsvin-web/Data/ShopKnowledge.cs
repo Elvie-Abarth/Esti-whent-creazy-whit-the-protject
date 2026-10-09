@@ -14,6 +14,24 @@ public sealed record ShopFact(string Da, string En)
     public string ReplyDa { get; init; } = Da;
 
     public string ReplyEn { get; init; } = En;
+
+    /// <summary>
+    /// Set when the fact is one accessory. The chat then words its answer to
+    /// fit the question (the price, the advice, or a short list) instead of
+    /// reading the whole entry out - see KeywordChatAssistant.
+    /// </summary>
+    public StockProduct? Product { get; init; }
+
+    /// <summary>Set when the fact is one guinea pig - same idea as <see cref="Product"/>.</summary>
+    public Animal? Animal { get; init; }
+
+    /// <summary>A hand-written answer to a common question; preferred when someone asks for advice.</summary>
+    public bool Curated { get; init; }
+
+    /// <summary>The fact as a question someone could ask ("Tell me about Cotton") - offered as a button when the chat didn't understand.</summary>
+    public string? AskDa { get; init; }
+
+    public string? AskEn { get; init; }
 }
 
 /// <summary>
@@ -87,7 +105,12 @@ public static class ShopKnowledge
                 $"Status: {animal.StatusTextEn}. Price {animal.Price:0} kr. {animal.PersonalityEn ?? animal.Personality} " +
                 (partner is not null
                     ? $"Lives with {partner.Name} and is only sold together with {partner.Name}."
-                    : "Sold singly, but only to a home that already has guinea pigs.")));
+                    : "Sold singly, but only to a home that already has guinea pigs."))
+            {
+                Animal = animal,
+                AskDa = $"Fortæl om {animal.Name}",
+                AskEn = $"Tell me about {animal.Name}"
+            });
         }
 
         // ---- Accessories page ----
@@ -101,7 +124,12 @@ public static class ShopKnowledge
             var brandEn = item.Brand is null ? "" : $" by {item.Brand}";
             facts.Add(new(
                 $"Varen {item.Name}{brandDa} (kategori {item.CategoryName}): {item.Description} Pris {item.Price:0} kr. {item.StockLevelText}.",
-                $"The product {item.NameEn ?? item.Name}{brandEn} (category {item.CategoryNameEn}): {item.DescriptionEn ?? item.Description} Price {item.Price:0} kr. {item.StockLevelTextEn}."));
+                $"The product {item.NameEn ?? item.Name}{brandEn} (category {item.CategoryNameEn}): {item.DescriptionEn ?? item.Description} Price {item.Price:0} kr. {item.StockLevelTextEn}.")
+            {
+                Product = item,
+                AskDa = $"Fortæl om {item.Name}",
+                AskEn = $"Tell me about {item.NameEn ?? item.Name}"
+            });
         }
 
         // ---- About us / contact ----
@@ -158,6 +186,95 @@ public static class ShopKnowledge
             }
         }
 
+        // ---- Good to know ----
+        // The questions people ask most that no single page answers in one
+        // place. The first two strings are only there to be matched; the
+        // reply is the answer itself.
+        facts.Add(new("Hvad spiser marsvin? Hvad skal de have at spise hver dag, kost, mad, foder, fodring.",
+            "What do guinea pigs eat? What should they eat every day, diet, food, feed, feeding.")
+        {
+            ReplyDa = "Mest hø - det skal være der hele døgnet og udgør omkring 80 % af kosten. Dertil frisk grønt hver dag (cirka en kop pr. marsvin), en lille portion pillefoder med C-vitamin og altid frisk vand. Frugt og godbidder kun i små mængder. Spørg mig om en bestemt grøntsag, så siger jeg, om de må få den.",
+            ReplyEn = "Mostly hay - it should be there around the clock and makes up about 80% of the diet. On top of that fresh vegetables every day (about a cup per guinea pig), a small portion of pellets with vitamin C, and always fresh water. Fruit and treats only in small amounts. Ask me about a particular vegetable and I'll tell you whether they can have it.",
+            Curated = true
+        });
+        facts.Add(new("Hvor længe lever marsvin? Hvor gamle bliver de, levetid, levealder, lever.",
+            "How long do guinea pigs live? How old do they get, lifespan, life expectancy, live.")
+        {
+            ReplyDa = "Typisk 5-8 år, og nogle bliver ældre. Det er et langt løfte - regn med det, før du henter et par.",
+            ReplyEn = "Typically 5-8 years, and some live longer. That's a long commitment - plan for it before you bring a pair home.",
+            Curated = true
+        });
+        facts.Add(new("Hvorfor piber, fløjter, hviner, knurrer eller spinder mit marsvin? Hvad betyder lydene, lyde.",
+            "Why does my guinea pig squeak, wheek, whistle, purr, rumble or chatter? What do the sounds and noises mean.")
+        {
+            ReplyDa = "Højt fløjt (\"wheek\") betyder som regel \"mad!\" eller forventning. En dyb, rolig spinden er tilfredshed, mens tænderklapren er en advarsel om at holde afstand. En brummende lyd med vuggende bagkrop er dominans eller kurmageri. Piber et marsvin af smerte, eller bliver et snakkesaligt dyr pludselig stille, så kontakt en dyrlæge.",
+            ReplyEn = "A loud whistle (\"wheek\") usually means \"food!\" or anticipation. A deep, calm purr is contentment, while teeth chattering is a warning to keep away. A rumbling sound with a swaying rear is dominance or courting. If a guinea pig squeaks in pain, or a talkative one suddenly goes quiet, contact a vet.",
+            Curated = true
+        });
+        facts.Add(new("Hvilken strøelse er bedst? Hvad skal der i bunden af buret, bundlag, underlag, fleece eller spåner.",
+            "What bedding is best? Which bedding should I use in the bottom of the cage, fleece or shavings, best.")
+        {
+            ReplyDa = "Vælg noget støvfattigt og sugende: hampstrøelse, papirstrøelse eller vaskbare fleecemåtter. Undgå støvende spåner og cedertræ, som irriterer luftvejene. Mange bruger fleece i det meste af buret og løs strøelse i toilethjørnet. Vi har det hele under Tilbehør, kategori Strøelse.",
+            ReplyEn = "Choose something low-dust and absorbent: hemp bedding, paper bedding or washable fleece liners. Avoid dusty shavings and cedar, which irritate the airways. Many people use fleece in most of the cage and loose bedding in the toilet corner. We have all of it under Accessories, category Bedding.",
+            Curated = true
+        });
+        facts.Add(new("Skal marsvin bades? Kan man vaske eller bade et marsvin, bad, vask.",
+            "Do guinea pigs need baths? Can I bathe or wash a guinea pig, bath, bathing.")
+        {
+            ReplyDa = "Sjældent. Marsvin holder sig selv rene, og et bad stresser og køler dem ned. Vask kun, hvis pelsen er blevet rigtig snavset - i lunkent vand, og tør dyret helt bagefter. Langhårede racer skal børstes flere gange om ugen i stedet.",
+            ReplyEn = "Rarely. Guinea pigs keep themselves clean, and a bath stresses them and chills them. Only wash if the coat has got really dirty - in lukewarm water, and dry the animal completely afterwards. Long-haired breeds need brushing several times a week instead.",
+            Curated = true
+        });
+        facts.Add(new("Hvilken temperatur skal marsvin have? Varme, kulde, hedeslag, sommer, vinter, udendørs, ude.",
+            "What temperature do guinea pigs need? Heat, cold, heatstroke, summer, winter, outdoors, outside, hot.")
+        {
+            ReplyDa = "De trives bedst ved 18-24 grader. Varme er farligere end kulde: over cirka 26-28 grader kan de få hedeslag, så sørg for skygge, luft og køligt vand. Buret skal stå uden træk og ikke i direkte sol.",
+            ReplyEn = "They do best at 18-24 degrees C. Heat is more dangerous than cold: above about 26-28 degrees they can get heatstroke, so provide shade, air and cool water. Keep the cage out of draughts and out of direct sun.",
+            Curated = true
+        });
+        facts.Add(new("Hvor meget vejer et marsvin? Vægt, veje, tabt sig, vægttab, gram.",
+            "How much does a guinea pig weigh? Weight, weigh, losing weight, grams, heavy.")
+        {
+            ReplyDa = "Et voksent marsvin vejer typisk 700-1200 gram, hanner mest. Vej dem en gang om ugen: et tab på mere end 50-100 gram er ofte det første tegn på sygdom og en grund til at ringe til dyrlægen.",
+            ReplyEn = "An adult guinea pig typically weighs 700-1200 grams, boars the most. Weigh them once a week: a loss of more than 50-100 grams is often the first sign of illness and a reason to call the vet.",
+            Curated = true
+        });
+        facts.Add(new("Kan marsvin bo sammen med kaniner? Kanin, hamster, andre dyr, sammen med.",
+            "Can guinea pigs live with rabbits? Rabbit, hamster, other animals, together with.")
+        {
+            ReplyDa = "Nej. En kanin kan skade et marsvin med et enkelt spark, de har forskellige behov for foder, og kaniner kan bære bakterier, som marsvin bliver syge af. Et marsvin skal have et andet marsvin som selskab.",
+            ReplyEn = "No. A rabbit can injure a guinea pig with a single kick, they have different feeding needs, and rabbits can carry bacteria that make guinea pigs ill. A guinea pig needs another guinea pig for company.",
+            Curated = true
+        });
+        facts.Add(new("Er marsvin gode til børn? Barn, børn, familie, første kæledyr, begynder.",
+            "Are guinea pigs good for children? Child, kids, family, first pet, beginner.")
+        {
+            ReplyDa = "De er rolige og bider sjældent, så de passer godt i en familie - men det er altid en voksen, der har ansvaret. De er byttedyr og skal løftes roligt med en hånd under bagkroppen. Du skal være fyldt 16 år for at købe hos os.",
+            ReplyEn = "They are calm and rarely bite, so they suit a family well - but an adult is always the one responsible. They are prey animals and should be lifted gently with a hand under the hindquarters. You need to be 16 or older to buy from us.",
+            Curated = true
+        });
+        facts.Add(new("Hvordan bliver mit marsvin tamt? Tæmme, håndtere, løfte, holde, bange, sky, tillid.",
+            "How do I tame my guinea pig? Taming, handling, pick up, hold, scared, shy, trust.")
+        {
+            ReplyDa = "Giv det tid. Lad dem være i fred de første par dage, sid ved buret og tal roligt, og tilbyd grønt fra hånden. Løft med begge hænder - én under brystet og én under bagkroppen - og hold dem tæt ind til kroppen. Korte, rolige stunder hver dag virker bedre end lange.",
+            ReplyEn = "Give it time. Leave them in peace for the first couple of days, sit by the cage and talk calmly, and offer vegetables from your hand. Lift with both hands - one under the chest and one under the hindquarters - and hold them close to your body. Short, calm sessions every day work better than long ones.",
+            Curated = true
+        });
+        facts.Add(new("Hvor meget motion skal marsvin have? Løbetid, gulvtid, løbe frit, løbegård, motionere.",
+            "How much exercise do guinea pigs need? Floor time, run free, playpen, exercise.")
+        {
+            ReplyDa = "Gerne en times gulvtid om dagen i et sikret område eller en løbegård, ud over et bur med god gulvplads. Brug tunneler og skjul, så de tør bevæge sig. Løbehjul og plastikkugler er ikke for marsvin - deres ryg tåler det ikke.",
+            ReplyEn = "Ideally an hour of floor time a day in a safe area or a playpen, on top of a cage with good floor space. Use tunnels and hideouts so they dare to move about. Wheels and plastic balls are not for guinea pigs - their backs can't take it.",
+            Curated = true
+        });
+        facts.Add(new("Hvad skal jeg købe til et nyt marsvin? Startpakke, begynderudstyr, hvad har jeg brug for, indkøbsliste.",
+            "What do I need to buy for a new guinea pig? Starter kit, shopping list, supplies, what do I need.")
+        {
+            ReplyDa = "Et bur på mindst 120 x 60 cm til to, hø, pillefoder med C-vitamin, en drikkeflaske, en tung foderskål, et hus pr. marsvin, strøelse eller fleece og en høhæk. Negleklipper og en transportkasse til dyrlægen er også gode at have fra start. Alt finder du under Tilbehør.",
+            ReplyEn = "A cage of at least 120 x 60 cm for two, hay, pellets with vitamin C, a water bottle, a heavy food bowl, one house per guinea pig, bedding or fleece, and a hay rack. Nail clippers and a carrier for vet visits are also good to have from the start. You'll find it all under Accessories.",
+            Curated = true
+        });
+
         // ---- FAQ page ----
         // The same entries the /Faq page shows, so the chat and the page can't disagree.
         foreach (var entry in FaqData.Entries)
@@ -165,8 +282,18 @@ public static class ShopKnowledge
             facts.Add(new($"{entry.Question} {entry.Answer}", $"{entry.QuestionEn} {entry.AnswerEn}")
             {
                 ReplyDa = entry.Answer,
-                ReplyEn = entry.AnswerEn
+                ReplyEn = entry.AnswerEn,
+                AskDa = entry.Question,
+                AskEn = entry.QuestionEn
             });
+
+        // A curated answer's first sentence is the question it answers.
+        for (var i = 0; i < facts.Count; i++)
+        {
+            if (facts[i].Curated)
+                facts[i] = facts[i] with { AskDa = facts[i].Da[..(facts[i].Da.IndexOf('?') + 1)], AskEn = facts[i].En[..(facts[i].En.IndexOf('?') + 1)] };
+        }
+
         }
 
         return facts;
