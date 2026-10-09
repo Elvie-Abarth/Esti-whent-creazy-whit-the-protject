@@ -5,6 +5,11 @@
     ViewData["TitleEn"] = "Contact";
 }
 
+@* Contact details and the contact form. Public. A message is saved to the
+   database and read by staff on /Admin/Messages - nothing is emailed, so the
+   form can't be used to make the shop send mail to an address of the
+   sender's choosing. The page is rate limited (see Kontakt.cshtml.cs). *@
+
 <section class="faq-hero">
     <div class="wrap faq-hero-inner faq-hero-inner--text">
         <div class="faq-hero-text">

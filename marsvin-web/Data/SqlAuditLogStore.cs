@@ -3,6 +3,11 @@ using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
+/// <summary>
+/// The audit log in SQL Server (dbo.AuditLog). Only two operations, on
+/// purpose: add an entry, and read the newest ones. There is no update and
+/// no delete - an entry, once written, stays as it was.
+/// </summary>
 public sealed class SqlAuditLogStore(string connectionString) : IAuditLogStore
 {
     public void Record(int? actorUserId, string actorName, string action, string details)

@@ -506,7 +506,8 @@ Processing -> Sent (or "ready for pickup") -> Completed, set by staff on
 at each step (`Data/OrderEmails.cs`) and sees the status under
 `/Account/Profile` or on the receipt. The buyer can cancel while the order
 is still Placed - that is, until staff have started preparing it - from the
-receipt or from their order history, which puts the items back in stock in one transaction (see
+receipt or from their order history; staff can cancel on `/Admin/Orders`
+until the order has been sent. Either way cancelling puts the items back in stock in one transaction (see
 `DATABASE-ARCHITECTURE.md` §5). Both cancel handlers first establish that
 the order is the caller's own, the same way viewing it does.
 
@@ -808,7 +809,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 585 tests (all of them need
+`dotnet test` from the solution root runs 586 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

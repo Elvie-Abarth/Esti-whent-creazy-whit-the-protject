@@ -3,8 +3,13 @@ using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
+/// <summary>
+/// The work schedule in SQL Server (dbo.Shifts). An Admin creates and deletes
+/// shifts; an Employee only ever reads their own (GetForUser).
+/// </summary>
 public sealed class SqlShiftStore(string connectionString) : IShiftStore
 {
+    // Every read joins Users for the staff member's name, so the schedule can show who has the shift without a second query.
     private const string SelectColumns =
         "SELECT s.ShiftId, s.UserId, u.DisplayName, s.StartAt, s.EndAt, s.Note " +
         "FROM dbo.Shifts s JOIN dbo.Users u ON u.UserId = s.UserId ";

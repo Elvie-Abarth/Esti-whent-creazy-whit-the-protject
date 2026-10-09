@@ -5,6 +5,10 @@
     ViewData["TitleEn"] = "Login not confirmed";
 }
 
+@* Where the emailed login link leads. If the token is valid the handler has
+   already signed the user in and redirected, so this markup is only ever
+   seen when the link was wrong, expired or already used. *@
+
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>

@@ -256,7 +256,8 @@ on `/Admin/Orders`, optionally with a **`TrackingNumber`** from the
 carrier; each change is audit-logged and emailed to the buyer.
 `Cancelled` is deliberately the highest number: "may still be cancelled"
 is then a plain `Status <= @latest` comparison (the buyer may cancel while
-it is still `Placed`), and an already cancelled order can never match it. A cancelled order is final -
+it is still `Placed`, staff until it is `Sent`), and an already cancelled
+order can never match it. A cancelled order is final -
 `UpdateStatus` refuses to move one (`WHERE ... AND Status <> Cancelled`),
 because its items have already gone back into stock.
 
@@ -429,9 +430,11 @@ Most single-table writes don't need an explicit transaction - one
 `SqlCommand` is already atomic. A few operations touch more than one table
 and use `connection.BeginTransaction()` so they succeed or fail together:
 
-- **`SqlUserAccountStore.DeleteUser`** - deletes the account's `CartItems`,
-  `Shifts`, and `TimeOffRequests` (all three have real FKs to `Users`, so
-  they have to go first), orphans their `Orders` (`UserId = NULL`, keeping
+- **`SqlUserAccountStore.DeleteUser`** - deletes the account's
+  `PendingLogins`, `CartItems`, `Shifts`, and `TimeOffRequests` (all four
+  have real FKs to `Users`, so they have to go first - `PendingLogins` was
+  missing from this list at first, which made deleting an account with an
+  unused login or reset link fail), orphans their `Orders` (`UserId = NULL`, keeping
   the rows), and only then deletes the `Users` row itself - all in one
   transaction, so a failure partway through can't leave a half-deleted
   account.

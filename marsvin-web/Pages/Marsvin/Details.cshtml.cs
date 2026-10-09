@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MarsvinWebExample.Pages.Marsvin;
 
+// One guinea pig's own page. Public. An id that matches no animal gives a
+// 404 - and because the id is bound as an int, anything that is not a number
+// never reaches the database at all. Partner is the animal it is bonded
+// with, if any: the two are shown, and sold, together.
 public class DetailsModel(ICatalog catalog) : PageModel
 {
     public Animal Animal { get; private set; } = null!;

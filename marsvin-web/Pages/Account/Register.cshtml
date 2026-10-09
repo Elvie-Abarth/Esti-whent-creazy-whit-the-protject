@@ -5,6 +5,10 @@
     ViewData["TitleEn"] = "Create account";
 }
 
+@* Create a Customer account. Staff accounts can't be made here - only an
+   Admin can create those, on /Admin/Users. The password field has the live
+   strength meter; the server enforces the minimum length itself. *@
+
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>

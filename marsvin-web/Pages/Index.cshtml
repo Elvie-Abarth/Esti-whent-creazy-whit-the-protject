@@ -6,7 +6,12 @@
     var hero = Model.Groups.FirstOrDefault();
 }
 
+@* The front page, top to bottom: the hero, two guinea pig groups looking for
+   a home, the four welfare questions, and three things the cage needs from
+   day one. Public. *@
+
 <div class="wrap">
+    @* Hero: the headline, the two main links and how many animals are for sale right now. *@
     <section class="hero">
         <div>
             <h1 data-en="@($"{Model.AvailableCount} guinea pigs are looking for a cage right now")">@Model.AvailableCount marsvin leder efter et bur lige nu</h1>
@@ -42,6 +47,7 @@
     </section>
 </div>
 
+@* The first two guinea pig groups from the catalog - a bonded pair is shown as one unit. *@
 <section class="section section--paper">
     <div class="wrap">
         <div class="section-head">
@@ -86,6 +92,7 @@
     </div>
 </section>
 
+@* The four questions asked before anyone takes a guinea pig home. *@
 <section class="welfare" id="pasning">
     <div class="wrap">
         <div>
@@ -131,6 +138,7 @@
     </div>
 </section>
 
+@* Three essentials: one accessory each from hay, food and cages. *@
 <section class="section">
     <div class="wrap">
         <div class="section-head">

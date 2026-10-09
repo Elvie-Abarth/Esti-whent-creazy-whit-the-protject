@@ -5,6 +5,11 @@
     ViewData["TitleEn"] = "Check your email";
 }
 
+@* "We sent you a link" - shown after a login, a registration or a
+   password-reset request. The wording depends on which of the three it was.
+   check-email.js keeps asking the server whether the link has been opened in
+   another tab, and moves on by itself when it has. *@
+
 <div class="wrap section auth-page" data-check-email data-return-url="@Model.ReturnUrl">
     <div class="section-head">
         <div>

@@ -147,6 +147,24 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void DeleteUser_WithAnUnusedLoginOrResetLink_RemovesTheLinkToo()
+    {
+        // Someone asks for a password-reset link and never opens it: the row
+        // stays in PendingLogins, which has a real foreign key to Users.
+        // Deleting the account has to clear it first, or the delete fails -
+        // for an admin, for the customer themselves, and for the daily
+        // inactivity clean-up, which would then fail on every run.
+        var email = $"pending-{Guid.NewGuid():N}@example.com";
+        Assert.True(_users.CreateUser(email, "hash", "Pending Link", UserRole.Customer));
+        var user = _users.FindByEmail(email)!;
+        new SqlPendingLoginStore(fixture.ConnectionString).Create(user.UserId, null, TimeSpan.FromMinutes(15));
+
+        _users.DeleteUser(user.UserId);
+
+        Assert.Null(_users.FindById(user.UserId));
+    }
+
+    [Fact]
     public void DeleteUser_WithAnUnfinishedCart_RemovesTheCartToo()
     {
         var email = $"delete-with-cart-{Guid.NewGuid():N}@example.com";

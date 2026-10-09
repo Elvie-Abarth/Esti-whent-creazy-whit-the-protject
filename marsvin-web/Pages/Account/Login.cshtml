@@ -5,6 +5,10 @@
     ViewData["TitleEn"] = "Log in";
 }
 
+@* Step one of logging in: email and password. A correct password does not
+   sign anyone in - it sends the confirmation link (or asks for an
+   authenticator code). Rate limited, with an optional reCAPTCHA. *@
+
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>

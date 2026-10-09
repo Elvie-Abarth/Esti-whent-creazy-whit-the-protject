@@ -5,6 +5,11 @@
     ViewData["TitleEn"] = "Accounts (admin)";
 }
 
+@* Account management: change a role, activate or deactivate, delete, create
+   a staff account, export a customer's data. Admin only. The handlers refuse
+   to let an admin demote or deactivate themselves, or remove the last active
+   admin - the buttons here are not what enforces that. *@
+
 <div class="wrap section">
     <div class="section-head">
         <div>

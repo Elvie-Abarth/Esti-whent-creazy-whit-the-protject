@@ -34,6 +34,7 @@
                 <p data-en="Amounts and items given towards rehomed guinea pigs.">Beløb og varer givet til genplacerede marsvin.</p>
             </a>
         </li>
+        @* Links an Employee has no use for. The pages behind them are Admin-only on their own - this just keeps dead links out of sight. *@
         @if (User.IsInRole("Admin"))
         {
             <li>

@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MarsvinWebExample.Pages;
 
+// The front page: the first two guinea pig groups (a bonded pair counts as
+// one group), how many animals are for sale right now, and three accessories
+// from the categories a new owner needs on day one - hay, food and a cage.
 public class IndexModel(ICatalog catalog) : PageModel
 {
     public IReadOnlyList<IReadOnlyList<Animal>> Groups { get; private set; } = [];

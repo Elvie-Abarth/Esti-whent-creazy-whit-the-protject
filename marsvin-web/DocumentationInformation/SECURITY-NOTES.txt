@@ -429,6 +429,11 @@ Honest gaps, worth knowing for a report or an exam:
   would make it possible to give the database account no direct table
   access at all.
 
+- Fixed along the way: deleting an account that still had an unused login
+  or password-reset link used to fail (a foreign key from PendingLogins).
+  It mattered for security too - it would have blocked a customer's right
+  to have their account erased, and the automatic 2-year clean-up.
+
 - An uploaded photo is recognised by its first bytes, not fully decoded.
   That stops a file that merely claims to be an image; it does not prove
   the rest of the file is a valid picture. The file is stored under a

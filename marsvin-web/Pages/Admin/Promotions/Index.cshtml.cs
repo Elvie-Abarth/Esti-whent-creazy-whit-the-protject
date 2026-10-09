@@ -7,6 +7,7 @@ using static MarsvinWebExample.Pages.PageModelExtensions;
 
 namespace MarsvinWebExample.Pages.Admin.Promotions;
 
+// Admin list of promotions (time-boxed discounts), with delete. Admin only.
 [Authorize(Roles = "Admin")]
 public class IndexModel(IPromotionStore promotions, IAuditLogStore audit) : PageModel
 {
@@ -14,6 +15,7 @@ public class IndexModel(IPromotionStore promotions, IAuditLogStore audit) : Page
 
     public void OnGet() => Items = promotions.GetAll();
 
+    // Looked up first only to get the title for the audit log.
     public IActionResult OnPostDelete(int promotionId)
     {
         var promotion = promotions.GetAll().FirstOrDefault(p => p.PromotionId == promotionId);

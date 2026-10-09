@@ -3,6 +3,12 @@ using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
+/// <summary>
+/// Promotions in SQL Server (dbo.Promotions): plain create, read, update,
+/// delete. The database itself also guards the rules - a discount must be
+/// between 1 and 100 percent and a promotion cannot end before it starts
+/// (CHECK constraints in schema.sql).
+/// </summary>
 public sealed class SqlPromotionStore(string connectionString) : IPromotionStore
 {
     public IReadOnlyList<Promotion> GetAll()
@@ -65,6 +71,7 @@ public sealed class SqlPromotionStore(string connectionString) : IPromotionStore
         command.ExecuteNonQuery();
     }
 
+    // The parameters Create and Update have in common, in one place so the two can't drift apart.
     private static void BindPromotion(SqlCommand command, Promotion promotion)
     {
         command.Parameters.AddWithValue("@Title", promotion.Title);

@@ -24,6 +24,11 @@
     };
 }
 
+@* This page is assembled per role. Everyone gets their account settings,
+   "log out everywhere" and two-factor login; staff also get their shifts and
+   day-off requests; a Customer gets order history and "delete my account".
+   Each handler in Profile.cshtml.cs checks the role again - hiding a section
+   here is not what protects it. *@
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>
@@ -147,6 +152,7 @@
     </div>
 </section>
 
+@* Staff only: upcoming shifts, and (for an Employee) asking for time off. *@
 @if (User.IsInRole("Employee") || User.IsInRole("Admin"))
 {
     <section class="section section--paper">
@@ -212,6 +218,9 @@
     </section>
 }
 
+@* Customers only: their own orders (status, reorder, cancel while it is
+   still possible) and deleting the account. The orders are loaded by user
+   id in the handler, so only ever the signed-in customer's own. *@
 @if (User.IsInRole("Customer"))
 {
     <section class="section section--paper">

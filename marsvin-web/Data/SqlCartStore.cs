@@ -3,8 +3,19 @@ using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
+/// <summary>
+/// A signed-in customer's cart in SQL Server (dbo.CartItems): one row per
+/// product, with a quantity. Every statement is scoped to the customer's own
+/// UserId, so one customer can never read or change another's cart.
+/// (A guest's cart is SessionCartStore instead - see ICartStore.)
+/// </summary>
 public sealed class SqlCartStore(string connectionString) : ICartStore
 {
+    // The cart only stores which product and how many. Name, price, photo
+    // and weight are joined in fresh from the catalog on every read, so the
+    // cart always shows today's price - never one remembered from when the
+    // item was added. The LEFT JOINs find out whether the product is an
+    // animal or an accessory.
     public IReadOnlyList<CartLine> GetLines(int userId)
     {
         using var connection = Open();
@@ -44,6 +55,11 @@ public sealed class SqlCartStore(string connectionString) : ICartStore
         return lines;
     }
 
+    // One statement that either raises the quantity of an existing line or
+    // inserts a new one (MERGE = "upsert"). Doing it as "look first, then
+    // insert or update" in two steps could add the same product twice if two
+    // requests arrived together; the UNIQUE (UserId, ProductId) constraint
+    // on the table is the backstop.
     public void AddOrIncrement(int userId, int productId, int quantity)
     {
         using var connection = Open();

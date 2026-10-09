@@ -5,6 +5,10 @@
     ViewData["TitleEn"] = Model.IsNew ? "New guinea pig" : "Edit guinea pig";
 }
 
+@* Create or edit one guinea pig. Admin only. The photo can be uploaded or
+   given as an address inside the site's own /img folder - both are checked
+   on the server (see PhotoUploadHelper). *@
+
 <div class="wrap section auth-page">
     <div class="section-head">
         <div>

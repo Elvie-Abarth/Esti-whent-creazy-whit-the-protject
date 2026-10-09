@@ -64,6 +64,9 @@
             }
 
             <div class="actions">
+                @* Only an animal that is available and old enough gets a buy button, and
+                   staff accounts get a disabled one - the cart refuses them on the server
+                   as well. *@
                 @if (a.Status == AnimalStatus.Available && a.IsOldEnoughToSell())
                 {
                     if (User.IsInRole("Employee") || User.IsInRole("Admin"))

@@ -69,6 +69,9 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         }
     }
 
+    // ---- Reading ----
+    // An animal or accessory is two rows: the shared part in Products and
+    // the specific part in Animals/StockProducts, joined on ProductId.
     private static List<Animal> LoadAnimals(SqlConnection connection)
     {
         const string sql = """
@@ -180,6 +183,10 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         Brand = reader.GetNullableString("Brand")
     };
 
+    // ---- Writing (ICatalogAdmin) ----
+    // Creating, updating or deleting touches both tables, so each of these
+    // runs in one transaction: there is never a Products row without its
+    // Animals/StockProducts row, or the other way round.
     public void CreateAnimal(Animal animal)
     {
         using var connection = Open();
@@ -229,6 +236,7 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         transaction.Commit();
     }
 
+    // The Animals row first, then Products: Animals has a foreign key to Products, so the order matters.
     public void DeleteAnimal(int productId)
     {
         using var connection = Open();
@@ -324,6 +332,10 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
         command.ExecuteNonQuery();
     }
 
+    // ProductId is not an IDENTITY column, so the next id is worked out
+    // here: highest existing + 1. The table lock (TABLOCKX, HOLDLOCK) is held
+    // until the transaction ends, so two admins creating a product at the
+    // same moment can't both be given the same id.
     private static int NextProductId(SqlConnection connection, SqlTransaction transaction)
     {
         using var command = new SqlCommand(
@@ -415,6 +427,7 @@ public sealed class SqlCatalog(string connectionString) : ICatalog, ICatalogAdmi
     }
 }
 
+// Reading a column that may be NULL takes two calls with a plain SqlDataReader; these make it one.
 internal static class SqlDataReaderExtensions
 {
     public static string? GetNullableString(this SqlDataReader reader, string column)

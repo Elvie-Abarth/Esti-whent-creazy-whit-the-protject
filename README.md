@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-585 tests, three layers:
+586 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -345,6 +345,10 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
   authentication, authorization, RBAC, least privilege, sessions, SQL
   injection, XSS, input validation and output sanitising - how each is
   implemented here, with test results, and where the project falls short.
+- **Diagrams** — the ER diagram, class diagrams, data flow diagram with
+  trust boundaries, navigation map, sequence and state diagrams are kept as
+  a dated set next to the project folder (`diagrams 09102026`), not in this
+  repository: Mermaid sources, PNGs and one PDF.
 - **`JWT-NOTES.txt`** — why the project uses cookie authentication and
   not JWT, how the two compare, and what adding JWT properly would take.
 - **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,

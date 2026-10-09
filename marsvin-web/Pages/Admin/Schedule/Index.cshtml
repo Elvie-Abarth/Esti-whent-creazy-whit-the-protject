@@ -6,6 +6,11 @@
     var isAdmin = User.IsInRole("Admin");
 }
 
+@* The work schedule. Both staff roles open this page, but they see different
+   things: an Employee sees their own shifts; an Admin sees everyone's, decides
+   day-off requests and assigns shifts. isAdmin only decides what is shown -
+   the Create, Delete and DecideRequest handlers each check the role
+   themselves and answer Forbid() to anyone else. *@
 <div class="wrap section">
     <div class="section-head">
         <div>
@@ -25,6 +30,7 @@
     </div>
 </div>
 
+@* Admin only: day-off requests waiting for a yes or no. *@
 @if (isAdmin)
 {
     <section class="section section--paper">
@@ -135,6 +141,7 @@
     </div>
 </section>
 
+@* Admin only: assign a new shift. *@
 @if (isAdmin)
 {
     <section class="section section--paper">

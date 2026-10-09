@@ -3,8 +3,13 @@ using Microsoft.Data.SqlClient;
 
 namespace MarsvinWebExample.Data;
 
+/// <summary>
+/// Staff day-off requests in SQL Server (dbo.TimeOffRequests). An employee
+/// creates a request; an Admin approves or denies it.
+/// </summary>
 public sealed class SqlTimeOffRequestStore(string connectionString) : ITimeOffRequestStore
 {
+    // Every read joins Users for the requester's name, so the list can say who asked without a second query.
     private const string SelectColumns =
         "SELECT r.RequestId, r.UserId, u.DisplayName, r.StartDate, r.EndDate, r.Reason, " +
         "r.Status, r.RequestedAt, r.DecidedAt, r.DecidedByName " +
@@ -47,6 +52,8 @@ public sealed class SqlTimeOffRequestStore(string connectionString) : ITimeOffRe
         command.ExecuteNonQuery();
     }
 
+    // The deciding admin is stored by name, not by user id: the record of who
+    // approved it has to survive that admin's own account being deleted.
     public void Decide(int requestId, TimeOffStatus status, string decidedByName)
     {
         using var connection = Open();

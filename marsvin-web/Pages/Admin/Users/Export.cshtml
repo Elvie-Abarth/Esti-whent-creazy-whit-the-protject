@@ -5,6 +5,9 @@
     ViewData["TitleEn"] = $"Account export – {Model.Account.DisplayName}";
 }
 
+@* Everything stored about one account, on one printable page - for answering
+   a customer's request to see their data (GDPR right of access). Admin only. *@
+
 <div class="wrap section">
     <div class="actions no-print">
         <a class="btn btn--quiet" asp-page="/Admin/Users/Index" data-en="Back to accounts">Til konti</a>

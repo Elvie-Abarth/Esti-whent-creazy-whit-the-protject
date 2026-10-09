@@ -42,6 +42,7 @@
         </nav>
 
         <nav class="account-nav" aria-label="Konto" data-en-aria-label="Account">
+            @* The account menu: staff link and name when signed in, log in / register otherwise. What it shows is cosmetic; every page checks access itself. *@
             @if (User.Identity?.IsAuthenticated == true)
             {
                 if (User.IsInRole("Admin") || User.IsInRole("Employee"))

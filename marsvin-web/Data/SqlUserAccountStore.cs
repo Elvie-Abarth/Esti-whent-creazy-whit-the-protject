@@ -149,6 +149,17 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         using var connection = Open();
         using var transaction = connection.BeginTransaction();
 
+        // An unused login or password-reset link (a row in PendingLogins,
+        // which has a real foreign key to Users). Without this the delete
+        // below fails for any account that ever asked for a link and never
+        // opened it - and the daily inactivity clean-up with it.
+        using (var pendingCommand = new SqlCommand(
+            "DELETE FROM dbo.PendingLogins WHERE UserId = @UserId;", connection, transaction))
+        {
+            pendingCommand.Parameters.AddWithValue("@UserId", userId);
+            pendingCommand.ExecuteNonQuery();
+        }
+
         using (var cartCommand = new SqlCommand(
             "DELETE FROM dbo.CartItems WHERE UserId = @UserId;", connection, transaction))
         {
