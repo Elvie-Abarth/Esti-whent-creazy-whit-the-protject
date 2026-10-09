@@ -20,7 +20,15 @@ public interface IUserAccountStore
     /// <summary>Self-service profile update. Returns false if the email is already used by a different account.</summary>
     bool UpdateProfile(int userId, string displayName, string email);
 
+    /// <summary>
+    /// Sets the new password hash and, in the same statement, replaces the
+    /// account's security stamp - so every session signed in with the old
+    /// password ends on its next request.
+    /// </summary>
     void UpdatePassword(int userId, string passwordHash);
+
+    /// <summary>Replaces the security stamp on its own: ends every session of the account ("log out everywhere").</summary>
+    void RotateSecurityStamp(int userId);
 
     /// <summary>
     /// Permanently deletes the account. Their cart (if any) is deleted with it, but

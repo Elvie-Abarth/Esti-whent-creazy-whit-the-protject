@@ -52,10 +52,17 @@ no key: it is a keyword lookup inside the app, not an AI service, so it
 costs nothing to run. It knows the shop's public content - animals,
 accessories and brands, the care guide and food list, delivery, returns, and
 the FAQ (`Data/ShopKnowledge.cs`) - and tolerates misspellings (one or two
-wrong letters, or aa/ae/oe typed for the Danish letters). It knows nothing about
+wrong letters, or aa/ae/oe typed for the Danish letters). It can also work a
+few things out: whether the shop is open right now, what a parcel of a
+given weight costs to send, how big a cage a number of guinea pigs needs,
+which animals are for sale, and a yes or no on a food. It understands a
+follow-up ("what does she cost?") and several questions in one message, and
+the "i" button in the chat shows what can be asked. It knows nothing about
 people (orders, accounts, customers, staff) and nothing about how the site
 is built or secured, and turns such questions away - there is nothing
-private in its knowledge for any wording to dig out.
+private in its knowledge for any wording to dig out. It also refuses a
+message containing an email address or a long number, and answers anything
+that sounds like a sick animal with "contact a vet", never a diagnosis.
 
 Nothing in this project costs money to run: the database is LocalDB, email
 is logged to the console unless you add your own SMTP account, reCAPTCHA is
@@ -73,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-244 tests, three layers:
+566 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -85,7 +92,7 @@ dotnet test
   validation, rollback on failure), the IDOR guard on order confirmation, the
   admin self-protection guard, cart validation, login lockout, the
   email-confirmation login/register flow, and the GDPR inactivity-cleanup job.
-- **9 end-to-end HTTP tests against a disposable `MarsvinDb_WebTest`
+- **End-to-end HTTP tests against a disposable `MarsvinDb_WebTest`
   database**, driving the real app in-process via `WebApplicationFactory<Program>`
   — the layer above can't see actual antiforgery/CSRF behavior or cookie
   flags, since calling a `PageModel` method directly skips the middleware
@@ -105,17 +112,24 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Front page | `/` | Everyone | Hero, bonded pairs, the four welfare questions, three essentials |
 | Marsvinene | `/Marsvin` | Everyone | All animals, grouped into the pairs they're sold as |
 | Profil | `/Marsvin/Details/{id}` | Everyone | One animal: breed, sex, age, colour, status, partner, buy button |
-| Tilbehør | `/Tilbehor` | Everyone | Accessories, search + category filter, stock shown as Available/Low/Out (never a raw number), buy button |
+| Tilbehør | `/Tilbehor` | Everyone | 71 accessories: search, category tiles, filters for category/price/brand with counts, sorting, 24 per page; stock shown as Available/Low/Out (never a raw number), buy button |
+| Mærker | `/Maerker` | Everyone | The brands the shop carries, each linking to its products |
+| Pasningsguide / Foderliste | `/Pasningsguide`, `/PasningsguideHurtig`, `/Foderliste` | Everyone | Care guide, the short version, and the food list (the last two also as PDF) |
+| Spørgsmål & svar | `/Faq` | Everyone | Frequently asked questions by topic |
+| Om os / Betaling & levering / Privatliv | `/OmOs`, `/BetalingOgLevering`, `/Privatliv` | Everyone | About the shop, delivery rates and returns, the privacy policy |
+| Kontakt | `/Kontakt` | Everyone | Contact details and a contact form (read by staff on `/Admin/Messages`) |
+| Støt | `/Stoet` | Everyone | Donate money (demo - never charged) or products towards rehomed guinea pigs |
 | Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register a Customer account — both require opening an emailed confirmation link before the session is signed in |
 | Glemt adgangskode | `/Account/ForgotPassword`, `/Account/ResetPassword` | Everyone | Request and complete a password reset by email link |
 | Min konto | `/Account/Profile` | Signed in | Update name/email/password, request time off (staff), order history + reorder (customers), delete account |
-| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Everyone (not staff) | View cart, remove lines, choose pickup or shipping (+ carrier), choose card or MobilePay (demo), check out — no account needed, a guest just gives a name and email. Registering or logging in partway through carries the guest cart into the new session instead of losing it |
-| Kvittering | `/Cart/Confirmation/{orderId}` | Everyone (not staff) | Order summary with a confetti animation — only the buyer can view their own order (a guest's receipt is gated by a one-time id stamped into their own session at checkout, not an account) |
+| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Everyone (not staff) | View cart, remove lines, choose pickup or shipping (+ carrier, each with price, destination, expected delivery, weight and parcel count), private or company purchase, choose card or MobilePay (demo), check out — no account needed, a guest just gives a name and email. Registering or logging in partway through carries the guest cart into the new session instead of losing it |
+| Kvittering | `/Cart/Confirmation/{orderId}` | Everyone (not staff) | Order summary with status steps, a cancel button while the order can still be cancelled, and a confetti animation — only the buyer can view their own order (a guest's receipt is gated by a one-time id stamped into their own session at checkout, not an account) |
 | Personale | `/Admin/Index` | Employee, Admin | Dashboard with role-appropriate links |
 | Vagtplan | `/Admin/Schedule/Index` | Employee, Admin | See/assign shifts, approve or deny day-off requests |
 | Butiksstyring | `/Admin/Shop/Index` | Employee, Admin | Hub for stock, orders, and (Admin) the catalog/promotions pages |
 | Lager & status | `/Admin/Stock/Index` | Employee, Admin | Adjust accessory stock counts, change animal status |
-| Ordrer | `/Admin/Orders/Index` | Employee, Admin | Every order placed in the shop, who placed it, and how it's being delivered |
+| Ordrer | `/Admin/Orders/Index` | Employee, Admin | Every order placed in the shop, who placed it, and how it's being delivered; set status and tracking number (the buyer is emailed) |
+| Beskeder / Donationer | `/Admin/Messages`, `/Admin/Donations` | Employee, Admin | What came in through the contact form and the donation page |
 | Tilbehør (admin) | `/Admin/Products/Index` + `Edit` | Admin | Full CRUD on accessories |
 | Marsvin (admin) | `/Admin/Animals/Index` + `Edit` | Admin | Full CRUD on guinea pigs |
 | Kampagner | `/Admin/Promotions/Index` + `Edit` | Admin | Time-boxed discounts, shop-wide or per product |
@@ -141,24 +155,31 @@ Customers always self-register; there's no seeded customer account.
 
 ```
 Models/          Product → StockProduct, Animal; ApplicationUser, CartLine, Order,
-                 Promotion, Shift, TimeOffRequest, AuditLogEntry, Bilingual
+                 Promotion, Shift, TimeOffRequest, AuditLogEntry, Bilingual;
+                 Shipping (ShippingCalculator), Company (CVR check), Inbox
+                 (ContactMessage, Donation)
 Data/            ICatalog / ICatalogAdmin (catalog), IUserAccountStore, ICartStore,
                  IOrderStore, IPromotionStore, IPendingLoginStore, IShiftStore,
-                 ITimeOffRequestStore, IAuditLogStore, IEmailSender —
-                 each with a Sql* ADO.NET implementation; DbInitializer, Sql/schema.sql
-Pages/Account/   Register, Login, ConfirmLogin, ForgotPassword, ResetPassword,
+                 ITimeOffRequestStore, IAuditLogStore, IInboxStore, IEmailSender —
+                 each with a Sql* ADO.NET implementation; DbInitializer, Sql/schema.sql;
+                 AuthCookiePrincipal (builds and re-validates the signed-in user);
+                 the chat: ChatAssistants, ChatSkills, ShopKnowledge, ChatHelp
+Pages/Account/   Register, Login, ConfirmLogin, VerifyTotp, ForgotPassword, ResetPassword,
                  CheckEmail, Logout, Profile, AccessDenied
 Pages/Cart/      Index (view/add/remove), Payment (delivery choice + checkout), Confirmation
-Pages/Admin/     Index, Schedule/, Shop/, Stock/, Orders/, Products/, Animals/,
-                 Promotions/, Users/ (+ Export), AuditLog/
-Pages/Shared/    _Layout.cshtml, _Cavy.cshtml (the drawn guinea pig)
-Pages/           PageModelExtensions.cs — CurrentUserId/SignInAsync/IsSafeLocalUrl,
+Pages/Admin/     Index, Schedule/, Shop/, Stock/, Orders/, Messages/, Donations/, Products/,
+                 Animals/, Promotions/, Users/ (+ Export), AuditLog/
+Pages/Shared/    _Layout.cshtml (header, footer, the chat), _Cavy.cshtml (the drawn guinea pig)
+Pages/           the storefront and info pages, Chat (the chat's endpoint), Error/ServerError;
+                 PageModelExtensions.cs — CurrentUserId/SignInAsync/IsSafeLocalUrl,
                  shared across every page model that needs them
 wwwroot/css/     site.css — all the design tokens live at the top
+wwwroot/img/     page photos, products/ (square, 640 px), animals/, brands/
 wwwroot/js/      lang-toggle.js (the DA/EN switch), confirm-delete.js (safe confirm() dialogs),
                  cart-quantity.js (auto-submit qty changes), password-meter.js (live strength
-                 meter), confetti.js (order confirmation), mascot-pet.js, print-button.js,
-                 check-email.js, stock-tabs.js
+                 meter), confetti.js (order confirmation), chat.js (the support chat),
+                 payment.js (card-field formatting), auto-submit.js (sort menu),
+                 mascot-pet.js, print-button.js, check-email.js, stock-tabs.js
 marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 ```
 
@@ -175,6 +196,14 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 - **Sessions**: cookie authentication (`HttpOnly`, `SameSite=Lax`, `Secure`
   outside Development), checked server-side on every request via
   `[Authorize]`.
+- **Sessions end when they should.** Changing or resetting a password ends
+  every other session of that account, and so does "log out everywhere" on
+  the profile page (a per-account *security stamp* in the cookie, replaced
+  on those events and checked on every request) - so a stolen cookie stops
+  working the moment the owner reacts. A session also ends after 30 minutes
+  of inactivity, and after 8 hours however active it is, logging out clears
+  the guest session too, and pages with personal data are sent `no-store`
+  so the Back button can't show them after logout.
 - **Authorization is server-side, not just hidden buttons.** Every role check
   happens in the `PageModel` (`[Authorize(Roles = "...")]`), re-checked per
   handler where a page is shared across roles (e.g. Admin/Schedule); an
@@ -186,7 +215,7 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 - **Role and account status are re-checked on every request**
   (`AuthCookiePrincipal.RevalidateAsync`): the auth cookie is only a snapshot
   from sign-in, so without this a deactivated, deleted, or demoted account
-  would keep its old access until the cookie expired (8 sliding hours). Now
+  would keep its old access for as long as the session was kept alive. Now
   it's gone on that account's very next request.
 - **IDOR guard on orders**: `/Cart/Confirmation/{orderId}` looks up the order
   *and* checks it belongs to the logged-in user in the same query
@@ -228,6 +257,22 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   persisted for a real multi-instance deployment).
 - **Security headers**: CSP, `X-Content-Type-Options`, `X-Frame-Options`, and
   `Referrer-Policy` are set on every response (see `Program.cs`).
+- **Compression without BREACH**: the stylesheet, scripts and SVGs are
+  compressed; HTML pages are not, because each carries a secret (the
+  antiforgery token) next to text a visitor can influence, and compressing
+  that over HTTPS is what the BREACH attack exploits.
+- **Query parameters are allow-listed**: on `/Tilbehor` the category, brand,
+  price range, sort order and page number are each matched against known
+  values before use - nothing typed into the address bar is echoed back.
+- **Error pages say what happened, and nothing more**: an expired form
+  ("nothing was saved, ordered or paid"), too many attempts, no access and
+  a missing page each have their own text; outside Development a crash
+  shows a plain "something went wrong", never a stack trace.
+- **The chat has nothing to leak**: no access to orders, accounts or staff,
+  no knowledge of how the site is built, nothing stored, a rate limit, and
+  answers written into the page as text, never as HTML.
+- **Data minimisation**: "I am 16 or older" is a yes/no, not an age or a
+  birth date; a phone number is kept with the order only.
 - **No raw SQL string-building anywhere** — every query is a parameterised
   `SqlCommand`, including the admin CRUD forms.
 - **CSRF**: Razor Pages validates the antiforgery token on every POST handler
@@ -260,19 +305,26 @@ dried hay (`#F0E7D2`), meadow green (`#2C4327`), and the bright fleece
 
 Two structural decisions worth keeping if you rebuild the styling yourself:
 
-**Animals are bordered, accessories are not.** A guinea pig gets a full border
-and its own profile because it is an individual; a bag of hay gets a hairline
-rule because it's stock. The visual difference carries the same information as
+**Animals get a profile, accessories get a shelf.** A guinea pig has its own
+page, its name, age and personality, because it is an individual; a bag of
+hay is a card in a filterable grid with a photo, a price and a stock level,
+because it's stock. The visual difference carries the same information as
 the class hierarchy.
 
 **Bonded pairs are drawn as one unit** with a shared header strip. The rule that
 guinea pigs are sold in pairs is the shop's whole character, so the layout states
 it rather than burying it in a paragraph.
 
-Each animal is drawn as inline SVG tinted from its own `CoatPrimary` and
-`CoatSecondary` values, so no photographs are needed and nothing looks like stock
-imagery. Set an animal's `PhotoUrl` to swap in a real photo — the illustration
-stays as the fallback for every animal that doesn't have one yet.
+Each animal without a photo is drawn as inline SVG tinted from its own
+`CoatPrimary` and `CoatSecondary` values, so a missing photo never looks like a
+broken image. Set an animal's `PhotoUrl` to swap in a real photo — the
+illustration stays as the fallback for every animal that doesn't have one yet,
+and animals with a photo are listed first.
+
+Photos are saved at the size they are shown, and nothing is loaded from another
+site (no web fonts, no CDN), so pages stay light. The product photos, brand
+names and logos belong to their owners — this is a school project that is not
+online; don't reuse them in anything that is.
 
 Responsive down to mobile, visible keyboard focus, and `prefers-reduced-motion`
 respected.
@@ -283,11 +335,12 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
 
 - **`DATABASE-NOTES.txt`** — operational how-tos: starting the project,
   demo credentials, where the LocalDB files live, resetting the database.
-- **`DATABASE-ARCHITECTURE.md`** — the data layer: schema-as-code, the
-  store pattern, transactions/locking, seeding.
+- **`DATABASE-ARCHITECTURE.md`** — the data layer: schema-as-code, all 15
+  tables and why they are shaped as they are, the store pattern,
+  transactions/locking, seeding.
 - **`DATABASE-CREATION-SCRIPT.md`** — the literal commands that build the
   database: what `dotnet run` does automatically, the full schema script,
   and the equivalent `sqlcmd` steps to do it by hand.
 - **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,
-  auth flow, site map, the bilingual DA/EN system, security practices,
-  testing strategy.
+  auth flow, site map, checkout and shipping, the bilingual DA/EN system,
+  security practices, testing strategy, and how the support chat works.

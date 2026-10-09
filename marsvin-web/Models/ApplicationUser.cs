@@ -23,6 +23,14 @@ public sealed class ApplicationUser
     /// </summary>
     public string? TotpSecret { get; init; }
 
+    /// <summary>
+    /// A random value that is replaced whenever the password changes, or when
+    /// the user asks to be logged out everywhere. Every auth cookie carries
+    /// the stamp it was issued with, and is rejected once the two differ -
+    /// see AuthCookiePrincipal.RevalidateAsync.
+    /// </summary>
+    public string SecurityStamp { get; init; } = "";
+
     /// <summary>True only once enrollment is confirmed with a valid code - see LoginModel/VerifyTotpModel.</summary>
     public bool TotpEnabled { get; init; }
 }

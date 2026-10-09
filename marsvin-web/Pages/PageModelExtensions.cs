@@ -59,9 +59,28 @@ public static class PageModelExtensions
     /// profile update (to refresh the name/email claims immediately rather
     /// than waiting for the next login).
     /// </summary>
-    public static async Task SignInAsync(this PageModel page, ApplicationUser user) =>
+    public static async Task SignInAsync(this PageModel page, ApplicationUser user)
+    {
+        // A real sign-in starts the session's clock now. Re-issuing the cookie
+        // for the account that is already signed in (after a profile update)
+        // keeps the original sign-in time instead - otherwise saving your
+        // profile once a day would get around the maximum session length.
+        var sameUser = page.User.Identity?.IsAuthenticated == true
+            && page.User.FindFirstValue(ClaimTypes.NameIdentifier) == user.UserId.ToString();
+        var signedInAt = (sameUser ? AuthCookiePrincipal.SignedInAt(page.User) : null) ?? DateTimeOffset.UtcNow;
+
         await page.HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme, AuthCookiePrincipal.Build(user));
+            CookieAuthenticationDefaults.AuthenticationScheme, AuthCookiePrincipal.Build(user, signedInAt));
+    }
+
+    /// <summary>
+    /// Empties the server-side session (a guest cart, a guest's receipt pass)
+    /// when a login ends, so nothing of the visit is left for whoever uses
+    /// the browser next. Through the feature rather than HttpContext.Session,
+    /// which throws when a request has no session at all.
+    /// </summary>
+    public static void ClearServerSession(this PageModel page) =>
+        page.HttpContext.Features.Get<ISessionFeature>()?.Session?.Clear();
 
     /// <summary>
     /// Folds a just-signed-in user's guest cart into their account's real

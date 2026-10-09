@@ -42,6 +42,10 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", ConnectionString);
         Environment.SetEnvironmentVariable("Email__Username", "");
         Environment.SetEnvironmentVariable("Recaptcha__SecretKey", "");
+        // The whole end-to-end suite runs from one address within seconds -
+        // far more Login/Register requests than the 50 a minute the real
+        // limit allows any single client.
+        Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", "5000");
     }
 
     protected override void Dispose(bool disposing)
@@ -52,6 +56,7 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", null);
         Environment.SetEnvironmentVariable("Email__Username", null);
         Environment.SetEnvironmentVariable("Recaptcha__SecretKey", null);
+        Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", null);
 
         SqlConnection.ClearAllPools();
         using var connection = new SqlConnection("Server=(localdb)\\MSSQLLocalDB;Trusted_Connection=True;TrustServerCertificate=True;");

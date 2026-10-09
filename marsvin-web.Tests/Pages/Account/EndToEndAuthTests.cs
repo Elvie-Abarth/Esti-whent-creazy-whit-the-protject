@@ -224,7 +224,7 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
     [Fact]
     public async Task DeactivatedAccount_LosesItsAlreadySignedInSessionOnTheNextRequest()
     {
-        // The auth cookie is valid for 8 sliding hours - without
+        // The auth cookie stays valid for as long as it is used - without
         // AuthCookiePrincipal.RevalidateAsync re-checking dbo.Users on every
         // request, deactivating an account would only stop *new* logins.
         var client = MakeClient();
@@ -302,6 +302,74 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
     }
 
     /// <summary>Registers a fresh Customer and completes the email confirmation, leaving <paramref name="jar"/> signed in. Returns the account's email.</summary>
+    [Fact]
+    public async Task LogOutEverywhere_EndsTheSessionInAnotherBrowserToo()
+    {
+        var client = MakeClient();
+        var thisBrowser = new CookieJar();
+        var email = await RegisterAndSignIn(client, thisBrowser, "everywhere");
+
+        // The same account, logged in a second time somewhere else.
+        var otherBrowser = new CookieJar();
+        var (_, _, loginToken) = await HttpTestHelpers.GetWithToken(client, otherBrowser, "/Account/Login");
+        await HttpTestHelpers.PostForm(client, otherBrowser, "/Account/Login", new()
+        {
+            ["__RequestVerificationToken"] = loginToken,
+            ["Input.Email"] = email,
+            ["Input.Password"] = "SomePass123!"
+        });
+        await HttpTestHelpers.CompleteEmailConfirmation(client, otherBrowser, email);
+        Assert.Equal(HttpStatusCode.OK, (await HttpTestHelpers.Get(client, otherBrowser, "/Account/Profile")).StatusCode);
+
+        var (_, _, token) = await HttpTestHelpers.GetWithToken(client, thisBrowser, "/Account/Profile");
+        var response = await HttpTestHelpers.PostForm(client, thisBrowser, "/Account/Profile?handler=SignOutEverywhere", new()
+        {
+            ["__RequestVerificationToken"] = token
+        });
+        Assert.Contains("/Account/Login", response.Headers.Location!.ToString());
+
+        // Neither browser is signed in any more.
+        foreach (var jar in new[] { thisBrowser, otherBrowser })
+        {
+            var profile = await HttpTestHelpers.Get(client, jar, "/Account/Profile");
+            Assert.Equal(HttpStatusCode.Found, profile.StatusCode);
+            Assert.Contains("/Account/Login", profile.Headers.Location!.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task ChangingThePassword_EndsASessionThatWasAlreadySignedIn()
+    {
+        // What a stolen cookie comes down to: someone else holding a session
+        // that was signed in before the owner changed the password.
+        var client = MakeClient();
+        var jar = new CookieJar();
+        var email = await RegisterAndSignIn(client, jar, "stolen");
+
+        var users = new MarsvinWebExample.Data.SqlUserAccountStore(MarsvinWebAppFactory.ConnectionString);
+        users.UpdatePassword(users.FindByEmail(email)!.UserId, "a-new-password-hash");
+
+        var response = await HttpTestHelpers.Get(client, jar, "/Account/Profile");
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("/Account/Login", response.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task PagesWithSomeonesOwnData_AreNotKeptByTheBrowser()
+    {
+        var client = MakeClient();
+        var jar = new CookieJar();
+
+        // A guest's cart (and receipt) may not be kept, signed in or not...
+        var cart = await HttpTestHelpers.Get(client, jar, "/Cart");
+        Assert.True(cart.Headers.CacheControl!.NoStore);
+
+        // ...and nothing shown to a signed-in user may, the front page included.
+        await RegisterAndSignIn(client, jar, "nostore");
+        Assert.True((await HttpTestHelpers.Get(client, jar, "/Account/Profile")).Headers.CacheControl!.NoStore);
+        Assert.True((await HttpTestHelpers.Get(client, jar, "/")).Headers.CacheControl!.NoStore);
+    }
+
     private static async Task<string> RegisterAndSignIn(HttpClient client, CookieJar jar, string label)
     {
         var email = $"{label}-{Guid.NewGuid():N}@example.com";

@@ -2,7 +2,14 @@ MarsvinDb.bak
 =============
 
 A full SQL Server backup of MarsvinDb, taken at the point the demo data
-was seeded (6 animals, 12 accessories, 18 products total).
+was first seeded (6 animals, 12 accessories, 18 products total).
+
+NOTE: this is an OLD snapshot. The project has grown a lot since - the
+current schema has 15 tables and the demo catalog has 13 guinea pigs and
+71 accessories. A database restored from this file will be missing newer
+tables and columns; the app adds those itself the first time it runs
+against it (schema.sql only ever adds, never drops), but for a current
+database it is simpler to just run the project and let it create one.
 
 You do NOT need this file to run the project - "dotnet run" recreates and
 reseeds the database automatically every time (see ../schema.sql and

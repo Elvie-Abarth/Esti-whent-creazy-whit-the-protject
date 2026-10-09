@@ -126,6 +126,17 @@ BEGIN
     ALTER TABLE dbo.Users ADD InactivityWarningStage TINYINT NOT NULL DEFAULT 0;
 END
 
+-- A random value copied into the auth cookie at sign-in and replaced whenever
+-- the password changes (or "log out everywhere" is used): a cookie carrying
+-- an older stamp is rejected on its next request. Not a secret - it only
+-- ever travels inside the encrypted cookie - it just has to be different
+-- each time. NEWID() gives every existing row its own value here, and every
+-- new account one through the default.
+IF COL_LENGTH('dbo.Users', 'SecurityStamp') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD SecurityStamp UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID();
+END
+
 -- TOTP second factor (see Account/Profile, Account/VerifyTotp): TotpSecret is
 -- set as soon as enrollment starts, before TotpEnabled flips to 1 once the
 -- user proves they've actually saved it by entering one valid code. Stored

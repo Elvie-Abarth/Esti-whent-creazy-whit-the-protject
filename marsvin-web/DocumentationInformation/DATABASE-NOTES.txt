@@ -29,7 +29,8 @@ Using SQL Server Management Studio (SSMS):
   3. Authentication: Windows Authentication
   4. Expand Databases -> MarsvinDb -> Tables to see Products, Animals,
      StockProducts, Users, PendingLogins, CartItems, Orders, OrderItems,
-     Promotions, Shifts, TimeOffRequests, AuditLog.
+     Promotions, Shifts, TimeOffRequests, AuditLog, ContactMessages,
+     Donations, SeedBatches (15 tables in all).
      Right-click a table -> "Select Top 1000 Rows" to view its data.
 
 From the command line:
@@ -59,9 +60,14 @@ On startup, the app automatically:
   1. Creates the MarsvinDb database if it doesn't exist yet.
   2. Runs schema.sql. Every table is created once, the first time it's
      missing, and left alone after that - nothing is ever dropped.
-  3. Seeds Products/Animals/StockProducts from Data\DemoCatalog.cs, and
-     seeds the Admin/Employee accounts above - but only on a database
-     that doesn't have that data yet (checked by row count).
+  3. Seeds Products/Animals/StockProducts from Data\DemoCatalog.cs
+     (13 guinea pigs and 71 accessories), and seeds the Admin/Employee
+     accounts above - but only on a database that doesn't have that data
+     yet (checked by row count).
+  4. On a database that was seeded before the catalog grew, adds the
+     newer accessories exactly once (recorded in the SeedBatches table),
+     so an older database catches up without being reset - and a product
+     you delete as admin does not come back on the next start.
 
 You do NOT need to manually create the database or run any SQL scripts
 yourself - just running the project handles it.
@@ -124,16 +130,22 @@ list:
 
 Data\Sql\schema.sql          - table definitions (Products/Animals/StockProducts,
                                Users/PendingLogins/CartItems/Orders/OrderItems/
-                               Promotions/Shifts/TimeOffRequests/AuditLog), plus
+                               Promotions/Shifts/TimeOffRequests/AuditLog/
+                               ContactMessages/Donations/SeedBatches), plus
                                CHECK constraints and a couple of supporting indexes
 Data\DbInitializer.cs        - creates the DB, runs the schema, seeds demo data + accounts
 Data\SqlCatalog.cs           - reads AND writes the product/animal catalog (ICatalog + ICatalogAdmin)
 Data\SqlUserAccountStore.cs  - user accounts (used by /Account and /Admin/Users)
 Data\SqlPendingLoginStore.cs - single-use email login/register/reset-password confirmation tokens
 Data\SqlCartStore.cs         - shopping cart
-Data\SqlOrderStore.cs        - checkout: validates availability, decrements stock, records the order
-                               (row-locked so two concurrent checkouts can't both win the same
-                               last unit - see DATABASE-ARCHITECTURE.md §5)
+Data\SqlOrderStore.cs        - checkout: validates availability, decrements stock, prices the
+                               shipping and records the order (row-locked so two concurrent
+                               checkouts can't both win the same last unit - see
+                               DATABASE-ARCHITECTURE.md §5); also order status, tracking
+                               number, cancelling (with restock) and moving a guest order
+                               into an account
+Data\SqlInboxStore.cs        - contact-form messages and donations (Admin/Messages,
+                               Admin/Donations)
 Data\SqlPromotionStore.cs    - promotions (Admin/Promotions)
 Data\SqlShiftStore.cs        - staff work schedule (Admin/Schedule)
 Data\SqlTimeOffRequestStore.cs - employee day-off requests (Account/Profile, Admin/Schedule)

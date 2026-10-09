@@ -62,7 +62,9 @@ it's already been applied:
 - A couple of statements (like widening `Orders.UserId` to nullable) are
   naturally idempotent SQL on their own - re-running `ALTER TABLE ... ALTER
   COLUMN ... NULL` on an already-nullable column is harmless, so those don't
-  need an `IF` guard at all.
+  need an `IF` guard at all. The two `UPDATE dbo.Animals SET PhotoUrl ...`
+  lines at the very end are the same kind: they repoint two photos that
+  changed file type (`.png` to `.jpg`) and match nothing once that's done.
 - **`CHECK` constraints and indexes added to an existing table** follow the
   same guard shape as a new column, just checking `sys.check_constraints` /
   `sys.indexes` instead of `COL_LENGTH`: `IF NOT EXISTS (SELECT 1 FROM
@@ -103,8 +105,23 @@ This is a **table-per-hierarchy-ish** design mirroring the `Product` /
   the two are always created/deleted together in one place
   (`SqlCatalog.CreateAnimal`/`DeleteAnimal`), so a strict FK is safe here.
 - **`StockProducts`** is the accessory-specific counterpart: SKU, category
-  (`0` Hay … `5` Bedding), `StockQuantity`, unit, photo. Same FK
-  relationship to `Products` as `Animals`, for the same reason.
+  (`0` Hay, `1` Food, `2` Cage, `3` House, `4` Toy, `5` Bedding, `6` Care),
+  `StockQuantity`, unit, photo, and two columns added later:
+  - **`WeightGrams`** - the packed weight of one unit (default 500). This
+    is what shipping is priced from: `ShippingCalculator` adds up the
+    weights of the shippable lines, splits them into parcels of at most
+    20 kg and prices each parcel by carrier. The weight is read from this
+    table at checkout, never from the form.
+  - **`Brand`** - who makes it (nullable: an unbranded item is fine). It
+    drives the brand filter on `/Tilbehor` and the `/Maerker` page. There
+    is deliberately no separate `Brands` table: a brand here is just a
+    label on a product, with no data of its own to keep consistent.
+
+  Same FK relationship to `Products` as `Animals`, for the same reason.
+
+  Customers never see `StockQuantity` itself - pages show "in stock", "low
+  stock" or "sold out" (`StockProduct.StockLevel`), and the support chat is
+  only given that wording too.
 
 `BondedWithId` (on `Animals`) and every `ProductId` column on the tables
 below are **deliberately not foreign keys**, even though they point at a
@@ -122,8 +139,21 @@ exist at all).
 One row per account, whether Customer, Employee, or Admin (`Role`: `0`/`1`/`2`):
 `Email` (unique), `PasswordHash` (PBKDF2 via ASP.NET Core's
 `PasswordHasher<T>` - never plain text), `DisplayName`, `IsActive`,
-`CreatedAt`, and two columns that exist specifically to drive the GDPR
-2-year inactivity policy:
+`CreatedAt`, `TotpSecret`/`TotpEnabled` for the optional second factor
+(the secret is encrypted at rest), and:
+
+- **`SecurityStamp`** - a random `UNIQUEIDENTIFIER` (`DEFAULT NEWID()`, so
+  every account, old or new, has its own). It is copied into the auth
+  cookie at sign-in and compared on every request; `UpdatePassword`
+  replaces it in the same `UPDATE` that stores the new hash, and "log out
+  everywhere" replaces it on its own (`RotateSecurityStamp`). A cookie
+  carrying an older stamp is rejected on its next request - which is what
+  makes changing a password actually end a session someone else may be
+  holding. It is not a secret (it only ever travels inside the encrypted
+  cookie); it just has to be different each time.
+
+Two more columns exist specifically to drive the GDPR 2-year inactivity
+policy:
 
 - **`LastActiveAt`** - set at registration, refreshed every time a login is
   *fully confirmed* (see the `PendingLogins` section below - not just when a
@@ -181,8 +211,8 @@ product was called and cost *at the moment of purchase*. If an admin later
 renames or deletes that product, an old receipt still reads correctly
 instead of showing a broken reference or today's (possibly different) price.
 
-Six more columns exist for the accessory-shipping, demo-payment, and
-guest-checkout features. `Orders` has `DeliveryMethod` (`0` Pickup, `1`
+Several more columns were added for accessory shipping, demo payment,
+guest checkout, order status and company purchases. `Orders` has `DeliveryMethod` (`0` Pickup, `1`
 Shipping) and `ShippingAddress` (only ever set when shipping), plus
 `ShippingCarrier` (`0` PostNord, `1` GLS, `2` DAO Pakkeshop - also only set
 when shipping; a `NULL` carrier on an otherwise-valid Shipping checkout
@@ -206,6 +236,43 @@ one to begin with, so there's no name/email to join back to at all; these
 two columns are what the admin order list, the confirmation email, and
 the receipt itself fall back to instead. A guest's cart was never in
 `CartItems` either - see `SessionCartStore` below.
+
+**What the shipment cost and weighed** is stored on the order, not worked
+out again later: `ShippingCost` (already included in `TotalPrice`; `0` for
+pickup, and `0` when the shipped accessories reach the free-shipping
+threshold of 499 kr.), `ShippingWeightGrams` and `ParcelCount` (both `NULL`
+for pickup). They are snapshots for the same reason `UnitPrice` is: if the
+rates or a product's weight change next month, an old receipt must still
+say what was actually charged. All three are calculated by
+`SqlOrderStore.Checkout` itself, inside the checkout transaction - the
+payment form shows the same numbers, but nothing it posts is trusted for
+them. The *expected delivery window* is not stored at all: it is derived
+from `CreatedAt` and the carrier whenever it is shown.
+
+**`Status`** follows the order after checkout: `0` Placed, `1` Processing,
+`2` Sent (or "ready for pickup" - the wording follows `DeliveryMethod`),
+`3` Completed (delivered / picked up), `4` Cancelled. Staff move it along
+on `/Admin/Orders`, optionally with a **`TrackingNumber`** from the
+carrier; each change is audit-logged and emailed to the buyer.
+`Cancelled` is deliberately the highest number: "may still be cancelled"
+is then a plain `Status <= @latest` comparison (the buyer may cancel while
+it is still `Placed`), and an already cancelled order can never match it. A cancelled order is final -
+`UpdateStatus` refuses to move one (`WHERE ... AND Status <> Cancelled`),
+because its items have already gone back into stock.
+
+**`ContactPhone`** is the number the carrier texts (required for shipping,
+optional for pickup). It is stored with the order only, never on the
+account. **`AgeConfirmed`** records that the buyer ticked "I am 16 or
+older" for an order containing a guinea pig - a yes/no on purpose, not an
+age or a date of birth: the shop needs to know the rule was met, not how
+old anyone is (data minimisation).
+
+**`CompanyName` / `CompanyCvr`** are set together, or not at all, for a
+company, school or institution purchase. `CompanyCvr` is `CHAR(8)`: the
+form accepts spaces, but only the eight digits are stored, after the
+CVR check-digit rule has been verified in code (`Cvr.IsValid`). The VAT
+amount on such a receipt is calculated from `TotalPrice` when shown, not
+stored.
 
 ### `Promotions`
 
@@ -233,6 +300,39 @@ display name, not a foreign key to their account, for exactly the same
 reason `OrderItems.ProductName` is a snapshot: the record of *who approved
 this* should survive even if that admin's own account is deleted later.
 `UserId` (the requester) is a real FK, same reasoning as `Shifts`.
+
+### `ContactMessages` - the public contact form
+
+One row per message sent from `/Kontakt`: `Name`, `Email`, a `Topic`
+(`0` Order, `1` GuineaPig, `2` Accessory, `3` Company, `4` Other), the
+`Message` (up to 2000 characters) and `CreatedAt`. Staff read them on
+`/Admin/Messages`.
+
+`OrderId` here is **whatever number the sender typed**, which is why it is
+a plain nullable column and not a foreign key: it is not proof the order
+exists, and certainly not proof it belongs to the sender. Nothing is looked
+up or shown back from it - it is only a hint for the staff member reading
+the message. There is no `UserId` either: the form is public, and a message
+is not tied to an account even when the sender happens to be signed in.
+
+### `Donations` - support for rehomed guinea pigs
+
+One row per donation from `/Stoet`, read on `/Admin/Donations`. `Kind` is
+`0` Money or `1` Products, and decides which of the other columns are
+used: `AmountKr` only for money, `ItemDescription` only for products.
+`DonorName`, `DonorEmail` and `Message` are all optional - an anonymous
+money donation is fine. Like the checkout, a money donation is a demo: it
+is recorded, never charged, and no card details are asked for or stored.
+
+### `SeedBatches` - one-off additions to the demo catalog
+
+A two-column bookkeeping table (`Name`, `AppliedAt`) with one row per
+batch of demo data that was added to the catalog *after* databases already
+existed. The catalog is only seeded into an empty database (§6), so when
+it later grew from 26 to 71 accessories, existing databases needed the new
+ones exactly once. A row here means "done - do not add them again", which
+is what keeps a product an admin has since deleted from reappearing on the
+next restart. It holds no shop data and no page reads it.
 
 ### `AuditLog` - who changed what, and when
 
@@ -262,6 +362,10 @@ Products ──┬──< Animals (ProductId is both PK and FK)
 AuditLog - standalone (ActorUserId not a FK - a snapshot record, like
            OrderItems.ProductName, that outlives the acting account)
 
+ContactMessages - standalone (OrderId is what the sender typed, not a FK)
+Donations       - standalone (no account, no order)
+SeedBatches     - standalone (startup bookkeeping only)
+
 (CartItems.ProductId, OrderItems.ProductId, Promotions.ProductId,
  Animals.BondedWithId - all plain INT columns pointing at Products.ProductId,
  deliberately NOT foreign keys, so a product can be deleted by an admin
@@ -286,6 +390,14 @@ and one SQL implementation in `Data/`:
 | `IShiftStore` | `SqlShiftStore` | Shifts |
 | `ITimeOffRequestStore` | `SqlTimeOffRequestStore` | TimeOffRequests |
 | `IAuditLogStore` | `SqlAuditLogStore` | AuditLog |
+| `IInboxStore` | `SqlInboxStore` | ContactMessages, Donations |
+
+`SeedBatches` has no store: only `DbInitializer` touches it, at startup.
+
+The support chat ("Pip") has no table at all. It answers from the catalog
+through the same `ICatalog` as the pages do, plus texts compiled into the
+app (`Data/ShopKnowledge.cs`), and nothing a visitor types is written to
+the database - there is no chat history to protect, leak or delete.
 
 Pages depend on the **interface**, never the concrete `SqlXxx` class
 directly - that's what lets tests substitute the real SQL implementation
@@ -309,7 +421,7 @@ project - every value from a form, a query string, or a route goes in as a
 `SqlParameter` (`command.Parameters.AddWithValue(...)`), never interpolated
 directly into the SQL text. That's the entire SQL-injection defence, and
 it's structural rather than something that has to be remembered per query:
-the pattern is the same in all fourteen-ish `SqlXxxStore` classes.
+the pattern is the same in all ten `SqlXxxStore` classes.
 
 ### Transactions, where it actually matters
 
@@ -339,6 +451,23 @@ and use `connection.BeginTransaction()` so they succeed or fail together:
   could both read "still available" under READ COMMITTED and both succeed -
   the row lock makes the second checkout block until the first commits or
   rolls back, then re-read the now-updated row instead of the stale one.
+  The shipping cost, weight and parcel count are calculated in that same
+  transaction, from the weights it has just read.
+- **`SqlOrderStore.Cancel`** - the mirror image of checkout. In one
+  transaction, a single `UPDATE ... SET Status = Cancelled WHERE OrderId =
+  @id AND Status <= @latest` both checks that it is still early enough to
+  cancel and makes the change - there is no separate read for a second
+  request to slip in after. Only if that changed a row does it go on to
+  put every accessory line's quantity back into `StockProducts` and set
+  each animal in the order from `Sold` back to `Available`. Either all of
+  that happens or none of it: an order can't end up cancelled with its
+  stock still missing, and a second click finds nothing left to cancel, so
+  nothing is restocked twice.
+- **`SqlOrderStore.ClaimGuestOrder`** - moves a guest order into an account
+  (`UserId` set, guest name/email cleared) only where the order's
+  `GuestEmail` matches the account's email, in a single `UPDATE` whose
+  `WHERE` clause carries both conditions - so the check and the change
+  can't be separated.
 
 ## 6. Startup: how the database comes into existence
 
@@ -349,27 +478,44 @@ the top of `Program.cs`, before the web server starts accepting requests:
    `CREATE DATABASE MarsvinDb` if it doesn't exist yet.
 2. **`RunSchemaScript`** - reads `Data/Sql/schema.sql` off disk and executes
    it as one batch (see §2 - safe to run every time).
+   Just before and after it, **`BackfillDemoWeights`** and
+   **`BackfillDemoBrands`** handle one special case: the single startup on
+   which `StockProducts.WeightGrams` or `Brand` is added to a database that
+   already has products. Every existing row would get the column default
+   (500 g, no brand), which is wrong for a 16 kg cage - so the demo
+   catalog's own values are written in once, matched by `Sku`. Whether to
+   do it is decided *before* the schema script runs (is the column missing
+   from an existing table?), which is what makes it once-only: a weight an
+   admin edits later is never overwritten.
 3. **`SeedIfEmpty`** - if `Products` has zero rows (i.e. this is a genuinely
    fresh database), seeds the whole catalog from the in-memory
    `DemoCatalog` class. If the catalog already has rows - which it will on
    every run after the first, including after an admin has added, edited,
    or removed products - this is skipped entirely, so admin edits are never
    overwritten by a restart.
-4. **`SeedAccountsIfEmpty`** - same idea for `Users`: only on a genuinely
+4. **`AddSecondAccessoryBatchOnce`** - adds the accessories that joined the
+   demo catalog later (`ProductId` 127 and up) to a database that was
+   seeded before they existed. Each is matched by `Sku` and skipped if it
+   is already there; if an admin-created product happens to have taken its
+   `ProductId`, the next free one is used instead. The batch is then
+   recorded in `SeedBatches` and never runs again. On a brand-new database
+   step 3 has already inserted everything, so this only writes the marker.
+5. **`SeedAccountsIfEmpty`** - same idea for `Users`: only on a genuinely
    empty table does it create the demo Admin and Employee accounts (see
    `DATABASE-NOTES.txt` for the full credentials list - several Employee
    accounts are seeded, not just one, so the "assign a shift" staff picker
    on `/Admin/Schedule` has more than one real choice to demonstrate).
    Customers always self-register; there's no seeded customer account.
 
-Because every step here is either idempotent SQL or guarded by a row-count
-check, `dotnet run` is safe to run any number of times against the same
+Because every step here is either idempotent SQL, guarded by a row-count
+check, or recorded as done, `dotnet run` is safe to run any number of times against the same
 database - it never resets anything that already has real data in it.
 
 ## 7. Email is not part of the SQL Server story, but it's wired through it
 
 Several features (the login/register/reset-password confirmation links, the
-inactivity-warning / day-off-request / order-confirmation notifications) read
+inactivity-warning / day-off-request / order-confirmation / order-status
+notifications) read
 data out of these tables and then send real email via SMTP (`SmtpEmailSender`,
 using MailKit and Gmail). The SMTP credentials themselves are **not** stored
 anywhere in this database or in any file that gets committed -

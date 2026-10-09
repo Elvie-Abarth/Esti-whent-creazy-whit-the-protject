@@ -69,6 +69,25 @@
     </form>
 </div>
 
+<section class="section">
+    <div class="wrap auth-page">
+        <div class="section-head">
+            <div>
+                <h2 data-en="Log out everywhere">Log ud alle steder</h2>
+                <p data-en="Ends every login on this account - on this device and on any other computer or phone. Use it if you forgot to log out somewhere, or think someone else has access. Changing your password does the same.">
+                    Afslutter alle logins på denne konto - på denne enhed og på enhver anden computer eller telefon.
+                    Brug det, hvis du har glemt at logge ud et sted, eller tror at en anden har adgang.
+                    Det samme sker, når du skifter adgangskode.
+                </p>
+            </div>
+        </div>
+        <form method="post" asp-page-handler="SignOutEverywhere"
+              data-confirm="Log ud på alle enheder? Du skal logge ind igen bagefter.">
+            <button type="submit" class="btn btn--quiet" data-en="Log out on all devices">Log ud på alle enheder</button>
+        </form>
+    </div>
+</section>
+
 <section class="section section--paper">
     <div class="wrap">
         <div class="section-head">

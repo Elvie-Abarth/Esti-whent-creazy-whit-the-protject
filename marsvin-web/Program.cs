@@ -105,7 +105,10 @@ builder.Services.AddRateLimiter(options =>
             // loop) doesn't throttle each other under normal use, while still
             // stopping the thousands-of-attempts-per-minute a real
             // credential-stuffing or spam script would make.
-            PermitLimit = 50,
+            // 50 unless configuration says otherwise - which only the test
+            // suite does (see MarsvinWebAppFactory): its hundreds of requests
+            // all come from one address inside a few seconds.
+            PermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 50),
             Window = TimeSpan.FromMinutes(1),
             SegmentsPerWindow = 4,
             QueueLimit = 0
@@ -227,7 +230,10 @@ builder.Services
     {
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // 30 minutes without a request and the session is over; 8 hours at
+        // most however active (AuthCookiePrincipal.MaxSessionAge, checked in
+        // RevalidateAsync below).
+        options.ExpireTimeSpan = AuthCookiePrincipal.IdleTimeout;
         options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
@@ -255,8 +261,10 @@ builder.Services
             options.Cookie.Name = "__Host-MarsvinAuth";
         // The cookie's claims are a snapshot from sign-in - re-checked against
         // dbo.Users on every request, so deactivating or demoting an account
-        // in /Admin/Users takes effect immediately instead of up to 8 (sliding)
-        // hours later. One extra indexed lookup per signed-in request.
+        // in /Admin/Users takes effect immediately instead of whenever
+        // the session ends. The same check ends a session whose password has since
+        // been changed (security stamp), and one older than 8 hours however
+        // active it has been. One extra indexed lookup per signed-in request.
         options.Events.OnValidatePrincipal = AuthCookiePrincipal.RevalidateAsync;
     });
 builder.Services.AddAuthorization();
@@ -338,6 +346,24 @@ app.UseRateLimiter();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Pages that show someone's own data must not be kept by the browser: after
+// logging out on a shared computer, the Back button would otherwise bring
+// the profile, an order or a receipt straight back from its cache. Applies
+// to every page served to a signed-in user, and to the account and cart
+// pages for everyone (a guest's receipt holds a name and an address too).
+// Static files never get here - they are served earlier in the pipeline.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    if (context.User.Identity?.IsAuthenticated == true
+        || path.StartsWithSegments("/Account") || path.StartsWithSegments("/Cart") || path.StartsWithSegments("/Admin"))
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+    }
+    await next();
+});
 app.MapRazorPages();
 
 app.Run();

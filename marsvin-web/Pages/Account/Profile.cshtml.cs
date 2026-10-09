@@ -381,7 +381,25 @@ public class ProfileModel(
         users.DeleteUser(this.CurrentUserId());
         ToastMessage = new Bilingual("Din konto og dine data er slettet.", "Your account and data have been deleted.");
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        this.ClearServerSession();
         return RedirectToPage("/Index");
+    }
+
+    /// <summary>
+    /// "Log out everywhere": replaces the account's security stamp, which
+    /// ends every session it has - this one, and any on another computer or
+    /// phone, or in the hands of someone who shouldn't have it - on that
+    /// session's next request. This browser is signed out right away.
+    /// </summary>
+    public async Task<IActionResult> OnPostSignOutEverywhereAsync()
+    {
+        users.RotateSecurityStamp(this.CurrentUserId());
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        this.ClearServerSession();
+        ToastMessage = new Bilingual(
+            "Du er logget ud på alle enheder. Log ind igen for at fortsætte.",
+            "You have been logged out on all devices. Log in again to continue.");
+        return RedirectToPage("/Account/Login");
     }
 
     public sealed class InputModel

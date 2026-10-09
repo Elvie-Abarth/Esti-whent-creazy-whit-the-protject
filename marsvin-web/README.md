@@ -35,11 +35,15 @@ You need the **.NET 9 SDK**, for VS Code the **C# Dev Kit** extension, and
 | Front page | `/` | Everyone | Hero, bonded pairs, the four welfare questions, three essentials |
 | Marsvinene | `/Marsvin` | Everyone | All animals, grouped into the pairs they're sold as |
 | Profil | `/Marsvin/Details/{id}` | Everyone | One animal: breed, sex, age, colour, status, partner, buy button |
-| Tilbehør | `/Tilbehor` | Everyone | Accessories, search + category filter, stock shown as Available/Low/Out |
+| Tilbehør | `/Tilbehor` | Everyone | Accessories: search, filters (category/price/brand), sorting, stock shown as Available/Low/Out |
+| Info pages | `/Faq`, `/Maerker`, `/Kontakt`, `/Stoet`, `/OmOs`, `/BetalingOgLevering`, `/Privatliv`, care guide, food list | Everyone | FAQ, brands, contact form, donations, terms, guides |
 | Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register — both require an emailed confirmation link |
-| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Customer | Cart, pickup-or-shipping (+ carrier), demo Card/MobilePay checkout |
-| Kvittering | `/Cart/Confirmation/{orderId}` | Customer | Order receipt, with a confetti animation on load |
-| Personale / admin | `/Admin/*` | Employee, Admin | Schedule, stock, orders, catalog/promotions CRUD, accounts, audit log |
+| Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Customer or guest | Cart, pickup-or-shipping (+ carrier, priced server-side), demo Card/MobilePay checkout |
+| Kvittering | `/Cart/Confirmation/{orderId}` | The buyer | Order receipt with status and cancel, and a confetti animation on load |
+| Personale / admin | `/Admin/*` | Employee, Admin | Schedule, stock, orders (status + tracking), messages, donations, catalog/promotions CRUD, accounts, audit log |
+
+The guinea pig in the corner of every page is the support chat ("Pip") - a
+keyword lookup inside the app, not an AI service.
 
 (The full route table with every admin sub-page lives in the top-level
 README and in `DocumentationInformation/WEBSITE-ARCHITECTURE.md`.)
@@ -52,7 +56,7 @@ Data/            ICatalog / IUserAccountStore / ICartStore / IOrderStore / ... �
 Pages/           Razor Pages + PageModels (Account/, Cart/, Admin/, Marsvin/, Tilbehor/)
 Pages/Shared/    _Layout.cshtml, _Cavy.cshtml (the drawn guinea pig)
 wwwroot/css/     site.css — all the design tokens live at the top
-wwwroot/js/      lang-toggle, confirm-delete, cart-quantity, password-meter, confetti, ...
+wwwroot/js/      lang-toggle, confirm-delete, cart-quantity, password-meter, confetti, chat, payment, ...
 ```
 
 ## Design notes

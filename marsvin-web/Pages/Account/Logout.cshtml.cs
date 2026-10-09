@@ -10,6 +10,10 @@ public class LogoutModel : PageModel
     public async Task<IActionResult> OnPostAsync()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        // The server-side session too (a guest cart, a receipt pass from
+        // before logging in): nothing of this visit is left for whoever
+        // uses the browser next.
+        this.ClearServerSession();
         return RedirectToPage("/Index");
     }
 }
