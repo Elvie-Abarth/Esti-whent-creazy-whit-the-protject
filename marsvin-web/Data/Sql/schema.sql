@@ -475,3 +475,9 @@ BEGIN
         AppliedAt DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END
+
+-- Two guinea pig photos were saved as 1 MB PNGs and are now JPEGs a tenth
+-- of the size. A database seeded before that still points at the old
+-- file names - safe to run every time, and it only touches those two.
+UPDATE dbo.Animals SET PhotoUrl = '/img/animals/tot.jpg' WHERE PhotoUrl = '/img/animals/tot.png';
+UPDATE dbo.Animals SET PhotoUrl = '/img/animals/lente.jpg' WHERE PhotoUrl = '/img/animals/lente.png';

@@ -2349,3 +2349,35 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 .chat-log, .chat-help { flex: 1 1 auto; min-height: 0; }
 .chat-panel > .chat-suggestions { margin: 0; }
 .chat-panel.has-chat > .chat-suggestions { display: none; }
+
+/* Filter column with every group open: the long brand list scrolls inside
+   its own short box, so the column as a whole normally fits the screen and
+   the page scrolls as usual. On a low screen the column itself can still
+   scroll - with a slim, quiet scrollbar rather than the chunky default, and
+   without dragging the page along when its end is reached. */
+.shop-filters {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+    overscroll-behavior: contain;
+}
+.filter-group--long ul {
+    max-height: 13.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bark) transparent;
+    /* Out to the column's own edge and back in, so the rows line up with the groups above. */
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
+    /* A soft edge at the bottom says "there is more below". */
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 1.4rem), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.4rem), transparent);
+    padding-bottom: 1.2rem;
+}
+.shop-filters::-webkit-scrollbar, .filter-group--long ul::-webkit-scrollbar { width: 6px; }
+.shop-filters::-webkit-scrollbar-thumb, .filter-group--long ul::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.filter-group--long ul::-webkit-scrollbar-thumb { background: var(--bark); }
+@media (max-width: 900px) {
+    /* As chips above the products, the brands just wrap - nothing to scroll. */
+    .filter-group--long ul { max-height: none; overflow: visible; mask-image: none; -webkit-mask-image: none; margin-right: 0; padding: 0; }
+}

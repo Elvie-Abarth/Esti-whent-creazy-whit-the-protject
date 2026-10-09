@@ -134,7 +134,7 @@ public sealed class DemoCatalog : ICatalog
         {
             ProductId = 11, Name = "Tot", Breed = "Abyssinier", Sex = Sex.Sow,
             DateOfBirth = new DateOnly(2022, 4, 14), Colour = "Sort-hvid roan", Price = 425,
-            CoatPrimary = "#23211F", CoatSecondary = "#E8E2D8", PhotoUrl = "/img/animals/tot.png",
+            CoatPrimary = "#23211F", CoatSecondary = "#E8E2D8", PhotoUrl = "/img/animals/tot.jpg",
             BondedWithId = 12,
             Personality = "Lillesøster til Lente - en snakkesalig, venlig sjæl der elsker at blive kælet med.",
             Description = "Abyssinier-hun med sort-hvidt roan-mønster. Søster-par med Lente, født samme dag.",
@@ -146,7 +146,7 @@ public sealed class DemoCatalog : ICatalog
         {
             ProductId = 12, Name = "Lente", Breed = "Abyssinier", Sex = Sex.Sow,
             DateOfBirth = new DateOnly(2022, 4, 14), Colour = "Trefarvet - sort, hvid og rødbrun", Price = 425,
-            CoatPrimary = "#1E1B19", CoatSecondary = "#C1702E", PhotoUrl = "/img/animals/lente.png",
+            CoatPrimary = "#1E1B19", CoatSecondary = "#C1702E", PhotoUrl = "/img/animals/lente.jpg",
             BondedWithId = 11,
             Personality = "Bulldozeren - storesøster til Tot.",
             Description = "Abyssinier-hun, trefarvet med markant rødbrun rosette. Tåler ikke persille.",

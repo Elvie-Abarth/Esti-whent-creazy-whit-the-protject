@@ -47,7 +47,7 @@
                                 <div class="cart-item">
                                     @if (!string.IsNullOrEmpty(line.PhotoUrl))
                                     {
-                                        <img src="@line.PhotoUrl" alt="" class="cart-item-photo" />
+                                        <img src="@line.PhotoUrl" alt="" class="cart-item-photo" loading="lazy" decoding="async" />
                                     }
                                     <span>@line.ProductName</span>
                                 </div>

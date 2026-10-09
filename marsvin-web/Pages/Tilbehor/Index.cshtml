@@ -69,8 +69,10 @@
     </nav>
 
     <div class="shop">
+        @* Each filter group starts closed, and is open only while one of its
+           choices is in use - so the choice that is narrowing the list is always in view. *@
         <aside class="shop-filters" aria-label="Filtre" data-en-aria-label="Filters">
-            <details class="filter-group" open>
+            <details class="filter-group" open="@(Model.Active is not null)">
                 <summary data-en="Category">Kategori</summary>
                 <ul>
                     <li>
@@ -92,7 +94,7 @@
                 </ul>
             </details>
 
-            <details class="filter-group" open>
+            <details class="filter-group" open="@(Model.ActivePrice is not null)">
                 <summary data-en="Price">Pris</summary>
                 <ul>
                     <li>
@@ -116,7 +118,7 @@
 
             @if (Model.Brands.Count > 0)
             {
-                <details class="filter-group" open>
+                <details class="filter-group filter-group--long" open="@(Model.ActiveBrand is not null)">
                     <summary data-en="Brand">Mærke</summary>
                     <ul>
                         <li>
@@ -124,7 +126,12 @@
                                 <span data-en="All brands">Alle mærker</span>
                             </a>
                         </li>
-                        @foreach (var brand in Model.Brands)
+                        @* The chosen brand first, then the ones that have something to show
+                           with the current filters, then the rest - so the long list
+                           never hides the choice that is in use. *@
+                        @foreach (var brand in Model.Brands
+                            .OrderByDescending(b => b == Model.ActiveBrand)
+                            .ThenByDescending(b => Model.BrandCounts.GetValueOrDefault(b) > 0))
                         {
                             var count = Model.BrandCounts.GetValueOrDefault(brand);
                             <li>

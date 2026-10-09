@@ -261,6 +261,17 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
+// Smaller downloads for the files that are the same for everyone: the
+// stylesheet, the scripts and SVGs shrink to about a fifth. Deliberately
+// NOT the HTML pages: compressing a response that holds a secret (the
+// antiforgery token in every form) next to text an attacker can influence
+// is what the BREACH attack on HTTPS exploits - so pages go out as they are.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ["text/css", "text/javascript", "application/javascript", "image/svg+xml"];
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -307,7 +318,21 @@ app.Use(async (context, next) =>
 });
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+app.UseResponseCompression();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        // A link with ?v=... (asp-append-version on the stylesheet and
+        // scripts) changes whenever the file does, so that copy can be kept
+        // for a year. Everything else - photos, logos - is kept for a day,
+        // then re-checked.
+        var versioned = context.Context.Request.Query.ContainsKey("v");
+        context.Context.Response.Headers.CacheControl = versioned
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=86400";
+    }
+});
 app.UseRouting();
 app.UseRateLimiter();
 app.UseSession();
