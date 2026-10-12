@@ -11,6 +11,7 @@ falls short of the ideal.
            control (RBAC), least privilege and session management
   Part 2 - Injection: SQL injection, cross-site scripting (XSS), input
            validation and output sanitising
+  Then   - How it is tested, and where the project falls short
 
 It is an overview; the full technical walk-through is in
 WEBSITE-ARCHITECTURE.md (section 4 for login and sessions, section 9 for
@@ -60,7 +61,14 @@ OVERVIEW
   delay, the third sends the account owner a warning email, and the fifth
   locks the account until the password is reset.
 
-- Login, registration and password reset are rate limited per IP address.
+- Login, registration and password reset are rate limited per IP address
+  (50 requests a minute, one budget shared by the three pages). The
+  contact and donation forms use the same limit; the chat has its own (20).
+
+- Emails about the account are written in Danish or English. A mail you
+  trigger yourself follows the language of your browser; the warning about
+  failed logins follows the language stored on the account, not the
+  language of whoever is guessing.
 
 - "Forgot password" answers the same way whether or not the email exists,
   so it cannot be used to find out who has an account.
@@ -164,8 +172,17 @@ not logged in is sent to the login page.
 - Every form post needs an antiforgery token tied to the visitor's own
   cookie, which protects the session against cross-site request forgery.
 
+- There is one more cookie, and it is not a security cookie: marsvin-lang
+  holds "da" or "en" so that emails can be written in the language the
+  site is being read in. A script sets it, so it is not HttpOnly, and it
+  carries nothing worth stealing. The server compares it against those
+  two values and ignores anything else (see section 7). While a user is
+  signed in, the per-request check also copies it to the account
+  (Users.PrefersEnglish), for mails the user does not trigger themselves.
+
   Code: Data/AuthCookiePrincipal.cs, Program.cs (cookie and session
-        configuration), Pages/Account/Logout, Pages/Account/Profile
+        configuration), Pages/Account/Logout, Pages/Account/Profile,
+        Data/SiteLanguage.cs, wwwroot/js/lang-toggle.js
 
 
 PART 2 - INJECTION
@@ -190,7 +207,7 @@ The five defences from the course, and what Marsvin does:
 
   Defence                              Marsvin
   -----------------------------------  ----------------------------------
-  Always prepared statements with      Yes, everywhere. All 101 SQL
+  Always prepared statements with      Yes, everywhere. All 102 SQL
   parameters                           commands use parameters (@OrderId,
                                        @Email, ...). User input is never
                                        put into the SQL text itself.
@@ -297,7 +314,9 @@ What the course says an attacker can do with XSS, and what stops it:
   Steal the session cookie              The cookie is HttpOnly - scripts
                                         cannot read it
   Read the browser's local storage      It holds only the language
-                                        choice (da/en), no tokens
+  or the readable cookie                choice (da/en), and the one
+                                        cookie a script can read holds
+                                        the same - no tokens
   Redirect to a fake login page         Redirect addresses are checked to
                                         stay inside the site
                                         (IsSafeLocalUrl)
@@ -356,6 +375,11 @@ list (an allow-list) instead of being cleaned:
     page number are each matched against known values. Anything else is
     ignored and never appears in the page or in a link.
   - The error page shows only the status codes it knows.
+  - The language cookie counts only when it is exactly "da" or "en". It
+    is read in one place (Data/SiteLanguage.cs) and never printed, so a
+    tampered value cannot put text into a page or an email.
+  - An order status posted by staff must be one of the real statuses, and
+    a tracking number may hold only letters, digits, spaces and dashes.
   - Redirect addresses must be local paths.
   - A photo address typed by an admin must point at an image inside the
     site's own /img folder (no other site, no "..", no query string).
@@ -386,7 +410,10 @@ email and a log.
   JSON (the chat)         Written by the framework's JSON writer, then
                           put into the page with textContent
   Email                   User text is HTML-encoded before it goes into
-                          the message (Data/EmailHtmlBody.cs)
+                          the message (Data/EmailHtmlBody.cs). The
+                          donation thank-you goes to an address the
+                          giver typed, so it repeats none of their free
+                          text at all, and their name is kept to one line
   Log                     Control characters, including line breaks, are
                           removed from single-line values, and every
                           line of a multi-line text is prefixed - so
@@ -395,9 +422,65 @@ email and a log.
   SQL                     Not encoded at all - sent as parameters
 
 
+HOW IT IS TESTED
+================
+"dotnet test" runs 696 automated tests. The ones that pin down a claim
+made in this file:
+
+  Claim                                 Test
+  ------------------------------------  ---------------------------------
+  Authorization is checked on the       EndToEndAdminAccessTests: every
+  server, per role                      page under /Admin requested as a
+                                        visitor, a customer, an employee
+                                        and an admin, over real HTTP
+  Hiding a button is not the            The same file: an employee with a
+  protection                            valid session and a valid
+                                        antiforgery token posts straight
+                                        to four admin-only handlers and
+                                        is refused; nothing changes
+  Every staff change is audited,        CatalogAdminPagesTests and
+  and the log cannot be edited          Admin/Orders/IndexModelTests: each
+                                        handler leaves an entry with the
+                                        actor's id; the audit page has no
+                                        handler but "show"
+  Sessions end when they should         AuthCookiePrincipalTests,
+                                        EndToEndAuthTests
+  Own order only (no IDOR)              ConfirmationModelTests,
+                                        EndToEndCartTests
+  Rate limits really stop a client      EndToEndErrorPagesAndRateLimitTests
+                                        (429 on login/register/forgot
+                                        password, and on the chat)
+  Error pages reveal nothing            The same file: a script tag in the
+                                        address appears nowhere in the 404
+  Forms need an antiforgery token       EndToEndAuthTests, EndToEndCartTests,
+                                        EndToEndSitePagesTests and
+                                        EndToEndAdminAccessTests
+  Input that looks like script or       Admin/Orders/IndexModelTests (a
+  SQL is refused or stored as text      tracking number), EmailLanguageTests
+                                        (the language cookie and the email
+                                        frame), Tilbehor/IndexModelTests
+  A donation mail repeats none of       StoetModelTests
+  the giver's own text
+
+Not covered by any test: the JavaScript files, and actually delivering a
+mail through SMTP.
+
+
 WHERE THE PROJECT FALLS SHORT
 =============================
 Honest gaps, worth knowing for a report or an exam:
+
+- The donation form can make the shop send an email to an address someone
+  else typed in. The form used to send no mail at all, precisely to avoid
+  that; a thank-you mail was added later. What bounds it: the wording is
+  fixed, none of the giver's own text is repeated, the form is rate
+  limited and behind the optional reCAPTCHA. Guest checkout has the same
+  property. A stricter design would confirm the address before writing
+  to it.
+
+- The scripts in wwwroot/js have no automated tests. There is no browser
+  test setup, so the language toggle, the cart and the payment form are
+  checked by hand.
 
 - The Admin role is all-or-nothing. There are no finer permissions, so
   an admin who only needs to edit products can also manage accounts.

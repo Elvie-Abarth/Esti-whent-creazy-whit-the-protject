@@ -526,7 +526,7 @@ database - it never resets anything that already has real data in it.
 
 Several features (the login/register/reset-password confirmation links, the
 inactivity-warning / day-off-request / order-confirmation / order-status
-notifications) read
+notifications, the thank-you for a donation) read
 data out of these tables and then send real email via SMTP (`SmtpEmailSender`,
 using MailKit and Gmail). The SMTP credentials themselves are **not** stored
 anywhere in this database or in any file that gets committed -
@@ -538,6 +538,14 @@ email-confirmation login flow) is still fully usable without any SMTP setup.
 `IEmailSender` is registered `Singleton` (unlike the per-request `Scoped`
 stores) because it holds no per-request state - it's just a mail client
 wrapper, safe to share across the whole app's lifetime.
+
+Two columns exist only so a mail can be written in the reader's language
+when the reader is not the one clicking: `Orders.PlacedInEnglish` (set at
+checkout, read when staff change the order's status) and
+`Users.PrefersEnglish` (read for a changed shift, a day-off request, the
+failed-login warning and the inactivity warning below). Both are plain
+`BIT` columns defaulting to Danish. The full rule for which one is used
+when is in `WEBSITE-ARCHITECTURE.md` §8.
 
 The one background piece that ties directly back into this schema is
 **`InactiveAccountCleanupService`** (`Data/InactiveAccountCleanupService.cs`),

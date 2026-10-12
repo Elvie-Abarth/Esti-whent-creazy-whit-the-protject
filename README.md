@@ -126,7 +126,7 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Spørgsmål & svar | `/Faq` | Everyone | Frequently asked questions by topic |
 | Om os / Betaling & levering / Privatliv | `/OmOs`, `/BetalingOgLevering`, `/Privatliv` | Everyone | About the shop, delivery rates and returns, the privacy policy |
 | Kontakt | `/Kontakt` | Everyone | Contact details and a contact form (read by staff on `/Admin/Messages`) |
-| Støt | `/Stoet` | Everyone | Donate money (demo - never charged) or products towards rehomed guinea pigs |
+| Støt | `/Stoet` | Everyone | Donate money (demo - never charged) or products towards rehomed guinea pigs; a giver who leaves an email address gets a thank-you mail |
 | Log ind / Opret konto | `/Account/Login`, `/Account/Register` | Everyone | Sign in, or self-register a Customer account — both require opening an emailed confirmation link before the session is signed in |
 | Glemt adgangskode | `/Account/ForgotPassword`, `/Account/ResetPassword` | Everyone | Request and complete a password reset by email link |
 | Min konto | `/Account/Profile` | Signed in | Update name/email/password, request time off (staff), order history + reorder (customers), delete account |
@@ -146,7 +146,10 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 
 Every page also has an **EN / DA** toggle in the header — the site defaults
 to Danish and switches to English client-side, remembering the choice per
-browser.
+browser. Emails follow it: every mail the shop sends is written in Danish
+or English, after the language the reader has the site in (kept in a small
+`marsvin-lang` cookie, and on the account and the order for mails the
+reader does not trigger themselves).
 
 Demo login credentials (seeded once, on a fresh database — see
 `marsvin-web/DocumentationInformation/DATABASE-NOTES.txt`):
@@ -171,6 +174,7 @@ Data/            ICatalog / ICatalogAdmin (catalog), IUserAccountStore, ICartSto
                  ITimeOffRequestStore, IAuditLogStore, IInboxStore, IEmailSender —
                  each with a Sql* ADO.NET implementation; DbInitializer, Sql/schema.sql;
                  AuthCookiePrincipal (builds and re-validates the signed-in user);
+                 OrderEmails, SiteLanguage (which language an email is written in);
                  the chat: ChatAssistants, ChatSkills, ShopKnowledge, ChatHelp
 Pages/Account/   Register, Login, ConfirmLogin, VerifyTotp, ForgotPassword, ResetPassword,
                  CheckEmail, Logout, Profile, AccessDenied
@@ -183,8 +187,8 @@ Pages/           the storefront and info pages, Chat (the chat's endpoint), Erro
                  shared across every page model that needs them
 wwwroot/css/     site.css — all the design tokens live at the top
 wwwroot/img/     page photos, products/ (square, 640 px), animals/, brands/
-wwwroot/js/      lang-toggle.js (the DA/EN switch), confirm-delete.js (safe confirm() dialogs),
-                 cart-quantity.js (auto-submit qty changes), password-meter.js (live strength
+wwwroot/js/      lang-toggle.js (the DA/EN switch and its cookie), confirm-delete.js (safe confirm() dialogs),
+                 cart-quantity.js (auto-submit qty changes, keeps the scroll position), password-meter.js (live strength
                  meter), confetti.js (order confirmation), chat.js (the support chat),
                  payment.js (card-field formatting), auto-submit.js (sort menu),
                  mascot-pet.js, print-button.js, check-email.js, stock-tabs.js
@@ -281,6 +285,12 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   answers written into the page as text, never as HTML.
 - **Data minimisation**: "I am 16 or older" is a yes/no, not an age or a
   birth date; a phone number is kept with the order only.
+- **The language cookie is matched against two values**: `marsvin-lang`
+  counts only when it is exactly `da` or `en`, and is never printed
+  anywhere - it decides which of two fixed texts an email uses.
+- **The donation thank-you can't carry someone else's words**: it goes to
+  an address the giver typed, so the wording is fixed, none of the giver's
+  free text is repeated, and the form is rate-limited.
 - **No raw SQL string-building anywhere** — every query is a parameterised
   `SqlCommand`, including the admin CRUD forms.
 - **CSRF**: Razor Pages validates the antiforgery token on every POST handler
@@ -352,11 +362,14 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
 - **`SECURITY-NOTES.txt`** — the course's security topics one by one:
   authentication, authorization, RBAC, least privilege, sessions, SQL
   injection, XSS, input validation and output sanitising - how each is
-  implemented here, with test results, and where the project falls short.
+  implemented here, with test results, which automated test backs which
+  claim, and where the project falls short.
 - **Diagrams** — the ER diagram, class diagrams, data flow diagram with
   trust boundaries, navigation map, sequence and state diagrams are kept as
-  a dated set next to the project folder (`diagrams 09102026`), not in this
-  repository: Mermaid sources, PNGs and one PDF.
+  a dated set next to the project folder (`diagrams 12102026`, with the
+  earlier sets beside it), not in this repository: 24 Mermaid sources, PNGs
+  and one PDF. Two were added on 12 October: which language an email is
+  written in, and the donation flow.
 - **`JWT-NOTES.txt`** — why the project uses cookie authentication and
   not JWT, how the two compare, and what adding JWT properly would take.
 - **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,

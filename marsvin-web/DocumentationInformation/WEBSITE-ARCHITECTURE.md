@@ -48,7 +48,9 @@ marsvin-web/
   Pages/            - every route in the site: one .cshtml (+ .cshtml.cs) per page
                       PageModelExtensions.cs - CurrentUserId/CurrentDisplayName/SignInAsync/
                       IsSafeLocalUrl, shared across every page model that needs them
-  Data/             - IXxxStore interfaces, SqlXxxStore implementations, DbInitializer, email;
+  Data/             - IXxxStore interfaces, SqlXxxStore implementations, DbInitializer, email
+                      (IEmailSender, OrderEmails.cs, and SiteLanguage.cs for which language a
+                      mail is written in);
                       the support chat (ChatAssistants.cs, ChatSkills.cs, ShopKnowledge.cs,
                       ChatHelp.cs) and the page texts it shares with the site (FaqData.cs,
                       FoodListData.cs, QuickGuideData.cs)
@@ -59,11 +61,13 @@ marsvin-web/
                       photos, guinea pig photos, brand logos) - static files served as-is
   Program.cs        - composition root: DI registrations, middleware pipeline, startup
   appsettings.json  - connection string, SMTP host/port (not credentials - see below), base URL
-  DATABASE-NOTES.txt / DATABASE-ARCHITECTURE.md / WEBSITE-ARCHITECTURE.md - project docs
+  DocumentationInformation/ - the project docs (this file, the database docs, SECURITY-NOTES.txt,
+                      JWT-NOTES.txt); the diagrams are kept next to the project, see README
 
 marsvin-web.Tests/
   Data/             - store tests, against a real (disposable) SQL Server LocalDB database
   Pages/            - PageModel tests, both direct-construction unit tests and full-HTTP ones
+  EmailLanguageTests.cs - which language each email is written in
   TestAuth.cs, MarsvinWebAppFactory.cs, CookieJar.cs, HttpTestHelpers.cs - shared test plumbing
 ```
 
@@ -435,7 +439,7 @@ middleware makes it a rule rather than a coincidence.)
 | `/Faq` | Frequently asked questions, by topic (`Data/FaqData.cs` - the same entries the chat answers from) |
 | `/OmOs`, `/BetalingOgLevering` | About, and payment/delivery/returns terms (rates printed straight from `ShippingCalculator`) |
 | `/Kontakt` | Contact details and a contact form (saved to `ContactMessages`, read on `/Admin/Messages`) |
-| `/Stoet` | Donate money (a demo - recorded, never charged) or products towards rehomed guinea pigs |
+| `/Stoet` | Donate money (a demo - recorded, never charged) or products towards rehomed guinea pigs. A giver who leaves an email address gets a thank-you mail (see §8) |
 | `/Privatliv` | GDPR privacy policy - what's collected, retention, rights |
 | `/Chat` | POST-only endpoint behind the chat bubble (§12); a GET redirects to `/Faq` |
 | `/Error`, `/ServerError` | What a visitor sees when something goes wrong (§3) |
@@ -605,7 +609,10 @@ localisation resource file. The mechanism, end to end:
 2. `wwwroot/js/lang-toggle.js` finds every `[data-en]` element on
    `DOMContentLoaded`, remembers the original Danish text, and swaps
    `textContent` between the two based on a `localStorage` preference -
-   toggled by the `EN`/`DA` button in the header. `data-en-aria-label`,
+   toggled by the `EN`/`DA` button in the header. Each time it applies a
+   language it also writes that choice to a cookie, `marsvin-lang` (`da` or
+   `en`, one year, `SameSite=Lax`) - the server never sees `localStorage`,
+   and needs the choice for emails (§8). `data-en-aria-label`,
    `data-en-alt`, `data-en-placeholder`, and `data-en-href` do the same for
    `aria-label`/`alt`/`placeholder`/`href` attributes that aren't visible
    text - `data-en-href` is what lets the food list's and quick guide's
@@ -827,6 +834,16 @@ validation, output sanitising, and the known gaps - see
 - **Data minimisation**: an "I am 16 or older" yes/no instead of an age or
   date of birth; a phone number kept with the order only, not on the
   account; an anonymous donation allowed.
+- **The language cookie is an allow-list of two**: `marsvin-lang` is read in
+  one place (`SiteLanguage.Read`) and only the exact values `da` and `en`
+  count. It is never echoed into a page, a mail or a query, so a tampered
+  value has nowhere to go - it is simply treated as not set. It is
+  deliberately not `HttpOnly` (a script sets it) and holds nothing worth
+  stealing.
+- **A public form that sends mail, kept narrow**: the donation thank-you
+  goes to whatever address the giver typed, so its wording is fixed, none of
+  the giver's free text is repeated, the name is kept to one line, and the
+  form is rate limited and behind the optional reCAPTCHA (§8).
 - **Checkout row locking**: `SqlOrderStore.Checkout` uses
   `WITH (UPDLOCK, HOLDLOCK)` on its stock/availability read, closing a race
   where two concurrent checkouts could otherwise both pass validation for
@@ -862,7 +879,8 @@ are framework-level concerns this layer can't see.
 
 ### Layer 2: full end-to-end HTTP tests
 
-`EndToEndAuthTests.cs`, `EndToEndCartTests.cs`, `EndToEndSitePagesTests.cs`
+`EndToEndAuthTests.cs`, `EndToEndCartTests.cs`, `EndToEndSitePagesTests.cs`,
+`EndToEndAdminAccessTests.cs`, `EndToEndErrorPagesAndRateLimitTests.cs`
 and `SecurityHeadersTests.cs` (plus `WebAppCollection`) instead boot the *entire real app* in-process via `MarsvinWebAppFactory`
 (`WebApplicationFactory<Program>`, pointed at its own disposable
 `MarsvinDb_WebTest` database) and drive it with a real `HttpClient` -
@@ -909,10 +927,47 @@ security decisions rather than features:
   ignored and never ends up in a generated link.
 - **`DbInitializerTests`** - that starting the app twice leaves the same
   row counts (the schema script and the seed steps are idempotent).
+- **`EndToEndAdminAccessTests`** - the role matrix over real HTTP: every
+  page under `/Admin` requested as a visitor (sent to login), a customer
+  (access denied), an employee (staff pages yes, admin-only pages denied)
+  and an admin; an employee with a valid session and a valid antiforgery
+  token posting straight to four admin-only handlers; a staff POST with no
+  token; and an employee's stock change showing up in the audit log an
+  admin reads.
+- **`Admin/CatalogAdminPagesTests`** and **`Admin/Orders/IndexModelTests`** -
+  what each admin handler saves and refuses, and that every change writes
+  an audit entry with the acting account's id. The orders tests include a
+  tracking number containing a script tag or SQL, a status value outside
+  the enum, and cancelling after an order was sent. One test asserts that
+  the audit-log page has no handler but `OnGet` and the store no method
+  but `Record` and `GetRecent` - "read-only" as something a test would
+  catch being broken.
+- **`EndToEndErrorPagesAndRateLimitTests`** - that the error page shows
+  nothing from the failed request (a script tag in the URL appears nowhere
+  in the 404), and that the limiters really answer 429: the login, register
+  and forgot-password pages share one budget, and the chat stops at 20 a
+  minute. These tests start their *own* copy of the app with the limit
+  turned down (`factory.WithWebHostBuilder(...)`), because the shared one
+  raises it to 5000 and a limiter spent in one test would fail the next.
+- **`EmailLanguageTests`**, **`StoetModelTests`** and two tests in
+  `PaymentModelTests` - the language rules of §8: the browser's cookie for
+  a mail the recipient triggered, the order's or the account's stored
+  language otherwise (an English employee gets an English shift mail from a
+  Danish admin, and the reverse), the footer, cookie values other than the
+  two being ignored, and that the donation mail repeats none of the giver's
+  own text.
 
 Together, the two layers cover both ends: layer 1 checks the *logic* is
 right in isolation and cheaply, layer 2 checks the *whole request actually
 behaves correctly* when nothing is mocked or bypassed.
+
+**What no test covers.** The JavaScript in `wwwroot/js` - there is no
+browser test setup, so the language toggle and its cookie, the cart's
+scroll position, the payment form's formatting and the chat window are
+checked by hand. Actual delivery through SMTP: `SmtpEmailSender`'s HTML
+frame is tested, sending through a real mailbox is not. And uploading a
+photo through the product and animal edit pages; `PhotoUploadHelper` has
+its own tests, the pages are tested without a file.
 
 ## 11. Frontend conventions (`wwwroot/css/site.css`)
 
@@ -965,6 +1020,13 @@ A few reusable patterns worth knowing before touching a page's markup:
   ResetPassword, admin staff creation), deliberately not on any
   *current*-password field, which is confirming a password rather than
   choosing one.
+
+One behaviour that is script rather than style: changing a quantity or
+removing a line in the cart reloads the page (a normal form post and
+redirect), and `cart-quantity.js` puts the page back where it was scrolled
+to. It saves `window.scrollY` in `sessionStorage` when a cart-line form is
+submitted and restores it on the next load; without storage, or without
+JavaScript, the page simply loads at the top.
 
 There is no CSS framework (no Bootstrap/Tailwind) - `site.css` is one
 hand-written file, organised by page/section with a comment above each

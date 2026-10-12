@@ -151,7 +151,12 @@ Data\SqlShiftStore.cs        - staff work schedule (Admin/Schedule)
 Data\SqlTimeOffRequestStore.cs - employee day-off requests (Account/Profile, Admin/Schedule)
 Data\SqlAuditLogStore.cs     - who changed what and when (Admin/AuditLog), written from every
                                admin/employee write action
-Data\SmtpEmailSender.cs      - real SMTP email (login confirmation, inactivity warnings, notifications)
+Data\SmtpEmailSender.cs      - real SMTP email (login confirmation, inactivity warnings, notifications,
+                               donation thank-you) - every mail in Danish or English
+Data\SiteLanguage.cs         - reads the browser's language cookie (marsvin-lang: da or en); the
+                               language of a mail comes from it, or from Orders.PlacedInEnglish /
+                               Users.PrefersEnglish when the reader is not the one clicking
+Data\OrderEmails.cs          - the "your order has a new status" mail
 Data\LoggingEmailSender.cs   - stands in for SmtpEmailSender when no SMTP credentials are
                                configured, so the app (including email-only login) still works
 Data\DemoCatalog.cs          - the in-memory demo data used to seed the database
