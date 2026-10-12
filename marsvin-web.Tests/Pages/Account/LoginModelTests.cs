@@ -41,9 +41,13 @@ internal sealed class RecordingEmailSender : IEmailSender
 {
     public List<(string ToEmail, string Subject, string Body)> Sent { get; } = [];
 
-    public Task SendAsync(string toEmail, string subject, string body)
+    /// <summary>The language flag each mail in <see cref="Sent"/> was sent with, in the same order.</summary>
+    public List<bool> SentInEnglish { get; } = [];
+
+    public Task SendAsync(string toEmail, string subject, string body, bool english = false)
     {
         Sent.Add((toEmail, subject, body));
+        SentInEnglish.Add(english);
         return Task.CompletedTask;
     }
 }

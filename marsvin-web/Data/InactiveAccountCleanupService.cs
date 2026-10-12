@@ -80,11 +80,12 @@ public sealed class InactiveAccountCleanupService(
         // 1-month pass first: an account that skipped the 2-month window entirely
         // (e.g. the service was down) should still get the more urgent warning,
         // not silently miss both.
-        await WarnAsync(users, stage: 2, leadTime: OneMonthWarningLeadTime, now, monthsLeftText: "en måned");
-        await WarnAsync(users, stage: 1, leadTime: TwoMonthWarningLeadTime, now, monthsLeftText: "to måneder");
+        await WarnAsync(users, stage: 2, leadTime: OneMonthWarningLeadTime, now, monthsLeftText: "en måned", monthsLeftTextEn: "one month");
+        await WarnAsync(users, stage: 1, leadTime: TwoMonthWarningLeadTime, now, monthsLeftText: "to måneder", monthsLeftTextEn: "two months");
     }
 
-    private async Task WarnAsync(SqlUserAccountStore users, byte stage, TimeSpan leadTime, DateTime now, string monthsLeftText)
+    private async Task WarnAsync(
+        SqlUserAccountStore users, byte stage, TimeSpan leadTime, DateTime now, string monthsLeftText, string monthsLeftTextEn)
     {
         var lastActiveBefore = now - InactivityThreshold + leadTime;
         var needsWarning = users.GetCustomersNeedingInactivityWarning(lastActiveBefore, stage);
@@ -92,8 +93,27 @@ public sealed class InactiveAccountCleanupService(
         foreach (var account in needsWarning)
         {
             var deletionDate = account.LastActiveAt + InactivityThreshold;
-            var subject = $"Din Marsvin-konto slettes om ca. {monthsLeftText}, medmindre du logger ind";
-            var body =
+            // No browser is involved here at all - the language is the one
+            // the account last read the site in.
+            var english = account.PrefersEnglish;
+            var subject = english
+                ? $"Your Marsvin account will be deleted in about {monthsLeftTextEn} unless you log in"
+                : $"Din Marsvin-konto slettes om ca. {monthsLeftText}, medmindre du logger ind";
+            var body = english
+                ? $"""
+                Hello {account.DisplayName},
+
+                Your Marsvin account has not been used for a long time. Unless you log in before {deletionDate:d MMMM yyyy}, the account and your account details will be deleted automatically - in line with our 2-year policy for inactive accounts ({appBaseUrl}/Privatliv).
+
+                How to avoid deletion: simply log in to your account once before then.
+                {appBaseUrl}/Account/Login
+
+                Your previous orders are kept in any case, whether or not the account is deleted.
+
+                Kind regards
+                Marsvin
+                """
+                :
                 $"""
                 Hej {account.DisplayName},
 
@@ -110,7 +130,7 @@ public sealed class InactiveAccountCleanupService(
 
             try
             {
-                await emailSender.SendAsync(account.Email, subject, body);
+                await emailSender.SendAsync(account.Email, subject, body, english);
                 users.SetInactivityWarningStage(account.UserId, stage);
             }
             catch (Exception ex)

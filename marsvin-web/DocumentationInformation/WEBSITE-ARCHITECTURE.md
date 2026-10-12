@@ -481,7 +481,7 @@ shown as in stock / low / sold out, never as a number.
 **Shipping is priced on the server.** `ShippingCalculator` (`Models/
 Shipping.cs`) is the one place that knows the rates: parcels of at most
 20 kg, a price per parcel by carrier and weight band, and free shipping
-when the shipped accessories reach 499 kr. The payment page uses it to
+when the shipped accessories reach 2,000 kr. The payment page uses it to
 *show* each option; `SqlOrderStore.Checkout` uses it again, inside the
 checkout transaction and from the product weights in the database, to
 decide what is actually charged. The form can choose a carrier - it cannot
@@ -619,7 +619,8 @@ localisation resource file. The mechanism, end to end:
 
 No page is ever served twice for the two languages, and nothing here needs
 a round-trip to the server to switch - it's a pure client-side text
-substitution, remembered per browser via `localStorage`.
+substitution, remembered per browser via `localStorage`. The one thing the
+server needs the choice for is email - see §8 for the `marsvin-lang` cookie.
 
 ## 7. PDF downloads
 
@@ -704,14 +705,42 @@ Gmail SMTP, or `LoggingEmailSender` if no credentials are configured - see
 | Account approaching the 2-year inactivity cutoff (2 months out, then 1 month out) | The customer | `InactiveAccountCleanupService` |
 | An Employee submits a day-off request | Every active Admin | `ProfileModel.OnPostRequestTimeOffAsync` |
 | An Admin adds or removes a shift | That specific staff member | `Admin/Schedule/IndexModel.OnPostCreateAsync` / `OnPostDeleteAsync` |
+| A donation is made with an email address given | The donor (the address typed into the form) | `StoetModel.SendThankYouEmailAsync` |
 
-The contact form and the donation form do **not** send email - they are
-saved to the database and read by staff, so a public form can't be used to
-make the shop send mail to an address of the sender's choosing.
+The contact form does **not** send email - it is saved to the database and
+read by staff, so a public form can't be used to make the shop send mail to
+an address of the sender's choosing. The donation form used to work the same
+way; it now sends a thank-you to the address the donor typed in, which is
+the same trade-off guest checkout already makes. What limits the misuse: the
+mail has fixed wording and repeats none of the donor's free text (only the
+name, kept to one line, and the amount), the form is rate-limited and behind
+the optional reCAPTCHA, and an anonymous money donation sends nothing. A
+mail that fails to send is logged and does not undo the donation.
 
-All of these share the same `IEmailSender.SendAsync(toEmail, subject, body)`
-shape - plain-text email, no HTML templates, no queue (sent synchronously,
-inline in the request/background-job that triggered it).
+All of these share the same
+`IEmailSender.SendAsync(toEmail, subject, body, english)` shape - plain-text
+email, no HTML templates, no queue (sent synchronously, inline in the
+request/background-job that triggered it).
+
+**Every mail is written in Danish or English, following the site.** The
+DA/EN choice lives in the browser, so `lang-toggle.js` also sets a small
+cookie, `marsvin-lang` (`da` or `en`), which `SiteLanguage` reads. It is
+only ever compared against those two values - never echoed - and anything
+else counts as Danish. Which language a mail gets depends on who triggered
+it:
+
+| Who triggered the mail | Language used |
+|---|---|
+| The recipient, in their own browser (login, register, password reset, profile change, checkout, donation, cancelling their own order) | The cookie of that request |
+| Staff, about an order (status changes) | `Orders.PlacedInEnglish` - the language at checkout |
+| Someone else, about an account (a changed shift, a day-off request to the admins, the failed-login warning) | `Users.PrefersEnglish` |
+| Nobody - the inactivity background job | `Users.PrefersEnglish` |
+
+`Users.PrefersEnglish` is kept current by `AuthCookiePrincipal.RevalidateAsync`
+(written only when the cookie differs from what is stored) and set at
+registration. Product names in an order mail stay as the order recorded
+them, which is Danish. The `english` flag passed to `SendAsync` only picks
+the language of the footer the sender adds itself.
 
 ## 9. Security practices (a summary - see the code comments for the "why")
 
@@ -809,7 +838,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 586 tests (all of them need
+`dotnet test` from the solution root runs 696 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

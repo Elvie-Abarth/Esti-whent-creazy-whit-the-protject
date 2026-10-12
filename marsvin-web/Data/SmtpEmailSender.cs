@@ -11,14 +11,14 @@ public sealed class SmtpEmailSender(
 {
     private const string LogoContentId = "marsvin-mark";
 
-    public async Task SendAsync(string toEmail, string subject, string body)
+    public async Task SendAsync(string toEmail, string subject, string body, bool english = false)
     {
         var settings = options.Value;
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(settings.FromName, settings.Username));
         message.To.Add(MailboxAddress.Parse(toEmail));
         message.Subject = subject;
-        message.Body = BuildBody(body);
+        message.Body = BuildBody(body, english);
 
         using var client = new SmtpClient();
         await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.StartTls);
@@ -41,7 +41,7 @@ public sealed class SmtpEmailSender(
     // mark and contact details every other page already shows in the footer -
     // recipients get the same branding a page of the site gives them, instead
     // of a bare unbranded message that's easy to mistake for spam.
-    private MimeEntity BuildBody(string plainTextBody)
+    private MimeEntity BuildBody(string plainTextBody, bool english)
     {
         var builder = new BodyBuilder { TextBody = plainTextBody };
 
@@ -50,21 +50,27 @@ public sealed class SmtpEmailSender(
         {
             var logo = builder.LinkedResources.Add(logoPath);
             logo.ContentId = LogoContentId;
-            builder.HtmlBody = BuildHtmlBody(plainTextBody, $"cid:{LogoContentId}");
+            builder.HtmlBody = BuildHtmlBody(plainTextBody, $"cid:{LogoContentId}", english);
         }
         else
         {
             // Falls back to text-only HTML (still branded via the footer) if
             // the asset is ever missing - never lets a missing logo file turn
             // into a failed send.
-            builder.HtmlBody = BuildHtmlBody(plainTextBody, logoCid: null);
+            builder.HtmlBody = BuildHtmlBody(plainTextBody, logoCid: null, english);
         }
 
         return builder.ToMessageBody();
     }
 
-    private static string BuildHtmlBody(string plainTextBody, string? logoCid)
+    private static string BuildHtmlBody(string plainTextBody, string? logoCid, bool english)
     {
+        var openingHours = english
+            ? "Thursday and Friday 14&ndash;18, Saturday 10&ndash;14"
+            : "Torsdag og fredag 14&ndash;18, l&oslash;rdag 10&ndash;14";
+        var disclaimer = english
+            ? "Example project, not a registered company."
+            : "Eksempelprojekt, ikke en registreret virksomhed.";
         var encodedBody = EmailHtmlBody.Build(plainTextBody);
         var logoImg = logoCid is null
             ? ""
@@ -72,7 +78,7 @@ public sealed class SmtpEmailSender(
 
         return $$"""
             <!DOCTYPE html>
-            <html lang="da">
+            <html lang="{{(english ? "en" : "da")}}">
             <body style="margin:0;padding:0;background:#F0E7D2;font-family:Georgia,'Times New Roman',serif;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0E7D2;padding:24px 0;">
                     <tr>
@@ -96,11 +102,11 @@ public sealed class SmtpEmailSender(
                                 <tr>
                                     <td style="padding:18px 28px;background:#F0E7D2;color:#5B5142;font-size:12px;line-height:1.7;">
                                         <strong>Marsvin</strong> &middot; Havnegade 12, 6700 Esbjerg<br>
-                                        Torsdag og fredag 14&ndash;18, l&oslash;rdag 10&ndash;14<br>
+                                        {{openingHours}}<br>
                                         <a href="mailto:kontakt@marsvin.dk" style="color:#2C4327;">kontakt@marsvin.dk</a>
                                         &middot;
                                         <a href="tel:+4570123456" style="color:#2C4327;">70 12 34 56</a><br>
-                                        <span style="color:#8A8168;">Eksempelprojekt, ikke en registreret virksomhed.</span>
+                                        <span style="color:#8A8168;">{{disclaimer}}</span>
                                     </td>
                                 </tr>
                             </table>

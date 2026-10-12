@@ -151,6 +151,10 @@ One row per account, whether Customer, Employee, or Admin (`Role`: `0`/`1`/`2`):
   makes changing a password actually end a session someone else may be
   holding. It is not a secret (it only ever travels inside the encrypted
   cookie); it just has to be different each time.
+- **`PrefersEnglish`** - `BIT`, `0` (Danish) by default: the language the
+  account last read the site in. Used for emails the account's owner did
+  not trigger themselves (a changed shift, the inactivity warning), and
+  kept current from the browser's language cookie while they are signed in.
 
 Two more columns exist specifically to drive the GDPR 2-year inactivity
 policy:
@@ -240,7 +244,7 @@ the receipt itself fall back to instead. A guest's cart was never in
 **What the shipment cost and weighed** is stored on the order, not worked
 out again later: `ShippingCost` (already included in `TotalPrice`; `0` for
 pickup, and `0` when the shipped accessories reach the free-shipping
-threshold of 499 kr.), `ShippingWeightGrams` and `ParcelCount` (both `NULL`
+threshold of 2,000 kr.), `ShippingWeightGrams` and `ParcelCount` (both `NULL`
 for pickup). They are snapshots for the same reason `UnitPrice` is: if the
 rates or a product's weight change next month, an old receipt must still
 say what was actually charged. All three are calculated by
@@ -274,6 +278,10 @@ form accepts spaces, but only the eight digits are stored, after the
 CVR check-digit rule has been verified in code (`Cvr.IsValid`). The VAT
 amount on such a receipt is calculated from `TotalPrice` when shown, not
 stored.
+
+**`PlacedInEnglish`** (`BIT`, `0` by default) records the language the site
+was in at checkout, so the status emails staff trigger later are written in
+the buyer's language - a guest has no account to remember it on.
 
 ### `Promotions`
 

@@ -49,19 +49,38 @@ public class ForgotPasswordModel(
             var token = pendingLogins.Create(user.UserId, returnUrl: null, ConfirmationValidFor);
             var resetUrl = $"{Request.Scheme}://{Request.Host}/Account/ResetPassword?token={Uri.EscapeDataString(token)}";
 
-            await emailSender.SendAsync(user.Email, "Nulstil din adgangskode til Marsvin",
-                $"""
-                Hej {user.DisplayName},
+            if (this.IsEnglish())
+            {
+                await emailSender.SendAsync(user.Email, "Reset your Marsvin password",
+                    $"""
+                    Hello {user.DisplayName},
 
-                Nogen (forhåbentlig dig) bad om at nulstille adgangskoden til din Marsvin-konto. Vælg en ny adgangskode ved at åbne linket herunder - det udløber om 15 minutter:
+                    Someone (hopefully you) asked to reset the password for your Marsvin account. Choose a new password by opening the link below - it expires in 15 minutes:
 
-                {resetUrl}
+                    {resetUrl}
 
-                Var det ikke dig? Så kan du roligt ignorere denne mail - din adgangskode er ikke ændret.
+                    Wasn't it you? Then you can safely ignore this email - your password has not been changed.
 
-                Venlig hilsen
-                Marsvin
-                """);
+                    Kind regards
+                    Marsvin
+                    """, english: true);
+            }
+            else
+            {
+                await emailSender.SendAsync(user.Email, "Nulstil din adgangskode til Marsvin",
+                    $"""
+                    Hej {user.DisplayName},
+
+                    Nogen (forhåbentlig dig) bad om at nulstille adgangskoden til din Marsvin-konto. Vælg en ny adgangskode ved at åbne linket herunder - det udløber om 15 minutter:
+
+                    {resetUrl}
+
+                    Var det ikke dig? Så kan du roligt ignorere denne mail - din adgangskode er ikke ændret.
+
+                    Venlig hilsen
+                    Marsvin
+                    """);
+            }
         }
 
         return RedirectToPage("CheckEmail", new { purpose = "reset" });

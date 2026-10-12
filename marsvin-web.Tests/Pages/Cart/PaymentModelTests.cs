@@ -140,6 +140,48 @@ public class PaymentModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPost_WithTheSiteInEnglish_SendsAnEnglishConfirmation_AndLaterStatusMailsFollowTheOrder()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+        model.HttpContext.Request.Headers.Cookie = $"{SiteLanguage.CookieName}=en";
+        model.Input = ValidInput();
+
+        await model.OnPostAsync();
+
+        var order = _orders.GetOrdersForUser(userId).Single();
+        Assert.True(order.PlacedInEnglish);
+        Assert.Equal($"Order confirmation #{order.OrderId}", _email.Sent[0].Subject);
+        Assert.Contains("Thank you for your order", _email.Sent[0].Body);
+        Assert.True(_email.SentInEnglish[0]);
+
+        // Staff move the order along from their own (Danish) browser: no
+        // language is passed, so the mail uses the one the order was placed in.
+        _orders.UpdateStatus(order.OrderId, OrderStatus.Processing, trackingNumber: null);
+        await OrderEmails.SendStatusUpdateAsync(_email, _users, _orders.FindById(order.OrderId)!);
+
+        Assert.Equal($"Order #{order.OrderId}: Being prepared", _email.Sent[1].Subject);
+        Assert.Contains("We are getting your order ready.", _email.Sent[1].Body);
+    }
+
+    [Fact]
+    public async Task OnPost_WithTheSiteInDanish_KeepsTheDanishConfirmation()
+    {
+        var userId = NewCustomerId();
+        _cart.AddOrIncrement(userId, 104, 1);
+        var model = MakeModel(userId);
+        model.Input = ValidInput();
+
+        await model.OnPostAsync();
+
+        var order = _orders.GetOrdersForUser(userId).Single();
+        Assert.False(order.PlacedInEnglish);
+        Assert.Equal($"Ordrebekræftelse #{order.OrderId}", _email.Sent[0].Subject);
+        Assert.False(_email.SentInEnglish[0]);
+    }
+
+    [Fact]
     public async Task OnPost_ItemNoLongerInStock_LeavesErrorForTheCartPageAndRedirectsThere()
     {
         var userId = NewCustomerId();

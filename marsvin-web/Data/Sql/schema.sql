@@ -158,6 +158,16 @@ BEGIN
     ALTER TABLE dbo.Users ADD TotpEnabled BIT NOT NULL DEFAULT 0;
 END
 
+-- The language the account last read the site in (0 = Danish, 1 = English),
+-- so an email that isn't triggered by the recipient's own click - a changed
+-- shift, the inactivity warning - can still be written in their language.
+-- Kept up to date from the browser's language cookie while they're signed
+-- in (see AuthCookiePrincipal.RevalidateAsync).
+IF COL_LENGTH('dbo.Users', 'PrefersEnglish') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD PrefersEnglish BIT NOT NULL DEFAULT 0;
+END
+
 -- Short-lived, single-use tokens for the email login-confirmation step (see
 -- LoginModel/ConfirmLoginModel): only the token's hash is ever stored, the
 -- same way a password never is - a leaked database can't be turned into
@@ -439,6 +449,14 @@ END
 IF COL_LENGTH('dbo.Orders', 'CompanyCvr') IS NULL
 BEGIN
     ALTER TABLE dbo.Orders ADD CompanyCvr CHAR(8) NULL;
+END
+
+-- The language the site was in when the order was placed (0 = Danish,
+-- 1 = English). A guest has no account to remember it on, and the "your
+-- order was sent" email is triggered by staff, not by the buyer's browser.
+IF COL_LENGTH('dbo.Orders', 'PlacedInEnglish') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD PlacedInEnglish BIT NOT NULL DEFAULT 0;
 END
 
 -- Messages from the public contact form (see Kontakt, read on Admin/Messages).

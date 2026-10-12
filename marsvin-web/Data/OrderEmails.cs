@@ -10,8 +10,18 @@ namespace MarsvinWebExample.Data;
 /// </summary>
 public static class OrderEmails
 {
-    public static async Task SendStatusUpdateAsync(IEmailSender emailSender, IUserAccountStore users, Order order)
+    /// <param name="english">
+    /// The language to write in when the buyer is the one who triggered the
+    /// mail (cancelling their own order) and so is reading the site right
+    /// now. Left out when staff trigger it: then it is the language the
+    /// order was placed in, since the staff member's own language says
+    /// nothing about the buyer's.
+    /// </param>
+    public static async Task SendStatusUpdateAsync(
+        IEmailSender emailSender, IUserAccountStore users, Order order, bool? english = null)
     {
+        var inEnglish = english ?? order.PlacedInEnglish;
+
         // A signed-in buyer's address comes from their account as it is now;
         // a guest's is the one given at checkout. Neither (the account has
         // since been deleted): nobody left to tell.
@@ -20,13 +30,48 @@ public static class OrderEmails
         var toName = buyer?.DisplayName ?? order.GuestName;
         if (toEmail is null) return;
 
-        var status = order.Status.DisplayName(order.DeliveryMethod);
+        var status = order.Status.DisplayName(order.DeliveryMethod, inEnglish);
         var shipped = order.DeliveryMethod == DeliveryMethod.Shipping;
+        var carrier = order.ShippingCarrier?.DisplayName(inEnglish);
+
+        if (inEnglish)
+        {
+            var detailEn = order.Status switch
+            {
+                OrderStatus.Processing => "We are getting your order ready.",
+                OrderStatus.Sent when shipped =>
+                    $"Your parcel has been handed over to {carrier}." +
+                    (order.TrackingNumber is not null ? $"\nTrack & trace number: {order.TrackingNumber}" : "") +
+                    (order.ExpectedDelivery is var (earliest, latest)
+                        ? $"\nExpected delivery: {ShippingCalculator.FormatWindow(earliest, latest)}" : ""),
+                OrderStatus.Sent =>
+                    "Your order is ready in the shop: Marsvin, Havnegade 12, 6700 Esbjerg.\n" +
+                    "Opening hours: Thursday and Friday 14-18, Saturday 10-14.",
+                OrderStatus.Completed => "Thank you for shopping with us - we hope you'll be happy with it.",
+                OrderStatus.Cancelled =>
+                    $"The order has been cancelled, and the amount of {order.TotalPrice:N0} kr. will be returned to you (demo - nothing was ever charged).",
+                _ => ""
+            };
+
+            await emailSender.SendAsync(toEmail, $"Order #{order.OrderId}: {status}",
+                $"""
+                Hello {toName},
+
+                Your order #{order.OrderId} has a new status: {status}.
+
+                {detailEn}
+
+                Kind regards
+                Marsvin
+                """, english: true);
+            return;
+        }
+
         var detail = order.Status switch
         {
             OrderStatus.Processing => "Vi er ved at gøre din ordre klar.",
             OrderStatus.Sent when shipped =>
-                $"Din pakke er afleveret til {order.ShippingCarrier?.DisplayName()}." +
+                $"Din pakke er afleveret til {carrier}." +
                 (order.TrackingNumber is not null ? $"\nTrack & trace-nummer: {order.TrackingNumber}" : "") +
                 (order.ExpectedDelivery is var (earliest, latest)
                     ? $"\nForventet levering: {ShippingCalculator.FormatWindow(earliest, latest)}" : ""),

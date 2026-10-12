@@ -86,9 +86,9 @@ public class ShippingCalculatorTests
     }
 
     [Theory]
-    [InlineData(498.99, 55)]
-    [InlineData(499, 0)]
-    [InlineData(1299, 0)]
+    [InlineData(1999.99, 55)]
+    [InlineData(2000, 0)]
+    [InlineData(3500, 0)]
     public void Quote_IsFree_OnceTheShippedItemsReachTheThreshold(decimal shippableItemsTotal, decimal expectedCost)
     {
         var quote = ShippingCalculator.Quote(ShippingCarrier.PostNord, 800, new DateOnly(2026, 10, 5), shippableItemsTotal);

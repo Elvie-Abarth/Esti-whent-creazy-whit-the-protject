@@ -76,7 +76,7 @@ public static class ShippingCalculator
     }
 
     /// <summary>Shipping is free once the shippable items (never the animals - they aren't shipped) come to this much.</summary>
-    public const decimal FreeShippingThreshold = 499m;
+    public const decimal FreeShippingThreshold = 2000m;
 
     public static decimal ShippableTotal(IEnumerable<CartLine> lines) =>
         lines.Where(l => !l.IsAnimal).Sum(l => l.LineTotal);

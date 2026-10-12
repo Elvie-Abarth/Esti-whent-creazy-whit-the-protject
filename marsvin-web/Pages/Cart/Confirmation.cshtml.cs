@@ -39,7 +39,7 @@ public class ConfirmationModel(IOrderStore orders, IUserAccountStore users, IEma
 
         if (orders.Cancel(orderId, OrderStatus.Placed))
         {
-            await OrderEmails.SendStatusUpdateAsync(emailSender, users, orders.FindById(orderId)!);
+            await OrderEmails.SendStatusUpdateAsync(emailSender, users, orders.FindById(orderId)!, this.IsEnglish());
             ToastMessage = new Bilingual("Ordren er annulleret.", "The order has been cancelled.");
         }
         else

@@ -162,6 +162,11 @@ BEGIN
     ALTER TABLE dbo.Users ADD TotpEnabled BIT NOT NULL DEFAULT 0;
 END
 
+IF COL_LENGTH('dbo.Users', 'PrefersEnglish') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD PrefersEnglish BIT NOT NULL DEFAULT 0;
+END
+
 IF OBJECT_ID('dbo.PendingLogins', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PendingLogins
@@ -394,6 +399,11 @@ END
 IF COL_LENGTH('dbo.Orders', 'CompanyCvr') IS NULL
 BEGIN
     ALTER TABLE dbo.Orders ADD CompanyCvr CHAR(8) NULL;
+END
+
+IF COL_LENGTH('dbo.Orders', 'PlacedInEnglish') IS NULL
+BEGIN
+    ALTER TABLE dbo.Orders ADD PlacedInEnglish BIT NOT NULL DEFAULT 0;
 END
 
 IF OBJECT_ID('dbo.ContactMessages', 'U') IS NULL

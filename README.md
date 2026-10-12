@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-586 tests, three layers:
+696 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -101,7 +101,15 @@ dotnet test
   though it's validly-formed, the auth cookie is `HttpOnly`, logging out
   actually expires that cookie and blocks a subsequent request to a protected
   page, and a full register → confirm-by-email → browse → log-out round trip
-  works over real HTTP.
+  works over real HTTP. The same layer tries every page under `/Admin` as a
+  visitor, a customer, an employee and an admin (including an employee
+  posting straight to an admin-only handler), checks that the rate limits
+  really answer 429, and that the error pages echo nothing from the request.
+
+The admin pages' own logic (what each handler saves, refuses and writes to
+the audit log) and the language of every email are covered in the middle
+layer. Not covered: the JavaScript in `wwwroot/js` - there is no browser
+test setup - and actually delivering mail through SMTP.
 
 All three require LocalDB installed and running (`sqllocaldb info`).
 

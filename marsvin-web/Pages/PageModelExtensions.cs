@@ -54,6 +54,13 @@ public static class PageModelExtensions
         page.User.FindFirstValue(ClaimTypes.Name) ?? "?";
 
     /// <summary>
+    /// Whether the visitor is reading the site in English - used to write an
+    /// email in the language of the page that triggered it. Only an exact
+    /// "en" counts; a missing or tampered cookie means Danish, the default.
+    /// </summary>
+    public static bool IsEnglish(this PageModel page) => SiteLanguage.IsEnglish(page.PageContext?.HttpContext);
+
+    /// <summary>
     /// Issues the auth cookie for <paramref name="user"/>. Used after a
     /// password-confirmed registration, an email-confirmed login, and a
     /// profile update (to refresh the name/email claims immediately rather

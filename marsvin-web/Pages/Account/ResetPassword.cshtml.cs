@@ -57,17 +57,34 @@ public class ResetPasswordModel(
 
         // ASVS 2.5.5 - notify on every auth-factor change, this recovery
         // path included, not just the self-service one on Profile.
-        await emailSender.SendAsync(user.Email, "Din adgangskode er ændret på Marsvin",
-            $"""
-            Hej {user.DisplayName},
+        if (this.IsEnglish())
+        {
+            await emailSender.SendAsync(user.Email, "Your Marsvin password has been changed",
+                $"""
+                Hello {user.DisplayName},
 
-            Din adgangskode er lige blevet ændret via "glemt adgangskode".
+                Your password has just been changed through "forgot password".
 
-            Var det ikke dig, så kontakt os med det samme via kontaktoplysningerne på hjemmesiden.
+                If that wasn't you, contact us right away using the contact details on the website.
 
-            Venlig hilsen
-            Marsvin
-            """);
+                Kind regards
+                Marsvin
+                """, english: true);
+        }
+        else
+        {
+            await emailSender.SendAsync(user.Email, "Din adgangskode er ændret på Marsvin",
+                $"""
+                Hej {user.DisplayName},
+
+                Din adgangskode er lige blevet ændret via "glemt adgangskode".
+
+                Var det ikke dig, så kontakt os med det samme via kontaktoplysningerne på hjemmesiden.
+
+                Venlig hilsen
+                Marsvin
+                """);
+        }
 
         ToastMessage = new Bilingual(
             "Din adgangskode er ændret. Log ind med den nye.",

@@ -205,6 +205,19 @@ public class SqlUserAccountStoreTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public void SetPrefersEnglish_IsDanishByDefault_AndRemembersAChange()
+    {
+        var email = $"language-{Guid.NewGuid():N}@example.com";
+        _users.CreateUser(email, "hash", "Language Test", UserRole.Customer);
+        var user = _users.FindByEmail(email)!;
+        Assert.False(user.PrefersEnglish);
+
+        _users.SetPrefersEnglish(user.UserId, true);
+
+        Assert.True(_users.FindById(user.UserId)!.PrefersEnglish);
+    }
+
+    [Fact]
     public void SetInactivityWarningStage_UpdatesStage()
     {
         var email = $"set-stage-{Guid.NewGuid():N}@example.com";

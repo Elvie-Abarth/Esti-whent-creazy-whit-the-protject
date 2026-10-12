@@ -28,7 +28,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp, PrefersEnglish " +
             "FROM dbo.Users WHERE Email = @Email;", connection);
         command.Parameters.AddWithValue("@Email", email);
 
@@ -40,7 +40,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp, PrefersEnglish " +
             "FROM dbo.Users WHERE UserId = @UserId;", connection);
         command.Parameters.AddWithValue("@UserId", userId);
 
@@ -52,7 +52,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp, PrefersEnglish " +
             "FROM dbo.Users ORDER BY UserId;", connection);
 
         var users = new List<ApplicationUser>();
@@ -251,7 +251,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
     {
         using var connection = Open();
         using var command = new SqlCommand(
-            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp " +
+            "SELECT UserId, Email, PasswordHash, DisplayName, Role, IsActive, CreatedAt, LastActiveAt, TotpSecret, TotpEnabled, SecurityStamp, PrefersEnglish " +
             "FROM dbo.Users WHERE Role = @CustomerRole AND LastActiveAt <= @LastActiveBefore AND InactivityWarningStage < @Stage;",
             connection);
         command.Parameters.AddWithValue("@CustomerRole", (byte)UserRole.Customer);
@@ -270,6 +270,16 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         using var command = new SqlCommand(
             "UPDATE dbo.Users SET InactivityWarningStage = @Stage WHERE UserId = @UserId;", connection);
         command.Parameters.AddWithValue("@Stage", stage);
+        command.Parameters.AddWithValue("@UserId", userId);
+        command.ExecuteNonQuery();
+    }
+
+    public void SetPrefersEnglish(int userId, bool english)
+    {
+        using var connection = Open();
+        using var command = new SqlCommand(
+            "UPDATE dbo.Users SET PrefersEnglish = @English WHERE UserId = @UserId;", connection);
+        command.Parameters.AddWithValue("@English", english);
         command.Parameters.AddWithValue("@UserId", userId);
         command.ExecuteNonQuery();
     }
@@ -316,6 +326,7 @@ public sealed class SqlUserAccountStore(string connectionString) : IUserAccountS
         LastActiveAt = reader.GetDateTime(reader.GetOrdinal("LastActiveAt")),
         TotpSecret = reader.IsDBNull(reader.GetOrdinal("TotpSecret")) ? null : TotpProtector.Unprotect(reader.GetString(reader.GetOrdinal("TotpSecret"))),
         TotpEnabled = reader.GetBoolean(reader.GetOrdinal("TotpEnabled")),
-        SecurityStamp = reader.GetGuid(reader.GetOrdinal("SecurityStamp")).ToString("N")
+        SecurityStamp = reader.GetGuid(reader.GetOrdinal("SecurityStamp")).ToString("N"),
+        PrefersEnglish = reader.GetBoolean(reader.GetOrdinal("PrefersEnglish"))
     };
 }

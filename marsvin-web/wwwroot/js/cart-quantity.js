@@ -29,4 +29,33 @@
         input.value = Math.max(min, next);
         input.dispatchEvent(new Event("change", { bubbles: true }));
     });
+
+    // Changing a quantity or removing a line reloads the page, which would
+    // otherwise land back at the top. Remember where the page was scrolled to
+    // when a cart-line form is submitted, and go back there after the reload.
+    // sessionStorage can be unavailable (private window, blocked site data) -
+    // then the page simply loads at the top as before.
+    var scrollKey = "cartScrollY";
+
+    document.addEventListener("submit", function (event) {
+        if (!event.target.closest(".cart-table")) return;
+        try { sessionStorage.setItem(scrollKey, String(window.scrollY)); } catch (e) { }
+    });
+
+    function restoreScroll() {
+        var saved = null;
+        try {
+            saved = sessionStorage.getItem(scrollKey);
+            sessionStorage.removeItem(scrollKey);
+        } catch (e) { }
+
+        var y = parseInt(saved, 10);
+        if (y > 0) window.scrollTo(0, y);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", restoreScroll);
+    } else {
+        restoreScroll();
+    }
 })();

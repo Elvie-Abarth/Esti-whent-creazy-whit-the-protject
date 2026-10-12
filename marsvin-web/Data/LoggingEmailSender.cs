@@ -8,7 +8,7 @@ namespace MarsvinWebExample.Data;
 /// </summary>
 public sealed class LoggingEmailSender(ILogger<LoggingEmailSender> logger) : IEmailSender
 {
-    public Task SendAsync(string toEmail, string subject, string body)
+    public Task SendAsync(string toEmail, string subject, string body, bool english = false)
     {
         logger.LogWarning(
             "No SMTP credentials configured (see DocumentationInformation/DATABASE-NOTES.txt) - " +

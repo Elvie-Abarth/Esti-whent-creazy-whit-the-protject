@@ -68,19 +68,42 @@ public class RegisterModel(
         var token = pendingLogins.Create(user.UserId, safeReturnUrl, ConfirmationValidFor);
         var confirmUrl = $"{Request.Scheme}://{Request.Host}/Account/ConfirmLogin?token={Uri.EscapeDataString(token)}";
 
-        await emailSender.SendAsync(user.Email, "Bekræft din konto hos Marsvin",
-            $"""
-            Hej {user.DisplayName},
+        // The new account starts out in the language it was created in.
+        var english = this.IsEnglish();
+        if (english) users.SetPrefersEnglish(user.UserId, true);
 
-            Velkommen til Marsvin! Bekræft din nye konto ved at åbne linket herunder - det udløber om 15 minutter:
+        if (english)
+        {
+            await emailSender.SendAsync(user.Email, "Confirm your account at Marsvin",
+                $"""
+                Hello {user.DisplayName},
 
-            {confirmUrl}
+                Welcome to Marsvin! Confirm your new account by opening the link below - it expires in 15 minutes:
 
-            Var det ikke dig, der oprettede kontoen? Så kan du roligt ignorere denne mail.
+                {confirmUrl}
 
-            Venlig hilsen
-            Marsvin
-            """);
+                Wasn't it you who created the account? Then you can safely ignore this email.
+
+                Kind regards
+                Marsvin
+                """, english: true);
+        }
+        else
+        {
+            await emailSender.SendAsync(user.Email, "Bekræft din konto hos Marsvin",
+                $"""
+                Hej {user.DisplayName},
+
+                Velkommen til Marsvin! Bekræft din nye konto ved at åbne linket herunder - det udløber om 15 minutter:
+
+                {confirmUrl}
+
+                Var det ikke dig, der oprettede kontoen? Så kan du roligt ignorere denne mail.
+
+                Venlig hilsen
+                Marsvin
+                """);
+        }
 
         return RedirectToPage("CheckEmail", new { purpose = "register", returnUrl = safeReturnUrl });
     }

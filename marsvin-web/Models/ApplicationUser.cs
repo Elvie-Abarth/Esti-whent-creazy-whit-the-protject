@@ -31,6 +31,9 @@ public sealed class ApplicationUser
     /// </summary>
     public string SecurityStamp { get; init; } = "";
 
+    /// <summary>The language the account last read the site in - what an email to them is written in when they didn't trigger it themselves.</summary>
+    public bool PrefersEnglish { get; init; }
+
     /// <summary>True only once enrollment is confirmed with a valid code - see LoginModel/VerifyTotpModel.</summary>
     public bool TotpEnabled { get; init; }
 }

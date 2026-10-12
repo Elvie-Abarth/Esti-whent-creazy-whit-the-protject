@@ -109,33 +109,68 @@ public class ProfileModel(
         // goes to the *old* inbox (the one place still guaranteed to reach
         // the real owner if this wasn't them), the password one to whatever
         // address is on record now.
+        var english = this.IsEnglish();
         if (emailChanged)
         {
-            await emailSender.SendAsync(originalEmail, "Din e-mail er ændret på Marsvin",
-                $"""
-                Hej {user.DisplayName},
+            if (english)
+            {
+                await emailSender.SendAsync(originalEmail, "Your email has been changed at Marsvin",
+                    $"""
+                    Hello {user.DisplayName},
 
-                Din konto-e-mail er ændret fra {originalEmail} til {email}.
+                    Your account email has been changed from {originalEmail} to {email}.
 
-                Var det ikke dig, så kontakt os med det samme via kontaktoplysningerne på hjemmesiden.
+                    If that wasn't you, contact us right away using the contact details on the website.
 
-                Venlig hilsen
-                Marsvin
-                """);
+                    Kind regards
+                    Marsvin
+                    """, english: true);
+            }
+            else
+            {
+                await emailSender.SendAsync(originalEmail, "Din e-mail er ændret på Marsvin",
+                    $"""
+                    Hej {user.DisplayName},
+
+                    Din konto-e-mail er ændret fra {originalEmail} til {email}.
+
+                    Var det ikke dig, så kontakt os med det samme via kontaktoplysningerne på hjemmesiden.
+
+                    Venlig hilsen
+                    Marsvin
+                    """);
+            }
         }
         if (passwordChanged)
         {
-            await emailSender.SendAsync(email, "Din adgangskode er ændret på Marsvin",
-                $"""
-                Hej {user.DisplayName},
+            if (english)
+            {
+                await emailSender.SendAsync(email, "Your Marsvin password has been changed",
+                    $"""
+                    Hello {user.DisplayName},
 
-                Din adgangskode er lige blevet ændret.
+                    Your password has just been changed.
 
-                Var det ikke dig, så nulstil din adgangskode med det samme og kontakt os via kontaktoplysningerne på hjemmesiden.
+                    If that wasn't you, reset your password right away and contact us using the contact details on the website.
 
-                Venlig hilsen
-                Marsvin
-                """);
+                    Kind regards
+                    Marsvin
+                    """, english: true);
+            }
+            else
+            {
+                await emailSender.SendAsync(email, "Din adgangskode er ændret på Marsvin",
+                    $"""
+                    Hej {user.DisplayName},
+
+                    Din adgangskode er lige blevet ændret.
+
+                    Var det ikke dig, så nulstil din adgangskode med det samme og kontakt os via kontaktoplysningerne på hjemmesiden.
+
+                    Venlig hilsen
+                    Marsvin
+                    """);
+            }
         }
 
         // The auth cookie's claims (name, email) were fixed at login - refresh
@@ -219,7 +254,7 @@ public class ProfileModel(
 
         if (orders.Cancel(orderId, OrderStatus.Placed))
         {
-            await OrderEmails.SendStatusUpdateAsync(emailSender, users, orders.FindById(orderId)!);
+            await OrderEmails.SendStatusUpdateAsync(emailSender, users, orders.FindById(orderId)!, this.IsEnglish());
             ToastMessage = new Bilingual($"Ordre #{orderId} er annulleret.", $"Order #{orderId} has been cancelled.");
         }
         else
@@ -339,6 +374,24 @@ public class ProfileModel(
         var admins = users.GetAll().Where(u => u.Role == UserRole.Admin && u.IsActive);
         foreach (var admin in admins)
         {
+            // Each admin gets it in their own language, not the requester's.
+            if (admin.PrefersEnglish)
+            {
+                await emailSender.SendAsync(admin.Email, "New day-off request from " + requester.DisplayName,
+                    $"""
+                    Hello {admin.DisplayName},
+
+                    {requester.DisplayName} has asked for time off from {startDate:d MMM yyyy} to {endDate:d MMM yyyy}.
+                    {(string.IsNullOrWhiteSpace(reason) ? "" : $"Reason: {reason.Trim()}")}
+
+                    Approve or deny the request under Schedule in the staff area.
+
+                    Kind regards
+                    Marsvin
+                    """, english: true);
+                continue;
+            }
+
             await emailSender.SendAsync(admin.Email, "Ny ferieanmodning fra " + requester.DisplayName,
                 $"""
                 Hej {admin.DisplayName},

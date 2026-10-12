@@ -100,19 +100,39 @@ public class IndexModel(
         var trimmedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
         shifts.Create(userId, newStart, newEnd, trimmedNote);
 
-        await emailSender.SendAsync(staff.Email, "Din vagtplan er blevet opdateret",
-            $"""
-            Hej {staff.DisplayName},
+        // In the staff member's own language, not the admin's.
+        if (staff.PrefersEnglish)
+        {
+            await emailSender.SendAsync(staff.Email, "Your schedule has been updated",
+                $"""
+                Hello {staff.DisplayName},
 
-            Der er tilføjet en ny vagt til din vagtplan:
+                A new shift has been added to your schedule:
 
-            {date:d MMM yyyy}, {startTime:HH\:mm}–{endTime:HH\:mm}{(trimmedNote is null ? "" : $" ({trimmedNote})")}
+                {date:d MMM yyyy}, {startTime:HH\:mm}–{endTime:HH\:mm}{(trimmedNote is null ? "" : $" ({trimmedNote})")}
 
-            Se hele din vagtplan under Personale.
+                See your full schedule under Staff.
 
-            Venlig hilsen
-            Marsvin
-            """);
+                Kind regards
+                Marsvin
+                """, english: true);
+        }
+        else
+        {
+            await emailSender.SendAsync(staff.Email, "Din vagtplan er blevet opdateret",
+                $"""
+                Hej {staff.DisplayName},
+
+                Der er tilføjet en ny vagt til din vagtplan:
+
+                {date:d MMM yyyy}, {startTime:HH\:mm}–{endTime:HH\:mm}{(trimmedNote is null ? "" : $" ({trimmedNote})")}
+
+                Se hele din vagtplan under Personale.
+
+                Venlig hilsen
+                Marsvin
+                """);
+        }
 
         ToastMessage = new Bilingual($"Vagt tilføjet for {staff.DisplayName}.", $"Shift added for {staff.DisplayName}.");
         return RedirectToPage();
@@ -130,7 +150,23 @@ public class IndexModel(
         if (shift is not null)
         {
             var staff = users.FindById(shift.UserId);
-            if (staff is not null)
+            if (staff is not null && staff.PrefersEnglish)
+            {
+                await emailSender.SendAsync(staff.Email, "Your schedule has been updated",
+                    $"""
+                    Hello {staff.DisplayName},
+
+                    A shift has been removed from your schedule:
+
+                    {shift.StartAt:d MMM yyyy}, {shift.StartAt:HH\:mm}–{shift.EndAt:HH\:mm}
+
+                    See your full schedule under Staff.
+
+                    Kind regards
+                    Marsvin
+                    """, english: true);
+            }
+            else if (staff is not null)
             {
                 await emailSender.SendAsync(staff.Email, "Din vagtplan er blevet opdateret",
                     $"""

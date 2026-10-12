@@ -325,7 +325,7 @@ public class EndToEndCartTests(MarsvinWebAppFactory factory)
         var html = WebUtility.HtmlDecode(await (await HttpTestHelpers.Get(client, jar, "/Cart/Index")).Content.ReadAsStringAsync());
 
         Assert.Contains("fra 39 kr.", html);                 // cheapest carrier for 120 g
-        Assert.Contains("for 454 kr. mere", html);           // 499 - 45 to free shipping
+        Assert.Contains($"for {1955:N0} kr. mere", html);    // 2000 - 45 to free shipping
         Assert.Contains("ikke reserveret", html);
         Assert.Contains("14 dage på tilbehør", html);
     }

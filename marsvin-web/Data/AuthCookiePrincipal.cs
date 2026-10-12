@@ -102,6 +102,12 @@ public static class AuthCookiePrincipal
             return;
         }
 
+        // The account remembers the language it is being read in, for emails
+        // sent when its owner isn't the one clicking (see PrefersEnglish).
+        // Written only when it has actually changed.
+        if (SiteLanguage.Read(context.HttpContext) is bool english && english != user.PrefersEnglish)
+            users.SetPrefersEnglish(user.UserId, english);
+
         if (principal.FindFirstValue(ClaimTypes.Role) == user.Role.ToString() &&
             principal.FindFirstValue(ClaimTypes.Name) == user.DisplayName &&
             principal.FindFirstValue(ClaimTypes.Email) == user.Email)

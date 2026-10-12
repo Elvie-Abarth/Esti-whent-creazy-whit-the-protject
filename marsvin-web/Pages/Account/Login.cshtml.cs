@@ -77,19 +77,40 @@ public class LoginModel(
             // learns anything from whether this fires.
             if (shouldNotify && user is not null)
             {
-                await emailSender.SendAsync(user.Email, "Mistænkelig aktivitet på din Marsvin-konto",
-                    $"""
-                    Hej {user.DisplayName},
+                // In the account owner's own language, not the language of
+                // whoever is sitting at this browser guessing passwords.
+                if (user.PrefersEnglish)
+                {
+                    await emailSender.SendAsync(user.Email, "Suspicious activity on your Marsvin account",
+                        $"""
+                        Hello {user.DisplayName},
 
-                    Der har været flere mislykkede loginforsøg på din Marsvin-konto for nylig. Hvis det ikke var dig, bør du nulstille din adgangskode:
+                        There have been several failed login attempts on your Marsvin account recently. If that wasn't you, you should reset your password:
 
-                    {Request.Scheme}://{Request.Host}/Account/ForgotPassword
+                        {Request.Scheme}://{Request.Host}/Account/ForgotPassword
 
-                    Var det dig selv, der tastede forkert nogle gange? Så kan du roligt ignorere denne mail.
+                        Was it you mistyping a few times? Then you can safely ignore this email.
 
-                    Venlig hilsen
-                    Marsvin
-                    """);
+                        Kind regards
+                        Marsvin
+                        """, english: true);
+                }
+                else
+                {
+                    await emailSender.SendAsync(user.Email, "Mistænkelig aktivitet på din Marsvin-konto",
+                        $"""
+                        Hej {user.DisplayName},
+
+                        Der har været flere mislykkede loginforsøg på din Marsvin-konto for nylig. Hvis det ikke var dig, bør du nulstille din adgangskode:
+
+                        {Request.Scheme}://{Request.Host}/Account/ForgotPassword
+
+                        Var det dig selv, der tastede forkert nogle gange? Så kan du roligt ignorere denne mail.
+
+                        Venlig hilsen
+                        Marsvin
+                        """);
+                }
             }
 
             ModelState.AddModelError(string.Empty, "Forkert e-mail eller adgangskode.");
@@ -119,19 +140,38 @@ public class LoginModel(
         var token = pendingLogins.Create(user.UserId, safeReturnUrl, ConfirmationValidFor);
         var confirmUrl = $"{Request.Scheme}://{Request.Host}/Account/ConfirmLogin?token={Uri.EscapeDataString(token)}";
 
-        await emailSender.SendAsync(user.Email, "Bekræft login til Marsvin",
-            $"""
-            Hej {user.DisplayName},
+        if (this.IsEnglish())
+        {
+            await emailSender.SendAsync(user.Email, "Confirm your login to Marsvin",
+                $"""
+                Hello {user.DisplayName},
 
-            Nogen (forhåbentlig dig) forsøgte at logge ind på din Marsvin-konto. Bekræft det er dig ved at åbne linket herunder - det udløber om 15 minutter:
+                Someone (hopefully you) tried to log in to your Marsvin account. Confirm it's you by opening the link below - it expires in 15 minutes:
 
-            {confirmUrl}
+                {confirmUrl}
 
-            Var det ikke dig? Så kan du roligt ignorere denne mail - der sker ikke noget uden bekræftelse.
+                Wasn't it you? Then you can safely ignore this email - nothing happens without confirmation.
 
-            Venlig hilsen
-            Marsvin
-            """);
+                Kind regards
+                Marsvin
+                """, english: true);
+        }
+        else
+        {
+            await emailSender.SendAsync(user.Email, "Bekræft login til Marsvin",
+                $"""
+                Hej {user.DisplayName},
+
+                Nogen (forhåbentlig dig) forsøgte at logge ind på din Marsvin-konto. Bekræft det er dig ved at åbne linket herunder - det udløber om 15 minutter:
+
+                {confirmUrl}
+
+                Var det ikke dig? Så kan du roligt ignorere denne mail - der sker ikke noget uden bekræftelse.
+
+                Venlig hilsen
+                Marsvin
+                """);
+        }
 
         return RedirectToPage("CheckEmail", new { returnUrl = safeReturnUrl });
     }

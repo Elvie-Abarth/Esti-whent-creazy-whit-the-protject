@@ -66,6 +66,9 @@ public sealed record Order
 
     public string? CompanyCvr { get; init; }
 
+    /// <summary>The site was in English when the order was placed - later emails about it are written to match.</summary>
+    public bool PlacedInEnglish { get; init; }
+
     /// <summary>Danish prices include 25% VAT, so the VAT is a fifth of the total.</summary>
     public decimal VatAmount => Math.Round(TotalPrice * 0.2m, 2);
 

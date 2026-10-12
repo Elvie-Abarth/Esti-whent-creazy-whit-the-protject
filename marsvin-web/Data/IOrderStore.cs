@@ -35,12 +35,15 @@ public interface IOrderStore
     /// (it lives in the caller's own session-backed ICartStore), so
     /// guestLines carries the already-resolved lines in that case instead
     /// - required (and ignored otherwise) exactly when userId is null.
+    ///
+    /// placedInEnglish records the language the site was in, so later
+    /// emails about the order can be written to match.
     /// </summary>
     CheckoutResult Checkout(int? userId, DeliveryMethod deliveryMethod = DeliveryMethod.Pickup, string? shippingAddress = null,
         ShippingCarrier? shippingCarrier = null, PaymentMethod paymentMethod = PaymentMethod.Card,
         string? guestName = null, string? guestEmail = null, IReadOnlyList<CartLine>? guestLines = null,
         string? contactPhone = null, bool ageConfirmed = false,
-        string? companyName = null, string? companyCvr = null);
+        string? companyName = null, string? companyCvr = null, bool placedInEnglish = false);
 
     /// <summary>Looks up an order, but only if it belongs to the given user (prevents one customer from viewing another's order by guessing an id).</summary>
     Order? FindForUser(int orderId, int userId);

@@ -160,7 +160,8 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
             Input.DeliveryMethod == DeliveryMethod.Shipping ? Input.ShippingCarrier : null, Input.PaymentMethod,
             IsGuest ? Input.GuestName : null, IsGuest ? Input.GuestEmail : null, Lines,
             Input.Phone, HasAnimal && Input.ConfirmAge16,
-            isCompany ? Input.CompanyName : null, isCompany ? Cvr.Normalize(Input.CompanyCvr) : null);
+            isCompany ? Input.CompanyName : null, isCompany ? Cvr.Normalize(Input.CompanyCvr) : null,
+            placedInEnglish: this.IsEnglish());
         if (!result.Success)
         {
             ErrorMessage = result.ErrorMessage;
@@ -205,25 +206,72 @@ public class PaymentModel(ICartStore cart, IOrderStore orders, IUserAccountStore
             toName = buyer.DisplayName;
         }
 
+        // Written in the language the order was placed in. Product names
+        // stay as the catalog has them (Danish) - they are what the order
+        // itself recorded.
+        var english = order.PlacedInEnglish;
         var itemLines = string.Join("\n", order.Items.Select(i =>
             $"- {i.ProductName} x{i.Quantity}: {i.LineTotal:N0} kr."));
-        var deliveryLine = order.DeliveryMethod == DeliveryMethod.Shipping
-            ? $"Fragt ({order.ShippingCarrier?.DisplayName()}): {order.ShippingCost:N0} kr. - allerede med i beløbet ovenfor.\n" +
-              $"Leveres til: {order.ShippingCarrier?.DestinationText(order.ShippingAddress)}\n" +
-              (order.ExpectedDelivery is var (earliest, latest)
-                  ? $"Forventet levering: {ShippingCalculator.FormatWindow(earliest, latest)}\n" : "") +
-              (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels
-                  ? $"Samlet vægt: {ShippingCalculator.FormatWeight(grams)}, sendes i {parcels} {(parcels == 1 ? "pakke" : "pakker")}." : "") +
-              (order.Items.Any(i => i.IsAnimal)
-                  ? $"\n{string.Join(" og ", order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName))} afhentes i butikken separat."
-                  : "")
-            : "Afhentes i butikken.";
+        var animalNames = string.Join(english ? " and " : " og ", order.Items.Where(i => i.IsAnimal).Select(i => i.ProductName));
+        var carrier = order.ShippingCarrier?.DisplayName(english);
+        var destination = order.ShippingCarrier?.DestinationText(order.ShippingAddress, english);
+
+        string deliveryLine;
+        if (order.DeliveryMethod != DeliveryMethod.Shipping)
+        {
+            deliveryLine = english ? "To be picked up in the shop." : "Afhentes i butikken.";
+        }
+        else if (english)
+        {
+            deliveryLine =
+                $"Shipping ({carrier}): {order.ShippingCost:N0} kr. - already included in the amount above.\n" +
+                $"Delivered to: {destination}\n" +
+                (order.ExpectedDelivery is var (earliest, latest)
+                    ? $"Expected delivery: {ShippingCalculator.FormatWindow(earliest, latest)}\n" : "") +
+                (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels
+                    ? $"Total weight: {ShippingCalculator.FormatWeight(grams, english: true)}, sent in {parcels} {(parcels == 1 ? "parcel" : "parcels")}." : "") +
+                (animalNames.Length > 0 ? $"\n{animalNames} will be picked up in the shop separately." : "");
+        }
+        else
+        {
+            deliveryLine =
+                $"Fragt ({carrier}): {order.ShippingCost:N0} kr. - allerede med i beløbet ovenfor.\n" +
+                $"Leveres til: {destination}\n" +
+                (order.ExpectedDelivery is var (earliest, latest)
+                    ? $"Forventet levering: {ShippingCalculator.FormatWindow(earliest, latest)}\n" : "") +
+                (order.ShippingWeightGrams is int grams && order.ParcelCount is int parcels
+                    ? $"Samlet vægt: {ShippingCalculator.FormatWeight(grams)}, sendes i {parcels} {(parcels == 1 ? "pakke" : "pakker")}." : "") +
+                (animalNames.Length > 0 ? $"\n{animalNames} afhentes i butikken separat." : "");
+        }
+
         // A guest has no "Min konto" order history to point back to - this
         // email (and, for as long as the browser session lasts, the
         // confirmation page itself) is the only receipt they get.
         var seeOrderLine = IsGuest
-            ? "Gem denne mail som din kvittering."
-            : "Se ordren under Min konto.";
+            ? (english ? "Keep this email as your receipt." : "Gem denne mail som din kvittering.")
+            : (english ? "See the order under My account." : "Se ordren under Min konto.");
+
+        if (english)
+        {
+            await emailSender.SendAsync(toEmail, $"Order confirmation #{order.OrderId}",
+                $"""
+                Hello {toName},
+
+                Thank you for your order #{order.OrderId}:
+
+                {itemLines}
+
+                Total: {order.TotalPrice:N0} kr.
+
+                {deliveryLine}
+
+                {seeOrderLine}
+
+                Kind regards
+                Marsvin
+                """, english: true);
+            return;
+        }
 
         await emailSender.SendAsync(toEmail, $"Ordrebekræftelse #{order.OrderId}",
             $"""

@@ -62,6 +62,9 @@ public interface IUserAccountStore
 
     void SetInactivityWarningStage(int userId, byte stage);
 
+    /// <summary>Remembers which language the account reads the site in (see <see cref="ApplicationUser.PrefersEnglish"/>).</summary>
+    void SetPrefersEnglish(int userId, bool english);
+
     /// <summary>
     /// Starts (or restarts) TOTP enrollment: stores the secret and clears
     /// TotpEnabled - it only flips true once VerifyTotp/Profile confirms the

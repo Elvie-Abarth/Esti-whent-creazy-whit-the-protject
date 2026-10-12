@@ -47,6 +47,13 @@
             el.setAttribute("href", lang === "en" ? el.dataset.enHref : el.dataset.daHref);
         });
 
+        // The choice itself lives in localStorage, which the server never
+        // sees. This cookie tells it which language the visitor is reading,
+        // for the one thing it writes that isn't a page: emails. It holds
+        // "da" or "en" and nothing else.
+        document.cookie = "marsvin-lang=" + (lang === "en" ? "en" : "da") +
+            "; path=/; max-age=31536000; SameSite=Lax";
+
         var toggle = document.getElementById("lang-toggle");
         if (toggle) {
             toggle.textContent = lang === "en" ? "DA" : "EN";
