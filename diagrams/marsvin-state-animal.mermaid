@@ -1,0 +1,44 @@
+stateDiagram-v2
+    [*] --> Available : created by Admin<br/>(Admin/Animals/Edit - status is a form field)
+    [*] --> NotForSale : created by Admin<br/>(Admin/Animals/Edit - status is a form field)
+
+    NotForSale --> Available : staff sets status
+    Available --> NotForSale : withdrawn
+
+    Available --> Reserved : set by staff only<br/>(Admin/Stock, Animals/Edit)
+    Reserved --> Available : staff releases
+    Reserved --> Sold : set by staff only
+
+    Available --> Sold : checkout commits<br/>(SqlOrderStore.ApplyStockChange)
+    Sold --> Available : buyer cancels the order<br/>while it is still Placed<br/>(SqlOrderStore.Cancel)
+
+    Sold --> [*]
+
+    note right of Available
+        Added to the cart only if
+        Status = Available AND the
+        animal is at least 4 weeks old.
+        ValidateLine repeats both checks
+        inside the checkout transaction
+        (WITH UPDLOCK, HOLDLOCK).
+        An order with an animal also needs
+        the buyer's "I am 16 or older".
+    end note
+
+    note right of Reserved
+        As built, nothing sets Reserved
+        automatically - checkout goes
+        straight from Available to Sold.
+        Staff changes are written to
+        AuditLog (Animal.StatusChanged).
+    end note
+
+    note left of Sold
+        A bonded animal and its partner
+        are added to the cart together,
+        so both reach Sold in one order -
+        and both go back to Available
+        if that order is cancelled.
+        An animal is never shipped:
+        it is picked up in the shop.
+    end note

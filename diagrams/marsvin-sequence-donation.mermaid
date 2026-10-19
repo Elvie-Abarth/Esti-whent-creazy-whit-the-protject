@@ -1,0 +1,51 @@
+sequenceDiagram
+    autonumber
+    actor G as Giver (guest or signed in)
+    participant SM as StoetModel
+    participant RL as RateLimiter ("auth")
+    participant RC as IRecaptchaVerifier
+    participant IS as IInboxStore
+    participant DB as MarsvinDb
+    participant ES as IEmailSender
+    actor ST as Staff
+
+    Note over G,ES: A public form. A money donation is a demo like the checkout:<br/>it is recorded, never charged, and no card details are asked for.
+
+    G->>SM: POST /Stoet (kind, amount or item description,<br/>name, email, greeting, captcha token)
+    SM->>RL: 50 requests per minute per IP?
+    alt over the limit
+        RL-->>G: 429 Too Many Requests
+    else within the limit
+        alt Money: amount missing or outside 10 - 10,000 kr.
+            SM-->>G: Page() with the field marked
+        else Products: description, name or email missing
+            SM-->>G: Page() with the fields marked
+            Note over SM: Only the fields of the chosen kind are required -<br/>a money donation may be anonymous.
+        else valid
+            SM->>RC: VerifyAsync(captcha token)
+            alt captcha rejected
+                SM-->>G: "Bekraeft at du ikke er en robot"
+            else captcha ok
+                SM->>IS: AddDonation(donation)
+                IS->>DB: INSERT Donations
+                Note over SM,DB: Only the fields that belong to the chosen kind are kept,<br/>whatever else the form posted.
+
+                opt an email address was given
+                    SM->>SM: IsEnglish()? - the marsvin-lang cookie of this request
+                    SM->>ES: SendAsync(donor email, "Tak for din donation til Marsvin"<br/>or "Thank you for your donation to Marsvin")
+                    Note over SM,ES: Fixed wording: the amount, or the shop's address and opening hours.<br/>The donor's own free text (what they offer, their greeting) is NOT repeated,<br/>and the name is kept to one line - the address is whatever was typed in,<br/>so the form must not become a way to send a stranger your own wording.
+                    alt sending failed
+                        Note over SM: Logged only. The donation is already saved,<br/>so the giver still sees the thank-you and a retry<br/>cannot become a second donation.
+                    end
+                end
+
+                SM-->>G: Redirect to /Stoet with a thank-you toast
+            end
+        end
+    end
+
+    ST->>IS: GET /Admin/Donations (Admin or Employee)
+    IS->>DB: SELECT the most recent donations
+    IS-->>ST: list - amount or items, name, email, greeting
+
+    Note over G,ST: An anonymous money donation sends no mail - there is nobody to write to.

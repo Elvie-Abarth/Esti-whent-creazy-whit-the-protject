@@ -1,0 +1,50 @@
+flowchart TB
+    subgraph CLIENT["Device: customer, guest or staff browser"]
+        BROWSER["HTML + CSS + 12 small single-purpose JS files<br/>no inline script or style, no web fonts, no CDN<br/>CSP: script-src 'self' (+ Google for reCAPTCHA)<br/>localStorage holds only the language choice,<br/>mirrored in a marsvin-lang cookie (da / en) for emails"]
+        AUTHAPP["Authenticator app<br/>(only for TOTP-enrolled accounts)"]
+    end
+
+    subgraph DEV["Device: developer machine - Windows, local only"]
+        subgraph KESTREL["Kestrel - http://localhost:5080"]
+            APP["marsvin-web<br/>ASP.NET Core 9 Razor Pages"]
+            PAGES["Pages - 48 routes<br/>PageModels"]
+            STORES["Data - 10 Sql*Store classes<br/>ADO.NET, parameterised"]
+            CHATBOT["KeywordChatAssistant (Pip)<br/>in-process lookup - no AI service"]
+            BG["InactiveAccountCleanupService<br/>BackgroundService"]
+            LOCK["LoginLockoutTracker<br/>in-memory singleton"]
+            SESS["Session store<br/>guest cart + receipt pass, in memory"]
+            APP --- PAGES
+            PAGES --- STORES
+            PAGES --- CHATBOT
+            APP --- BG
+            PAGES --- LOCK
+            PAGES --- SESS
+        end
+        subgraph SQL["SQL Server LocalDB"]
+            DBASE[("MarsvinDb<br/>15 tables<br/>Trusted_Connection - full rights (known gap)")]
+        end
+        KEYS["Data-protection key ring<br/>LocalApplicationData<br/>encrypts Users.TotpSecret"]
+        UPLOADS["wwwroot/img<br/>page photos, 67 product photos, animal photos,<br/>brand logos, admin uploads (type + first bytes checked)"]
+        SECRETS["User Secrets<br/>Email:Username / Password<br/>Recaptcha:SecretKey"]
+        TESTS["marsvin-web.Tests - 696 tests<br/>xUnit + WebApplicationFactory<br/>MarsvinDb_Test, MarsvinDb_WebTest"]
+    end
+
+    subgraph EXT["External - both optional"]
+        SMTPSVC["SMTP over TLS<br/>MailKit"]
+        GRECAP["Google reCAPTCHA v2<br/>siteverify"]
+    end
+
+    BROWSER -->|"HTTPS, HSTS outside Development<br/>auth cookie HttpOnly + SameSite=Lax, 30 min idle / 8 h max<br/>css, js, svg compressed - HTML not (BREACH)"| APP
+    AUTHAPP -.->|"6-digit code typed by the user"| BROWSER
+    STORES -->|"Microsoft.Data.SqlClient<br/>SqlCommand + SqlParameter"| DBASE
+    CHATBOT -->|"public catalogue only, via ICatalog"| STORES
+    STORES -.->|"IDataProtector"| KEYS
+    PAGES -->|"PhotoUploadHelper"| UPLOADS
+    APP -.->|"read at startup"| SECRETS
+    BG -->|"inactivity warnings"| SMTPSVC
+    PAGES -->|"login links, order confirmations,<br/>order status, security notices,<br/>donation thank-you - in Danish or English"| SMTPSVC
+    PAGES -->|"captcha token, only if keys are set"| GRECAP
+    TESTS -.->|"boots the app in-process"| APP
+
+    NOTE["Nothing here costs money to run:<br/>QuestPDF renders the PDFs in-process,<br/>the chat is a lookup inside the app,<br/>payment and donations are demos."]
+    APP --- NOTE

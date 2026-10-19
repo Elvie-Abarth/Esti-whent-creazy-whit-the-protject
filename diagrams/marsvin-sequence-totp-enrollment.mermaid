@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    actor K as Bruger (signed in)
+    participant PM as ProfileModel
+    participant US as IUserAccountStore
+    participant DB as MarsvinDb
+    participant AP as Authenticator app
+
+    Note over K,AP: Optional second factor. Enrollment has two steps on purpose -<br/>a secret exists before 2FA is switched on, so nobody is locked out<br/>by a QR code they never scanned.
+
+    K->>PM: POST Profile?handler=StartTotpEnrollment
+    PM->>PM: Totp.GenerateSecret()<br/>20 random bytes, Base32
+    PM->>US: SetTotpSecret(userId, secret)
+    US->>US: encrypt with IDataProtector
+    US->>DB: UPDATE Users SET TotpSecret = ciphertext, TotpEnabled = 0
+    PM-->>K: Redirect to /Account/Profile
+
+    K->>PM: GET /Account/Profile
+    PM->>US: FindById(userId)
+    US-->>PM: user with a pending secret, TotpEnabled = false
+    PM->>PM: BuildOtpAuthUri(secret, email)<br/>QrCode.ToDataUri(uri)
+    PM-->>K: QR code + secret in text form
+
+    K->>AP: scans the QR code
+    AP-->>K: 6-digit code, new every 30 seconds
+
+    K->>PM: POST Profile?handler=ConfirmTotp (code)
+    PM->>US: FindById(userId)
+    PM->>PM: Totp.ValidateCode(secret, code)
+    alt wrong code
+        PM-->>K: Redirect with error "Forkert kode"
+        Note over PM: TotpEnabled stays false,<br/>login is unchanged.
+    else code ok
+        PM->>US: SetTotpEnabled(userId, true)
+        US->>DB: UPDATE Users SET TotpEnabled = 1
+        PM-->>K: toast "2FA er nu aktiveret"
+    end
+
+    Note over K,DB: From the next login on, a correct password goes straight to<br/>/Account/VerifyTotp instead of sending an email link.
+
+    K->>PM: POST Profile?handler=DisableTotp (currentPassword)
+    PM->>PM: verify the current password
+    alt wrong password
+        PM-->>K: error, 2FA stays on
+    else password ok
+        PM->>US: SetTotpSecret(userId, null)
+        US->>DB: UPDATE Users SET TotpSecret = NULL, TotpEnabled = 0
+        PM-->>K: toast "2FA er deaktiveret"
+    end

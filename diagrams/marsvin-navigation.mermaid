@@ -1,0 +1,118 @@
+flowchart TB
+    HOME["/ Index"]
+
+    subgraph PUBLIC["Public - on the explicit allow-list in Program.cs (deny by default)"]
+        MAR["/Marsvin<br/>photo animals first"]
+        MDET["/Marsvin/Details/{id}"]
+        TIL["/Tilbehor<br/>search, category / price / brand filters,<br/>sort, 24 per page"]
+        MAE["/Maerker"]
+        PAS["/Pasningsguide"]
+        PASH["/PasningsguideHurtig"]
+        FOD["/Foderliste"]
+        FAQ["/Faq"]
+        OM["/OmOs"]
+        KON["/Kontakt<br/>contact form, rate limited"]
+        STO["/Stoet<br/>donations (demo), rate limited,<br/>thank-you email if an address is given"]
+        BET["/BetalingOgLevering"]
+        PRI["/Privatliv"]
+        CHAT["/Chat<br/>POST only - behind the Pip bubble,<br/>rate limited 20/min"]
+        ERR["/Error?code= and /ServerError"]
+    end
+
+    subgraph PDF["PDF downloads - QuestPDF, public"]
+        FPDF["/Foderliste/Pdf"]
+        PPDF["/PasningsguideHurtig/Pdf"]
+    end
+
+    subgraph AUTHFLOW["Anonymous - sign-in flow, rate limited"]
+        REG["/Account/Register"]
+        LOG["/Account/Login"]
+        CHK["/Account/CheckEmail"]
+        CONF["/Account/ConfirmLogin?token="]
+        TOTP["/Account/VerifyTotp?token="]
+        FOR["/Account/ForgotPassword"]
+        RES["/Account/ResetPassword?token="]
+        OUT["/Account/Logout (POST)"]
+        DEN["/Account/AccessDenied"]
+    end
+
+    subgraph SHOPPING["Public, but not for staff accounts - guest or Customer"]
+        CART["/Cart<br/>guest: session cart, Customer: database cart"]
+        PAY["/Cart/Payment<br/>details, delivery + carrier, payment"]
+        OCON["/Cart/Confirmation/{orderId}<br/>own order only - status, cancel"]
+    end
+
+    subgraph ANYUSER["Signed in - any role"]
+        PRO["/Account/Profile<br/>details, password, TOTP, log out everywhere,<br/>staff: shifts and time off,<br/>Customer: orders, cancel, delete account"]
+    end
+
+    subgraph STAFF["[Authorize(Roles=Admin,Employee)]"]
+        AIDX["/Admin - staff area"]
+        ASHP["/Admin/Shop - shop management"]
+        ASTO["/Admin/Stock"]
+        AORD["/Admin/Orders<br/>status + tracking number"]
+        AMSG["/Admin/Messages"]
+        ADON["/Admin/Donations"]
+        ASCH["/Admin/Schedule<br/>assign and decide: Admin only, inside the handlers"]
+    end
+
+    subgraph ADMINONLY["[Authorize(Roles=Admin)]"]
+        APRO["/Admin/Products + Edit"]
+        AANI["/Admin/Animals + Edit"]
+        APRM["/Admin/Promotions + Edit"]
+        AUSR["/Admin/Users"]
+        AEXP["/Admin/Users/Export/{id}"]
+        ALOG["/Admin/AuditLog"]
+    end
+
+    HOME --> MAR
+    HOME --> TIL
+    HOME --> PAS
+    HOME --> FAQ
+    HOME --> OM
+    HOME --> KON
+    HOME --> STO
+    MAR --> MDET
+    MAE -->|brand filter| TIL
+    PAS --> PASH
+    PASH --> PPDF
+    FOD --> FPDF
+    HOME -.->|chat bubble on every public page| CHAT
+    MDET -->|add to cart| CART
+    TIL -->|add to cart, then ask: cart or keep shopping| CART
+    CART --> PAY
+    PAY -->|guest or Customer| OCON
+    PAY -.-> BET
+    PAY -.->|guest may create an account instead| REG
+
+    LOG -->|password ok, no 2FA| CHK
+    CHK -->|emailed link| CONF
+    LOG -->|password ok, TOTP enrolled| TOTP
+    CONF -->|signs in, merges guest cart,<br/>claims the guest order| PRO
+    TOTP -->|signs in, merges guest cart| PRO
+    LOG --> REG
+    REG --> CHK
+    LOG --> FOR
+    FOR -->|emailed link| RES
+    RES --> LOG
+    PRO --> OUT
+    PRO -->|log out everywhere| LOG
+
+    CONF -.->|Role = Employee or Admin| AIDX
+    AIDX --> ASHP
+    AIDX --> ASCH
+    AIDX --> AMSG
+    AIDX --> ADON
+    AIDX --> AUSR
+    AIDX --> ALOG
+    ASHP --> ASTO
+    ASHP --> AORD
+    ASHP --> APRO
+    ASHP --> AANI
+    ASHP --> APRM
+    AUSR --> AEXP
+
+    ANYUSER -.->|not signed in, idle 30 min,<br/>8 h old, or password changed| LOG
+    ADMINONLY -.->|Employee| DEN
+    STAFF -.->|Customer| DEN
+    ERR -.->|404, expired form 400, 429, 403| HOME

@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    actor K as Besogende
+    participant RM as RegisterModel
+    participant RC as IRecaptchaVerifier
+    participant US as IUserAccountStore
+    participant PL as IPendingLoginStore
+    participant ES as IEmailSender
+    participant CM as ConfirmLoginModel
+
+    K->>RM: POST /Account/Register (email, name, password, confirm, captcha token)
+    Note over RM: [EnableRateLimiting("auth")] - 50 per minute per IP
+
+    alt ModelState invalid
+        RM-->>K: Page() with validation errors
+        Note over RM: Server rule: StringLength(100, MinimumLength = 8)<br/>and the two passwords must match.<br/>The strength meter on the form is client-side guidance only.
+    else valid
+        RM->>RC: VerifyAsync(captcha token)
+        alt captcha rejected
+            RM-->>K: "Bekraeft at du ikke er en robot"
+        else captcha ok
+            RM->>RM: PasswordHasher.HashPassword (PBKDF2)
+            RM->>US: CreateUser(email, hash, name, UserRole.Customer)
+            Note over RM,US: Self-registration can only ever create Customer.<br/>Employee and Admin are seeded or created from /Admin/Users.
+
+            alt email already registered
+                US-->>RM: false
+                RM-->>K: "Der findes allerede en konto med den e-mail"
+            else created
+                US-->>RM: true
+                RM->>US: FindByEmail(email)
+                US-->>RM: ApplicationUser
+                RM->>PL: Create(userId, safeReturnUrl, 15 min)
+                PL-->>RM: raw token (hash stored)
+                RM->>US: SetPrefersEnglish(userId), if the site is in English
+                RM->>ES: SendAsync("Bekraeft din konto" or "Confirm your account")
+                RM-->>K: Redirect to /Account/CheckEmail?purpose=register
+            end
+        end
+    end
+
+    K->>CM: GET /Account/ConfirmLogin?token=...
+    CM->>PL: Consume(token)
+    CM->>US: RecordActivity(userId)
+    CM->>CM: SignInAsync (auth cookie with the security stamp)
+    CM->>CM: merge the guest cart, and move a guest order just placed<br/>in this session into the new account, if the email matches
+    CM-->>K: signed in, redirected
+
+    Note over K,CM: Registration does not sign you in.<br/>The same proof-of-inbox step as login<br/>is what proves the address is yours.<br/>The payment page offers a guest this route:<br/>the cart, and the order just placed, come along.

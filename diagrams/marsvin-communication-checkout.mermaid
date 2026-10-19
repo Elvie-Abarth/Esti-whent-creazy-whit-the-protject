@@ -1,0 +1,27 @@
+flowchart LR
+    K(["Kunde or Gaest"])
+    PM["PaymentModel"]
+    CS["ICartStore<br/>SqlCartStore or SessionCartStore"]
+    OS["SqlOrderStore"]
+    SC["ShippingCalculator"]
+    SE["Session"]
+    ES["IEmailSender"]
+    CM["ConfirmationModel"]
+    DB[("MarsvinDb")]
+
+    K -->|"1: POST /Cart/Payment"| PM
+    PM -->|"2: GetLines(userId)"| CS
+    CS -->|"2.1: SELECT CartItems JOIN Products<br/>(guest: session lines, prices read live)"| DB
+    PM -->|"3: Checkout(userId or null, delivery, address,<br/>carrier, paymentMethod, guest name/email,<br/>guest lines, phone, age, company, language)"| OS
+    OS -->|"3.1: load cart lines"| DB
+    OS -->|"3.2: ValidateLine per line"| DB
+    OS -->|"3.3: Quote(carrier, weight, date, itemsTotal)"| SC
+    OS -->|"3.4: INSERT Orders + OrderItems<br/>with shipping snapshots"| DB
+    OS -->|"3.5: ApplyStockChange"| DB
+    OS -->|"3.6: ClearCart, Commit"| DB
+    PM -->|"4: Clear(cart)"| CS
+    PM -->|"5: guest only - SetInt32('GuestOrderId', orderId)"| SE
+    PM -->|"6: SendAsync(confirmation)"| ES
+    PM -->|"7: Redirect Confirmation/{orderId}"| K
+    K -->|"8: GET /Cart/Confirmation/{orderId}"| CM
+    CM -->|"9: Customer - FindForUser(orderId, userId)<br/>guest - FindById only if the session holds this id"| OS

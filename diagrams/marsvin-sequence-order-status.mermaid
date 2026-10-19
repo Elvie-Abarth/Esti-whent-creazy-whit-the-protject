@@ -1,0 +1,59 @@
+sequenceDiagram
+    autonumber
+    actor S as Staff (Admin or Employee)
+    actor K as Kunde
+    participant AO as Admin/Orders
+    participant PC as Profile or Confirmation
+    participant OS as SqlOrderStore
+    participant DB as MarsvinDb
+    participant AL as IAuditLogStore
+    participant OE as OrderEmails
+
+    Note over S,OE: What happens to an order after checkout.
+
+    S->>AO: POST status (orderId, new status, tracking number)
+    Note over AO: [Authorize(Roles = "Admin,Employee")]<br/>The tracking number may only hold letters, digits, spaces and dashes,<br/>and is dropped for a pickup order whatever the form says.
+    AO->>OS: FindById(orderId)
+
+    alt new status is Cancelled
+        AO->>OS: Cancel(orderId, latest = Processing)
+        Note over AO,OS: Staff may cancel until the order has been sent.
+    else any other status
+        AO->>OS: UpdateStatus(orderId, status, trackingNumber)
+        OS->>DB: UPDATE Orders SET Status, TrackingNumber<br/>WHERE OrderId = @id AND Status <> Cancelled
+        Note over OS,DB: A cancelled order is final - its items<br/>are already back on sale.
+    end
+
+    alt nothing changed (already sent, or already cancelled)
+        AO-->>S: error message
+    else changed
+        AO->>AL: Record("Order.StatusChanged", "#id: old -> new")
+        AO->>OE: SendStatusUpdateAsync(order)
+        Note over AO,OE: Staff triggered it, so the mail is written in<br/>Orders.PlacedInEnglish - the language the buyer ordered in,<br/>not the language of the staff member's browser.
+        OE-->>K: email: being prepared / sent, with tracking number /<br/>ready for pickup / delivered / cancelled
+        AO-->>S: "order updated, the customer has been emailed"
+    end
+
+    K->>PC: POST cancel (orderId)
+    Note over PC: From the receipt or the order history.<br/>First the order is looked up the same way as for viewing it:<br/>it has to be the caller's own.
+    PC->>OS: Cancel(orderId, latest = Placed)
+    Note over PC,OS: The buyer may cancel only until staff<br/>have started preparing the order.
+    OS->>DB: BeginTransaction
+    OS->>DB: UPDATE Orders SET Status = Cancelled<br/>WHERE OrderId = @id AND Status <= @latest
+    Note over OS,DB: One statement both checks and changes - a second click,<br/>or two requests at once, find nothing left to cancel.
+    alt no row changed
+        OS->>DB: Rollback
+        OS-->>PC: false
+        PC-->>K: "can no longer be cancelled"
+    else cancelled
+        loop each order line
+            OS->>DB: accessory: StockQuantity = StockQuantity + qty<br/>animal: Status Sold -> Available
+        end
+        OS->>DB: Commit
+        OS-->>PC: true
+        PC->>OE: SendStatusUpdateAsync(order, language of the buyer's own browser)
+        OE-->>K: email: order cancelled
+        PC-->>K: order shown as Cancelled
+    end
+
+    Note over S,OE: Cancelled is the highest status number, so "may still be cancelled"<br/>is a plain Status <= latest comparison that a cancelled order can never pass.

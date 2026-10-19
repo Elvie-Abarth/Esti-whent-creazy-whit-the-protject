@@ -1,0 +1,326 @@
+classDiagram
+    direction LR
+
+    class Product {
+        <<abstract>>
+        +int ProductId
+        +string Name
+        +string Description
+        +decimal Price
+        +CanBeAddedToCart(int qty) bool
+    }
+
+    class StockProduct {
+        +string Sku
+        +AccessoryCategory Category
+        +int StockQuantity
+        +string Unit
+        +string Brand
+        +int WeightGrams
+        +string NameEn
+        +string DescriptionEn
+        +string PhotoUrl
+        +StockLevel StockLevel
+    }
+
+    class Animal {
+        +string Breed
+        +Sex Sex
+        +DateOnly DateOfBirth
+        +string Colour
+        +string CoatPrimary
+        +string CoatSecondary
+        +AnimalStatus Status
+        +int BondedWithId
+        +string Personality
+        +string PhotoUrl
+        +AgeInWeeks() int
+        +IsOldEnoughToSell() bool
+    }
+
+    class ApplicationUser {
+        +int UserId
+        +string Email
+        +string PasswordHash
+        +string DisplayName
+        +UserRole Role
+        +bool IsActive
+        +DateTime CreatedAt
+        +DateTime LastActiveAt
+        +string TotpSecret
+        +bool TotpEnabled
+        +string SecurityStamp
+        +bool PrefersEnglish
+    }
+
+    class CartLine {
+        <<read model>>
+        +int ProductId
+        +string ProductName
+        +decimal UnitPrice
+        +int Quantity
+        +bool IsAnimal
+        +string PhotoUrl
+        +int WeightGrams
+        +LineTotal() decimal
+    }
+
+    class Order {
+        <<record>>
+        +int OrderId
+        +int UserId
+        +OrderStatus Status
+        +decimal TotalPrice
+        +DateTime CreatedAt
+        +DeliveryMethod DeliveryMethod
+        +string ShippingAddress
+        +ShippingCarrier ShippingCarrier
+        +decimal ShippingCost
+        +int ShippingWeightGrams
+        +int ParcelCount
+        +string TrackingNumber
+        +PaymentMethod PaymentMethod
+        +string GuestName
+        +string GuestEmail
+        +string ContactPhone
+        +bool AgeConfirmed
+        +string CompanyName
+        +string CompanyCvr
+        +bool PlacedInEnglish
+        +ItemsTotal() decimal
+        +VatAmount() decimal
+        +ExpectedDelivery() dates
+    }
+
+    class OrderItem {
+        +int ProductId
+        +string ProductName
+        +decimal UnitPrice
+        +int Quantity
+        +bool IsAnimal
+        +LineTotal() decimal
+    }
+
+    class ShippingQuote {
+        <<record>>
+        +ShippingCarrier Carrier
+        +decimal Cost
+        +int ParcelCount
+        +DateOnly EarliestDelivery
+        +DateOnly LatestDelivery
+    }
+
+    class ShippingCalculator {
+        <<static>>
+        MaxParcelGrams = 20000
+        FreeShippingThreshold = 2000
+        +Quote(carrier, grams, orderDate, itemsTotal) ShippingQuote
+        +Cost(carrier, grams) decimal
+        +ParcelCount(grams) int
+    }
+
+    class Cvr {
+        <<static>>
+        +IsValid(text) bool
+        +Normalize(text) string
+    }
+
+    class Promotion {
+        +int PromotionId
+        +string Title
+        +int DiscountPercent
+        +int ProductId
+        +DateOnly StartDate
+        +DateOnly EndDate
+        +bool IsActive
+        +IsCurrentlyRunning(DateOnly today) bool
+    }
+
+    class Shift {
+        +int ShiftId
+        +int UserId
+        +string StaffName
+        +DateTime StartAt
+        +DateTime EndAt
+        +string Note
+    }
+
+    class TimeOffRequest {
+        +int RequestId
+        +int UserId
+        +DateOnly StartDate
+        +DateOnly EndDate
+        +TimeOffStatus Status
+        +string DecidedByName
+    }
+
+    class AuditLogEntry {
+        +int AuditLogId
+        +int ActorUserId
+        +string ActorName
+        +string Action
+        +string Details
+        +DateTime CreatedAt
+    }
+
+    class ContactMessage {
+        +int ContactMessageId
+        +string Name
+        +string Email
+        +ContactTopic Topic
+        +int OrderId
+        +string Message
+        +DateTime CreatedAt
+    }
+
+    class Donation {
+        +int DonationId
+        +DonationKind Kind
+        +decimal AmountKr
+        +string ItemDescription
+        +string DonorName
+        +string DonorEmail
+        +string Message
+    }
+
+    class ShopFact {
+        <<record, never stored>>
+        +string Da
+        +string En
+        +string ReplyDa
+        +string ReplyEn
+        +StockProduct Product
+        +Animal Animal
+        +bool Curated
+    }
+
+    class PendingLoginTicket {
+        <<record>>
+        +int UserId
+        +string ReturnUrl
+    }
+
+    class Bilingual {
+        <<record>>
+        +string Da
+        +string En
+    }
+
+    class UserRole {
+        <<enumeration>>
+        Customer
+        Employee
+        Admin
+    }
+    class Sex {
+        <<enumeration>>
+        Boar
+        Sow
+    }
+    class AnimalStatus {
+        <<enumeration>>
+        Available
+        Reserved
+        Sold
+        NotForSale
+    }
+    class AccessoryCategory {
+        <<enumeration>>
+        Hay
+        Food
+        Cage
+        House
+        Toy
+        Bedding
+        Care
+    }
+    class StockLevel {
+        <<enumeration>>
+        OutOfStock
+        LowStock
+        InStock
+    }
+    class OrderStatus {
+        <<enumeration>>
+        Placed
+        Processing
+        Sent
+        Completed
+        Cancelled
+    }
+    class DeliveryMethod {
+        <<enumeration>>
+        Pickup
+        Shipping
+    }
+    class ShippingCarrier {
+        <<enumeration>>
+        PostNord
+        Gls
+        DaoPakkeshop
+    }
+    class PaymentMethod {
+        <<enumeration>>
+        Card
+        MobilePay
+    }
+    class BuyerType {
+        <<enumeration>>
+        Private
+        Company
+    }
+    class TimeOffStatus {
+        <<enumeration>>
+        Pending
+        Approved
+        Denied
+    }
+    class ContactTopic {
+        <<enumeration>>
+        Order
+        GuineaPig
+        Accessory
+        Company
+        Other
+    }
+    class DonationKind {
+        <<enumeration>>
+        Money
+        Products
+    }
+
+    Product <|-- StockProduct
+    Product <|-- Animal
+    Animal ..> Animal : bonded partner
+
+    ApplicationUser "1" --> "0..*" CartLine : cart rows
+    ApplicationUser "0..1" --> "0..*" Order : places (a guest order has no user)
+    ApplicationUser "1" --> "0..*" Shift : is assigned
+    ApplicationUser "1" --> "0..*" TimeOffRequest : requests
+    ApplicationUser "1" --> "0..1" PendingLoginTicket : one at a time
+    ApplicationUser ..> AuditLogEntry : actor name snapshot
+
+    CartLine ..> Product : resolved by join
+    Order "1" *-- "1..*" OrderItem : snapshots
+    OrderItem ..> Product : ProductId, no FK
+    Promotion ..> Product : optional target
+    ShippingCalculator ..> ShippingQuote : produces
+    ShippingCalculator ..> CartLine : adds up WeightGrams
+    Order ..> ShippingCalculator : cost, weight and parcels stored at checkout
+    Order ..> Cvr : company number checked
+    ContactMessage ..> Order : OrderId as typed, no FK
+    ShopFact ..> StockProduct : what the chat knows
+    ShopFact ..> Animal : what the chat knows
+
+    ApplicationUser --> UserRole
+    Animal --> Sex
+    Animal --> AnimalStatus
+    StockProduct --> AccessoryCategory
+    StockProduct --> StockLevel
+    Order --> OrderStatus
+    Order --> DeliveryMethod
+    Order --> ShippingCarrier
+    Order --> PaymentMethod
+    TimeOffRequest --> TimeOffStatus
+    ContactMessage --> ContactTopic
+    Donation --> DonationKind

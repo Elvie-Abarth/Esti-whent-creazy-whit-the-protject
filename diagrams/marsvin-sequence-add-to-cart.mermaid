@@ -1,0 +1,60 @@
+sequenceDiagram
+    autonumber
+    actor K as Kunde or Gaest
+    participant CM as Cart/Index (OnPostAdd)
+    participant CA as ICatalog
+    participant CS as ICartStore
+    participant DB as MarsvinDb or Session
+
+    Note over K,CS: No login needed. ICartStore is chosen per request in Program.cs:<br/>SqlCartStore (dbo.CartItems) when signed in, SessionCartStore for a guest.
+
+    K->>CM: POST /Cart?handler=Add (productId, quantity, returnUrl,<br/>confirmNotAlone, companionNote)
+
+    alt signed in as Employee or Admin
+        CM-->>K: error message, back to returnUrl
+        Note over CM: The pages already hide the button from staff -<br/>checked again here, since anyone can POST directly.
+    else guest or Customer
+        CM->>CA: FindAnimal(productId)
+        CA-->>CM: Animal or null
+
+        alt it is an animal
+            CM->>CM: animal.CanBeAddedToCart(1)
+            Note over CM: Status = Available and at least 4 weeks old.
+            alt cannot be added
+                CM-->>K: error toast, back to returnUrl
+            else unbonded animal without confirmNotAlone and companionNote
+                CM-->>K: error: only sold alone if it will not live alone
+                Note over CM: Checked server-side - a checkbox in the HTML<br/>is exactly as trustworthy as no checkbox.
+            else ok
+                CM->>CS: AddOrIncrement(userId, productId, 1)
+                opt animal has BondedWithId and partner not already in the cart
+                    CM->>CA: FindAnimal(partnerId)
+                    CM->>CS: AddOrIncrement(userId, partnerId, 1)
+                    Note over CM,CS: The pair moves in together - both are added.
+                end
+                CM-->>K: back to returnUrl, with a box asking:<br/>go to the cart, or keep shopping?
+            end
+        else it is an accessory
+            CM->>CA: Accessories lookup by productId
+            alt not found or quantity < 1
+                CM-->>K: error toast
+            else found
+                CM->>CS: GetLines(userId)
+                CM->>CM: CanBeAddedToCart(quantityInCart + quantity)
+                alt more than StockQuantity
+                    CM-->>K: "Der er ikke N styk tilbage"
+                else ok
+                    CM->>CS: AddOrIncrement(userId, productId, quantity)
+                    alt signed in
+                        CS->>DB: MERGE dbo.CartItems - insert or bump Quantity
+                        Note over CS,DB: UQ_CartItems_UserProduct keeps<br/>one row per user per product.
+                    else guest
+                        CS->>DB: session: productId + quantity only
+                    end
+                    CM-->>K: back to returnUrl, with a box asking:<br/>go to the cart, or keep shopping?
+                end
+            end
+        end
+    end
+
+    Note over CM,DB: The redirect target is only used if IsSafeLocalUrl(returnUrl)<br/>(one leading slash, no //host) - otherwise /Cart.<br/>Either cart stores only productId and quantity - prices are read live<br/>and re-read inside the checkout transaction.<br/>A guest's cart is merged into the account's cart at login.

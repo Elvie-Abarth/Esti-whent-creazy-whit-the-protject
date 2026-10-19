@@ -1,0 +1,245 @@
+classDiagram
+    direction TB
+
+    class Program {
+        <<composition root>>
+        DbInitializer.EnsureCreatedAndSeeded()
+        Deny by default: AuthorizeFolder("/") + public list
+        AddAuthentication(cookie, 30 min idle)
+        OnValidatePrincipal = AuthCookiePrincipal.RevalidateAsync
+        AddRateLimiter("auth" 50/min, "chat" 20/min, per IP)
+        AddSession(guest cart, 60 min idle)
+        Compression for css, js, svg only
+        Security headers + CSP middleware
+        no-store for signed-in and account/cart/admin pages
+    }
+
+    class AuthCookiePrincipal {
+        <<static>>
+        IdleTimeout = 30 min
+        MaxSessionAge = 8 h
+        +Build(user, signedInAt)
+        +RevalidateAsync(context)
+    }
+
+    class ICatalog {
+        <<interface>>
+        +Animals
+        +Accessories
+        +FindAnimal(id)
+        +FindProduct(id)
+        +AvailableAnimals()
+        +AnimalGroups()
+    }
+    class ICatalogAdmin {
+        <<interface>>
+        +CreateAnimal / UpdateAnimal / DeleteAnimal
+        +CreateStockProduct / Update / Delete
+        +UpdateStockQuantity()
+        +UpdateAnimalStatus()
+    }
+    class SqlCatalog
+
+    class ICartStore {
+        <<interface>>
+        +GetLines(userId)
+        +AddOrIncrement(userId, productId, qty)
+        +SetQuantity() / RemoveLine() / Clear()
+    }
+    class SqlCartStore {
+        signed-in customer, dbo.CartItems
+    }
+    class SessionCartStore {
+        guest, server-side session
+        stores only productId + quantity
+    }
+
+    class IOrderStore {
+        <<interface>>
+        +Checkout(userId, delivery, address, carrier, payment,<br/>guest name/email, guestLines, phone, age, company, placedInEnglish)
+        +FindForUser(orderId, userId)
+        +FindById(orderId)
+        +GetOrdersForUser(userId)
+        +GetAllOrders()
+        +UpdateStatus(orderId, status, trackingNumber)
+        +Cancel(orderId, latestCancellableStatus)
+        +ClaimGuestOrder(orderId, userId, email)
+    }
+    class SqlOrderStore {
+        prices shipping itself, inside the transaction
+    }
+
+    class ShippingCalculator {
+        <<static>>
+        +Quote(carrier, grams, date, itemsTotal)
+        20 kg per parcel, free from 2,000 kr.
+    }
+
+    class IUserAccountStore {
+        <<interface>>
+        +FindByEmail() / FindById()
+        +CreateUser() / UpdateProfile()
+        +UpdatePassword() - also replaces the security stamp
+        +RotateSecurityStamp()
+        +RecordActivity() / DeleteUser()
+        +SetTotpSecret() / SetTotpEnabled()
+        +SetPrefersEnglish() - the language for emails
+        +DeleteInactiveCustomers()
+    }
+    class SqlUserAccountStore {
+        TotpSecret encrypted with IDataProtector
+    }
+
+    class IPendingLoginStore {
+        <<interface>>
+        +Create(userId, returnUrl, validFor)
+        +Consume(token)
+        +Peek(token)
+        +IsValid(token)
+    }
+    class SqlPendingLoginStore
+
+    class IInboxStore {
+        <<interface>>
+        +AddContactMessage() / GetContactMessages()
+        +AddDonation() / GetDonations()
+    }
+    class SqlInboxStore
+
+    class IPromotionStore {
+        <<interface>>
+    }
+    class IShiftStore {
+        <<interface>>
+    }
+    class ITimeOffRequestStore {
+        <<interface>>
+    }
+    class IAuditLogStore {
+        <<interface>>
+        +Record(actorId, actorName, action, details)
+        +GetRecent(count)
+    }
+
+    class IChatAssistant {
+        <<interface>>
+        +Answer(question, english)
+        +Reply(question, english, previous)
+    }
+    class KeywordChatAssistant {
+        keyword lookup - no AI service, nothing stored
+        safety stops, worked-out answers, then lookup
+    }
+    class ShopKnowledge {
+        <<static>>
+        +Build(catalog) facts
+        public shop content only
+    }
+
+    class IEmailSender {
+        <<interface>>
+        +SendAsync(to, subject, body, english)
+    }
+    class SmtpEmailSender {
+        MailKit, used when Email:Username is set
+        footer in the language of the mail
+    }
+    class LoggingEmailSender {
+        prints the link to the console, via LogSafe
+    }
+    class OrderEmails {
+        <<static>>
+        +SendStatusUpdateAsync(order, english)
+        no language given: Order.PlacedInEnglish
+    }
+
+    class SiteLanguage {
+        <<static>>
+        CookieName = marsvin-lang
+        +Read(httpContext) English, Danish or not set
+        +IsEnglish(httpContext)
+        only the values da and en count
+    }
+
+    class IRecaptchaVerifier {
+        <<interface>>
+        +VerifyAsync(token)
+    }
+    class GoogleRecaptchaVerifier {
+        skipped when no SecretKey, fails closed on errors
+    }
+
+    class LoginLockoutTracker {
+        <<singleton, in memory>>
+        +IsLockedOut(email)
+        +RegisterFailedAttempt(email)
+        +RequiresManualReset(email)
+        +Clear(email)
+    }
+
+    class Totp {
+        <<static>>
+        +GenerateSecret()
+        +BuildOtpAuthUri()
+        +ValidateCode(secret, code)
+    }
+
+    class PhotoUploadHelper {
+        <<static>>
+        +SaveAsync(file, subfolder)
+        type, first bytes and size checked, random file name
+    }
+
+    class LogSafe {
+        <<static>>
+        +Line(value)
+        +Block(value)
+    }
+
+    class InactiveAccountCleanupService {
+        <<BackgroundService, every 24h>>
+        builds its own SqlUserAccountStore
+    }
+
+    ICatalog <|.. SqlCatalog
+    ICatalogAdmin <|.. SqlCatalog
+    ICartStore <|.. SqlCartStore
+    ICartStore <|.. SessionCartStore
+    IOrderStore <|.. SqlOrderStore
+    IUserAccountStore <|.. SqlUserAccountStore
+    IPendingLoginStore <|.. SqlPendingLoginStore
+    IInboxStore <|.. SqlInboxStore
+    IChatAssistant <|.. KeywordChatAssistant
+    IEmailSender <|.. SmtpEmailSender
+    IEmailSender <|.. LoggingEmailSender
+    IRecaptchaVerifier <|.. GoogleRecaptchaVerifier
+
+    Program ..> SqlCatalog : Scoped, one instance for both interfaces
+    Program ..> ICartStore : Scoped, Sql if signed in, Session if guest
+    Program ..> SqlOrderStore : Scoped
+    Program ..> SqlUserAccountStore : Scoped
+    Program ..> SqlPendingLoginStore : Scoped
+    Program ..> SqlInboxStore : Scoped
+    Program ..> IPromotionStore : Scoped
+    Program ..> IShiftStore : Scoped
+    Program ..> ITimeOffRequestStore : Scoped
+    Program ..> IAuditLogStore : Scoped
+    Program ..> KeywordChatAssistant : Scoped
+    Program ..> LoginLockoutTracker : Singleton
+    Program ..> IEmailSender : Singleton, chosen by configuration
+    Program ..> IRecaptchaVerifier : typed HttpClient
+    Program ..> InactiveAccountCleanupService : hosted service
+    Program ..> AuthCookiePrincipal : every authenticated request
+
+    AuthCookiePrincipal ..> IUserAccountStore : active? stamp? role?
+    AuthCookiePrincipal ..> SiteLanguage : keeps Users.PrefersEnglish current
+    OrderEmails ..> SqlOrderStore : Order.PlacedInEnglish
+    SqlOrderStore ..> ShippingCalculator : cost, weight, parcels
+    SessionCartStore ..> ICatalog : names and prices read live
+    KeywordChatAssistant ..> ShopKnowledge
+    KeywordChatAssistant ..> ShippingCalculator
+    ShopKnowledge ..> ICatalog
+    OrderEmails ..> IEmailSender
+    LoggingEmailSender ..> LogSafe
+    InactiveAccountCleanupService ..> SqlUserAccountStore
+    InactiveAccountCleanupService ..> IEmailSender

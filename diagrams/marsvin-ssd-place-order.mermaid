@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    actor K as Kunde or Gaest
+    participant S as ":Marsvin webshop"
+
+    Note over K,S: System Sequence Diagram - the system is one black box.<br/>No account is needed: a guest gives a name and an email.
+
+    K->>S: viewCart()
+    S-->>K: lines, line totals, cart total,<br/>cheapest shipping and amount left to free shipping
+
+    K->>S: goToPayment()
+    S-->>K: details form, delivery options (shipping only if something is shippable),<br/>each carrier with price, destination, expected delivery, weight and parcels,<br/>payment methods, order summary
+
+    K->>S: submitPayment(name and email if guest, phone, buyerType, company and CVR,<br/>ageConfirmed, deliveryMethod, address, carrier,<br/>paymentMethod, cardDetails if Card)
+
+    alt cart empty
+        S-->>K: error("Din kurv er tom")
+    else form invalid (name, email, phone, address, CVR, age box, card number, expiry, CVC)
+        S-->>K: validation errors marked on the payment page
+    else shipping chosen but the order is only animals
+        S-->>K: error("Vaelg afhentning")
+    else an item is unavailable, too young or out of stock
+        S-->>K: error(naming the item), back to the cart
+    else accepted
+        S-->>K: orderConfirmation(orderId, status Placed, total incl. shipping,<br/>delivery, expected delivery, payment method)
+        S-->>K: confirmation email, in the language of the site
+    end
+
+    opt later, while the order is still Placed (staff can cancel until it is sent)
+        K->>S: cancelOrder(orderId)
+        S-->>K: order Cancelled, items back in stock, email
+    end
+
+    opt as staff move the order along
+        S-->>K: email: Processing, Sent (with tracking number) or ready for pickup, Completed
+    end

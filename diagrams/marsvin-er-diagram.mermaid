@@ -1,0 +1,189 @@
+erDiagram
+    PRODUCTS ||--o| ANIMALS : "extends (TPT)"
+    PRODUCTS ||--o| STOCKPRODUCTS : "extends (TPT)"
+    ANIMALS ||--o| ANIMALS : "BondedWithId (no FK)"
+
+    USERS ||--o{ PENDINGLOGINS : "FK"
+    USERS ||--o{ CARTITEMS : "FK"
+    USERS ||--o{ ORDERS : "FK, nullable"
+    USERS ||--o{ SHIFTS : "FK"
+    USERS ||--o{ TIMEOFFREQUESTS : "FK"
+
+    ORDERS ||--|{ ORDERITEMS : "FK"
+
+    PRODUCTS ||..o{ CARTITEMS : "ProductId, no FK"
+    PRODUCTS ||..o{ ORDERITEMS : "snapshot, no FK"
+    PRODUCTS ||..o{ PROMOTIONS : "ProductId, no FK"
+    USERS ||..o{ AUDITLOG : "ActorUserId, no FK"
+    ORDERS ||..o{ CONTACTMESSAGES : "OrderId as typed, no FK"
+
+    PRODUCTS {
+        int ProductId PK "not IDENTITY - assigned in code"
+        tinyint ProductType "1 Animal, 2 StockProduct"
+        nvarchar200 Name
+        nvarchar200 NameEn "nullable"
+        nvarchar500 Description
+        nvarchar500 DescriptionEn "nullable"
+        decimal Price "decimal(10,2)"
+    }
+
+    ANIMALS {
+        int ProductId PK "also FK to Products"
+        nvarchar100 Breed
+        nvarchar100 BreedEn "nullable"
+        tinyint Sex "0 Boar, 1 Sow"
+        date DateOfBirth
+        nvarchar100 Colour
+        nvarchar100 ColourEn "nullable"
+        char7 CoatPrimary "hex, drives the SVG"
+        char7 CoatSecondary "hex"
+        tinyint Status "0 Available 1 Reserved 2 Sold 3 NotForSale"
+        int BondedWithId "nullable, self-ref, no FK"
+        nvarchar500 Personality
+        nvarchar500 PersonalityEn "nullable"
+        nvarchar300 PhotoUrl "nullable, must be under /img"
+    }
+
+    STOCKPRODUCTS {
+        int ProductId PK "also FK to Products"
+        nvarchar50 Sku UK
+        tinyint Category "0 Hay 1 Food 2 Cage 3 House 4 Toy 5 Bedding 6 Care"
+        int StockQuantity "CHECK >= 0"
+        nvarchar20 Unit "nullable"
+        nvarchar300 PhotoUrl "nullable, must be under /img"
+        int WeightGrams "default 500, what shipping is priced from"
+        nvarchar100 Brand "nullable"
+    }
+
+    USERS {
+        int UserId PK
+        nvarchar256 Email UK
+        nvarchar500 PasswordHash "PBKDF2 via PasswordHasher"
+        nvarchar200 DisplayName
+        tinyint Role "0 Customer, 1 Employee, 2 Admin"
+        bit IsActive
+        datetime2 CreatedAt
+        datetime2 LastActiveAt "drives 2-year auto-deletion"
+        tinyint InactivityWarningStage "0 none, 1 two months, 2 one month"
+        nvarchar500 TotpSecret "nullable, encrypted with IDataProtector"
+        bit TotpEnabled "true only after a code was confirmed"
+        uniqueidentifier SecurityStamp "replaced on password change, ends old sessions"
+        bit PrefersEnglish "site language last used - for emails the owner did not trigger"
+    }
+
+    PENDINGLOGINS {
+        int PendingLoginId PK
+        int UserId FK
+        char64 TokenHash UK "SHA-256 hex, raw token never stored"
+        nvarchar512 ReturnUrl "nullable"
+        datetime2 ExpiresAt "15 min email link, 5 min TOTP ticket"
+        datetime2 CreatedAt
+    }
+
+    CARTITEMS {
+        int CartItemId PK
+        int UserId FK "signed-in customers only, a guest cart is in session"
+        int ProductId "no FK, admin may delete the product"
+        int Quantity "CHECK > 0"
+        datetime2 AddedAt
+    }
+
+    ORDERS {
+        int OrderId PK
+        int UserId FK "nullable: guest order, or account deleted"
+        decimal TotalPrice "decimal(10,2), computed server-side, includes shipping"
+        datetime2 CreatedAt
+        tinyint Status "0 Placed 1 Processing 2 Sent 3 Completed 4 Cancelled"
+        tinyint DeliveryMethod "0 Pickup, 1 Shipping"
+        nvarchar500 ShippingAddress "nullable, Shipping only"
+        tinyint ShippingCarrier "nullable: 0 PostNord 1 GLS 2 DAO Pakkeshop"
+        decimal ShippingCost "snapshot, 0 for pickup or free shipping"
+        int ShippingWeightGrams "nullable snapshot, Shipping only"
+        int ParcelCount "nullable snapshot, max 20 kg per parcel"
+        nvarchar50 TrackingNumber "nullable, typed by staff"
+        tinyint PaymentMethod "0 Card (demo), 1 MobilePay (demo)"
+        nvarchar200 GuestName "nullable, guest checkout only"
+        nvarchar256 GuestEmail "nullable, guest checkout only"
+        nvarchar30 ContactPhone "nullable, kept with the order only"
+        bit AgeConfirmed "ticked 16 or older - a yes/no, not an age"
+        nvarchar200 CompanyName "nullable, company purchase"
+        char8 CompanyCvr "nullable, check digit verified in code"
+        bit PlacedInEnglish "site language at checkout - for later emails about the order"
+    }
+
+    ORDERITEMS {
+        int OrderItemId PK
+        int OrderId FK
+        int ProductId "no FK, snapshot"
+        nvarchar200 ProductName "snapshot"
+        decimal UnitPrice "snapshot, decimal(10,2)"
+        int Quantity "CHECK > 0"
+        bit IsAnimal "snapshot, drives the pickup note and restock on cancel"
+    }
+
+    PROMOTIONS {
+        int PromotionId PK
+        nvarchar200 Title
+        nvarchar500 Description
+        int DiscountPercent "CHECK 1-100"
+        int ProductId "nullable, no FK"
+        date StartDate
+        date EndDate "CHECK >= StartDate"
+        bit IsActive
+    }
+
+    SHIFTS {
+        int ShiftId PK
+        int UserId FK
+        datetime2 StartAt
+        datetime2 EndAt
+        nvarchar200 Note "nullable"
+        datetime2 CreatedAt
+    }
+
+    TIMEOFFREQUESTS {
+        int RequestId PK
+        int UserId FK
+        date StartDate
+        date EndDate
+        nvarchar500 Reason "nullable"
+        tinyint Status "0 Pending, 1 Approved, 2 Denied"
+        datetime2 RequestedAt
+        datetime2 DecidedAt "nullable"
+        nvarchar200 DecidedByName "snapshot, nullable"
+    }
+
+    AUDITLOG {
+        int AuditLogId PK
+        int ActorUserId "nullable, no FK"
+        nvarchar200 ActorName "snapshot"
+        nvarchar100 Action "e.g. Product.Deleted"
+        nvarchar1000 Details
+        datetime2 CreatedAt
+    }
+
+    CONTACTMESSAGES {
+        int ContactMessageId PK
+        nvarchar200 Name
+        nvarchar256 Email
+        tinyint Topic "0 Order 1 GuineaPig 2 Accessory 3 Company 4 Other"
+        int OrderId "nullable, whatever the sender typed - not proof"
+        nvarchar2000 Message
+        datetime2 CreatedAt
+    }
+
+    DONATIONS {
+        int DonationId PK
+        tinyint Kind "0 Money (demo, never charged), 1 Products"
+        decimal AmountKr "nullable, Money only"
+        nvarchar500 ItemDescription "nullable, Products only"
+        nvarchar200 DonorName "nullable - anonymous is fine"
+        nvarchar256 DonorEmail "nullable - a thank-you email is sent here when given"
+        nvarchar500 Message "nullable"
+        datetime2 CreatedAt
+    }
+
+    SEEDBATCHES {
+        nvarchar100 Name PK "one row per one-off addition to the demo catalog"
+        datetime2 AppliedAt
+    }

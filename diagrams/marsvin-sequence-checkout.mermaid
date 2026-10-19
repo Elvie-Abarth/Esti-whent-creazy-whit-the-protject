@@ -1,0 +1,83 @@
+sequenceDiagram
+    autonumber
+    actor K as Kunde or Gaest
+    participant PM as PaymentModel
+    participant CS as ICartStore
+    participant OS as SqlOrderStore
+    participant SC as ShippingCalculator
+    participant DB as MarsvinDb
+    participant SE as Session
+    participant ES as IEmailSender
+    participant CF as ConfirmationModel
+
+    Note over PM,DB: As built. No payment provider is contacted - the card or MobilePay<br/>choice is stored on the order, and card details are only checked for shape.<br/>No account is needed: ICartStore is the database cart for a Customer<br/>and the session cart for a guest.
+
+    K->>PM: POST /Cart/Payment (name + email if guest, phone, buyer type,<br/>company + CVR, age box, delivery, address, carrier,<br/>paymentMethod, card fields)
+    Note over PM: Public page, but Employee and Admin<br/>are turned away - staff accounts cannot buy.
+    PM->>CS: GetLines(userId)
+    CS-->>PM: CartLine list (live prices and weights)
+
+    alt cart empty
+        PM-->>K: Redirect to /Cart
+    else something that applies is missing or malformed
+        Note over PM: Only what applies is required: guest name + email,<br/>phone and address if Shipping, age box if an animal,<br/>company name + CVR check digit if Company,<br/>card digits if Card (spaces and slash optional).
+        PM-->>K: Page() with the fields marked
+    else valid
+        PM->>OS: Checkout(userId or null, delivery, address, carrier, paymentMethod,<br/>guestName, guestEmail, guestLines, phone, ageConfirmed, company, cvr, placedInEnglish)
+        OS->>DB: BeginTransaction
+        OS->>DB: SELECT CartItems JOIN Products / Animals / StockProducts
+        DB-->>OS: lines with DB prices and weights
+        Note over OS: A guest has no CartItems rows, so the lines<br/>PaymentModel already resolved are passed in<br/>and re-validated against the database below.
+
+        alt cart empty
+            OS-->>PM: Fail("Din kurv er tom")
+        else Shipping but all lines are animals, or no address
+            OS->>DB: Rollback
+            OS-->>PM: Fail(reason)
+            Note over OS: Re-checked here, never trusted from the form
+        else
+            loop each cart line
+                OS->>DB: SELECT ... WITH (UPDLOCK, HOLDLOCK)
+                Note over OS,DB: Animal: Status = Available and at least 4 weeks old.<br/>StockProduct: StockQuantity >= qty.<br/>The lock stops two checkouts racing for the last unit.
+            end
+
+            alt any line invalid
+                OS->>DB: Rollback
+                OS-->>PM: Fail(reason)
+            else all lines valid
+                opt Shipping
+                    OS->>SC: Quote(carrier, weight of the shippable lines, today, their total)
+                    SC-->>OS: cost, parcel count (max 20 kg each)
+                    Note over OS,SC: The form chooses a carrier - never a price.<br/>Free when the shipped accessories reach 2,000 kr.
+                end
+                OS->>DB: INSERT Orders (Status = Placed, TotalPrice = DB prices + shipping,<br/>ShippingCost / WeightGrams / ParcelCount snapshots,<br/>guest name + email or UserId, phone, age, company, PlacedInEnglish)
+                OS->>DB: INSERT OrderItems (ProductName, UnitPrice, IsAnimal snapshots)
+                loop each cart line
+                    OS->>DB: Animal to Sold, or StockQuantity = StockQuantity - qty
+                end
+                OS->>DB: DELETE CartItems for this user
+                OS->>DB: Commit
+                OS-->>PM: Ok(order)
+                PM->>CS: Clear(userId)
+                opt guest
+                    PM->>SE: SetInt32("GuestOrderId", orderId)
+                    Note over PM,SE: The guest's receipt pass: only this browser's<br/>session ever holds this order id.
+                end
+                PM->>ES: SendAsync("Ordrebekraeftelse" or "Order confirmation")
+                Note over PM,ES: Written in the language the order was placed in:<br/>the marsvin-lang cookie of this request, saved on the order.
+                PM-->>K: Redirect to /Cart/Confirmation/{orderId}
+                K->>CF: GET /Cart/Confirmation/{orderId}
+                alt signed in
+                    CF->>OS: FindForUser(orderId, userId)
+                    Note over CF,OS: Takes both ids, so changing orderId in the URL<br/>to someone else's order just returns 404 (no IDOR).
+                else guest
+                    CF->>SE: GetInt32("GuestOrderId") == orderId?
+                    CF->>OS: FindById(orderId), only on a match
+                end
+                CF-->>K: receipt: status steps, delivery, expected delivery,<br/>pickup note if an animal is in a shipped order
+            end
+        end
+        PM-->>K: on Fail: Redirect to /Cart with the error message
+    end
+
+    Note over OS,DB: One transaction covers validation, shipping price, insert,<br/>stock change and cart clear - any failure rolls the whole thing back.

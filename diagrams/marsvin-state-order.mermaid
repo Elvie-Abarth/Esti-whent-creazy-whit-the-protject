@@ -1,0 +1,54 @@
+stateDiagram-v2
+    [*] --> Placed : SqlOrderStore.Checkout commits<br/>(Status = 0)
+
+    Placed --> Processing : staff, on /Admin/Orders
+    Processing --> Sent : staff - optionally with a tracking number
+    Sent --> Completed : staff
+
+    Placed --> Cancelled : the buyer (receipt or order history),<br/>or staff
+    Processing --> Cancelled : staff only
+
+    Completed --> [*]
+    Cancelled --> [*]
+
+    note right of Placed
+        dbo.Orders.Status, a TINYINT:
+        0 Placed, 1 Processing, 2 Sent,
+        3 Completed, 4 Cancelled.
+        The buyer is emailed at every change,
+        in the language the order was placed in
+        (Data/OrderEmails.cs) and sees the
+        status on the receipt and under
+        Min konto.
+    end note
+
+    note right of Sent
+        The wording follows the delivery:
+        "Sent" for a shipped order,
+        "Ready for pickup" for a pickup.
+        Completed reads "Delivered" or
+        "Picked up" the same way.
+    end note
+
+    note left of Processing
+        Staff set the status from a list on
+        /Admin/Orders (Admin and Employee),
+        so they can also correct a mistake
+        by setting an earlier one, and may
+        cancel until the order has been sent.
+        Every change is written to AuditLog.
+    end note
+
+    note left of Cancelled
+        Cancelled is the highest number on
+        purpose: "may still be cancelled" is
+        the test Status <= latest (Placed for
+        the buyer, Processing for staff), in
+        the same UPDATE that cancels - a
+        second click finds nothing to cancel.
+        In that transaction the items go back:
+        stock is added back, animals return
+        from Sold to Available.
+        Cancelled is final: UpdateStatus
+        refuses to move a cancelled order.
+    end note

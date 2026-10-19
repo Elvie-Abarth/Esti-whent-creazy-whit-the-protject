@@ -1,0 +1,40 @@
+sequenceDiagram
+    autonumber
+    participant HS as InactiveAccountCleanupService
+    participant US as SqlUserAccountStore
+    participant DB as MarsvinDb
+    participant ES as IEmailSender
+    actor K as Kunde
+
+    Note over HS: BackgroundService started by the host.<br/>Runs once at startup, then every 24 hours.<br/>Implements the storage-limitation rule documented on /Privatliv.
+
+    loop every 24 hours
+        HS->>US: DeleteInactiveCustomers(now - 2 years)
+        US->>DB: Customer accounts with LastActiveAt before the cutoff
+        loop each account
+            US->>DB: DeleteUser in one transaction:<br/>PendingLogins, CartItems, Shifts and TimeOffRequests deleted,<br/>Orders.UserId set to NULL, Users row deleted
+        end
+        Note over HS,DB: Orders survive - UserId is nullable,<br/>so the sales history is kept without a person attached.<br/>Delete runs first, so nobody gets a warning<br/>on the same pass that removes them.
+
+        HS->>US: GetCustomersNeedingInactivityWarning(stage 2: 1 month left)
+        loop each account
+            HS->>ES: "Din konto slettes om ca. en maaned"<br/>or "...will be deleted in about one month"
+            alt mail sent
+                HS->>US: SetInactivityWarningStage(userId, 2)
+            else sending failed
+                Note over HS: Stage left unchanged, so it is retried<br/>on the next run and a warning that never<br/>arrived is not recorded as sent.
+            end
+        end
+
+        HS->>US: GetCustomersNeedingInactivityWarning(stage 1: 2 months left)
+        loop each account
+            HS->>ES: "Din konto slettes om ca. to maaneder"<br/>or "...will be deleted in about two months"
+            HS->>US: SetInactivityWarningStage(userId, 1)
+        end
+    end
+
+    K->>US: any successful login (ConfirmLogin or VerifyTotp)
+    US->>DB: RecordActivity: LastActiveAt = now, InactivityWarningStage = 0
+    Note over K,DB: Logging in once is all it takes to keep the account.
+
+    Note over HS,ES: No browser is involved, so each warning is written in<br/>Users.PrefersEnglish - the language the account last used.<br/>Only Customer accounts are in scope.<br/>Employee and Admin accounts are never auto-deleted.<br/>An exception in one run is logged, and the next run tries again.

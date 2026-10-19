@@ -1,0 +1,60 @@
+sequenceDiagram
+    autonumber
+    actor U as Signed-in user
+    participant CK as Cookie authentication
+    participant AP as AuthCookiePrincipal.RevalidateAsync
+    participant US as IUserAccountStore
+    participant DB as MarsvinDb
+    participant AZ as Authorization
+    participant PG as The requested page
+
+    Note over U,PG: Runs on EVERY request that carries the login cookie, before any page code.<br/>The cookie is only a snapshot from sign-in - this is what keeps it true.
+
+    U->>CK: any request + auth cookie
+    CK->>CK: decrypt and check the signature
+    alt cookie missing, tampered with, or idle for more than 30 minutes
+        CK-->>U: treated as not signed in
+    else cookie valid
+        CK->>AP: OnValidatePrincipal(principal)
+        AP->>US: FindById(userId from the cookie)
+        US->>DB: SELECT ... FROM Users WHERE UserId = @UserId
+        DB-->>US: account, or nothing
+        US-->>AP: ApplicationUser or null
+
+        alt account deleted, or IsActive = false
+            AP-->>CK: RejectPrincipal + SignOut
+            Note over AP: An admin deactivating an account<br/>takes effect on its very next click.
+        else the cookie's stamp differs from Users.SecurityStamp
+            AP-->>CK: RejectPrincipal + SignOut
+            Note over AP: The stamp is replaced when the password is changed<br/>or reset, and by "log out everywhere".<br/>Every older cookie - a stolen one included - dies here.
+        else signed in more than 8 hours ago
+            AP-->>CK: RejectPrincipal + SignOut
+            Note over AP: The 30 minutes are sliding, so on their own a session<br/>in constant use would never end. This is the hard limit.
+        else role, name or email changed since sign-in
+            AP->>AP: Build(user, original sign-in time)
+            AP-->>CK: ReplacePrincipal, renew the cookie
+            Note over AP: A demoted Admin loses /Admin on this request.<br/>The sign-in time is kept - a change never buys more time.
+        else nothing changed
+            AP-->>CK: keep the principal<br/>(cookie renewed, so the 30 minutes count from this request)
+        end
+
+        opt session kept, and the marsvin-lang cookie (da / en) differs from Users.PrefersEnglish
+            AP->>US: SetPrefersEnglish(userId, english)
+            Note over AP,US: So emails this user does not trigger themselves<br/>are in the language they read the site in.<br/>Any other cookie value is ignored.
+        end
+
+        CK->>AZ: principal, or anonymous
+        alt page is on the public list
+            AZ->>PG: run the handler
+        else not signed in
+            AZ-->>U: Redirect to /Account/Login
+        else signed in, role not allowed on this page
+            AZ-->>U: Redirect to /Account/AccessDenied
+        else allowed
+            AZ->>PG: run the handler
+            PG-->>U: page, sent with Cache-Control: no-store
+            Note over PG,U: So the Back button cannot bring a profile<br/>or an order back after logging out.
+        end
+    end
+
+    Note over U,PG: Deny by default: a page is public only if Program.cs lists it.<br/>A new page that forgets its [Authorize] ends up behind the login.

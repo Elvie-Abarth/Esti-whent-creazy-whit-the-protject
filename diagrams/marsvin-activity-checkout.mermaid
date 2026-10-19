@@ -1,0 +1,76 @@
+flowchart TB
+    subgraph KUNDE["Kunde or Gaest"]
+        A1(["Start: opens /Cart"])
+        A2["Reviews cart and delivery info,<br/>goes to /Cart/Payment"]
+        A2b["Step 1 - your details:<br/>guest: name + email; phone;<br/>private or company (+ CVR);<br/>'I am 16 or older' if a guinea pig is in the order"]
+        A3["Step 2 - chooses Pickup or Shipping"]
+        A4["Shipping: enters an address and picks<br/>PostNord, GLS or DAO - each shown with price,<br/>destination, expected delivery, weight, parcels"]
+        A5["Step 3 - chooses Card or MobilePay"]
+        A6["Card: fills in the demo card form<br/>(or one click: demo card)"]
+        A9(["End: confirmation page + email"])
+        A10(["End: errors marked on the form,<br/>or back to the cart with a message"])
+    end
+
+    subgraph SYSTEM["marsvin-web"]
+        B1{"Staff account<br/>(Employee / Admin)?"}
+        B2["Redirect away -<br/>staff accounts cannot buy"]
+        B2b["Shipping offered only if the cart<br/>has at least one non-animal line.<br/>Prices shown come from ShippingCalculator"]
+        B3["PaymentModel validates only what applies:<br/>guest name + email, phone if Shipping,<br/>address if Shipping, age box if an animal,<br/>company name + CVR check digit,<br/>card digits if Card"]
+        B4{"Valid?"}
+        B5["Open transaction<br/>load the cart lines<br/>(database cart, or the guest's session lines)"]
+        B6{"Cart empty?"}
+        B7{"Shipping but<br/>only animals?"}
+        B8{"Shipping without<br/>an address?"}
+        B9["ValidateLine per line<br/>(UPDLOCK, HOLDLOCK):<br/>animal Available and 4+ weeks old,<br/>stock sufficient"]
+        B10{"All lines OK?"}
+        B10b["Price the shipment here, from the weights<br/>just read: parcels of max 20 kg,<br/>rate per carrier, free from 2,000 kr.<br/>Nothing posted by the form is used"]
+        B11["INSERT Orders + OrderItems<br/>Status = Placed, total = items + shipping,<br/>cost / weight / parcels stored as snapshots"]
+        B12["ApplyStockChange:<br/>animal to Sold,<br/>stock decremented"]
+        B13["Clear the cart, Commit"]
+        B13b["Guest: stamp the order id into<br/>this browser's own session"]
+        B14["Send confirmation email<br/>in the language the site was in"]
+        B15["Rollback"]
+        B16["Confirmation page: status steps,<br/>delivery and contact details,<br/>pickup note if an animal is in a shipped order"]
+    end
+
+    subgraph DB["MarsvinDb"]
+        C1[("Products / Animals /<br/>StockProducts")]
+        C2[("Orders / OrderItems")]
+    end
+
+    A1 --> B1
+    B1 -->|yes| B2
+    B1 -->|no - guest or Customer| A2
+    A2 --> B2b
+    B2b --> A2b
+    A2b --> A3
+    A3 -->|Shipping| A4
+    A3 -->|Pickup| A5
+    A4 --> A5
+    A5 -->|Card| A6
+    A5 -->|MobilePay: no card fields| B3
+    A6 --> B3
+    B3 --> B4
+    B4 -->|no| A10
+    B4 -->|yes| B5
+    B5 --> C1
+    B5 --> B6
+    B6 -->|yes| B15
+    B6 -->|no| B7
+    B7 -->|yes| B15
+    B7 -->|no| B8
+    B8 -->|yes| B15
+    B8 -->|no| B9
+    B9 --> B10
+    B10 -->|no| B15
+    B10 -->|yes| B10b
+    B10b --> B11
+    B11 --> C2
+    B11 --> B12
+    B12 --> C1
+    B12 --> B13
+    B13 --> B13b
+    B13b --> B14
+    B14 --> B16
+    B16 --> A9
+    B15 --> A10

@@ -365,10 +365,10 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
   implemented here, with test results, which automated test backs which
   claim, and where the project falls short.
 - **Diagrams** — the ER diagram, class diagrams, data flow diagram with
-  trust boundaries, navigation map, sequence and state diagrams are kept as
-  a dated set next to the project folder (`diagrams 12102026`, with the
-  earlier sets beside it), not in this repository: 24 Mermaid sources, PNGs
-  and one PDF. Two were added on 12 October: which language an email is
+  trust boundaries, navigation map, sequence and state diagrams live in
+  `diagrams/` (the 12 October set; the
+  earlier sets are still kept outside the repository): 24 Mermaid sources, PNGs
+  (`png/`) and one PDF. Two were added on 12 October: which language an email is
   written in, and the donation flow.
 - **`JWT-NOTES.txt`** — why the project uses cookie authentication and
   not JWT, how the two compare, and what adding JWT properly would take.

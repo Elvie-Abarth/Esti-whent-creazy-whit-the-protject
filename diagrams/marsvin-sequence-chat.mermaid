@@ -1,0 +1,59 @@
+sequenceDiagram
+    autonumber
+    actor V as Visitor
+    participant JS as chat.js
+    participant RL as RateLimiter ("chat")
+    participant CH as ChatModel (/Chat)
+    participant KA as KeywordChatAssistant
+    participant SK as ShopKnowledge
+    participant CA as ICatalog
+
+    Note over V,CA: The support chat "Pip". Not an AI service: a keyword lookup inside the app.<br/>Nothing leaves the server, nothing is stored, nothing costs money.
+
+    V->>JS: types a question, or clicks an example
+    JS->>CH: POST /Chat (message, lang, previous question, antiforgery token)
+    CH->>RL: 20 questions per minute per IP?
+    alt over the limit
+        RL-->>JS: 429
+        JS-->>V: "wait a minute and try again"
+    else within the limit
+        CH->>CH: antiforgery token valid?<br/>question 1-200 characters?
+        alt too long or empty
+            CH-->>JS: "write a question of at most 200 characters"
+        else ok
+            CH->>KA: Reply(question, english, previous)
+
+            alt contains an email address or 8+ digits in a row
+                KA-->>CH: "please don't type personal details here"
+                Note over KA: Checked first, before anything is looked up.
+            else about how the site is built or protected
+                KA-->>CH: "that's not something I answer"
+            else about orders, accounts, customers or staff
+                KA-->>CH: "I can't see orders or accounts"
+            else sounds like a sick animal
+                KA-->>CH: "contact a vet" - never a diagnosis
+            else something it can work out
+                KA->>CA: catalogue, opening hours, ShippingCalculator, food list
+                KA-->>CH: open now? / shipping for 3 kg / cage size for 4 /<br/>animals for sale / yes-or-no on a food
+            else a lookup
+                KA->>SK: Build(catalog)
+                SK->>CA: Animals, Accessories (public data only)
+                SK-->>KA: one fact per animal, product, food,<br/>FAQ entry, care-guide paragraph, delivery rule
+                KA->>KA: fold letters, synonyms, spelling correction,<br/>score by how rare each matching word is,<br/>require more than half the question covered
+                alt a fact matches
+                    KA-->>CH: answer worded for the question<br/>(advice first, price first, or a short list)
+                else nothing matches
+                    opt a follow-up ("what does she cost?")
+                        KA->>KA: try again with the subject<br/>of the previous question added
+                    end
+                    KA-->>CH: "I don't know that" + up to 3 questions it can answer
+                end
+            end
+
+            CH-->>JS: JSON { answer, suggestions }
+            JS->>JS: textContent, never innerHTML
+            JS-->>V: answer, and suggestion buttons if any
+        end
+    end
+
+    Note over KA,SK: The real boundary is what ShopKnowledge contains: no orders, accounts,<br/>customers or staff, and nothing about logins, the database or security.<br/>A refused previous question is thrown away, never used as context.

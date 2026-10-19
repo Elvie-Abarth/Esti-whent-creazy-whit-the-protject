@@ -1,0 +1,102 @@
+flowchart TB
+    subgraph INTERNET["Untrusted zone - the internet"]
+        GUEST(["Gaest<br/>browser, no account"])
+        CUST(["Kunde<br/>browser"])
+        EMP(["Medarbejder / Admin<br/>browser"])
+        ATK(["Attacker"])
+    end
+
+    subgraph THIRD["External services"]
+        SMTP(["SMTP mail<br/>MailKit, or LoggingEmailSender locally<br/>every mail in Danish or English"])
+        RECAP(["Google reCAPTCHA<br/>siteverify - optional, off without keys"])
+    end
+
+    subgraph SERVER["Trust boundary 1 - Kestrel, ASP.NET Core 9"]
+        MW["0.0 Middleware<br/>HTTPS redirect, security headers + CSP,<br/>rate limiters 'auth' and 'chat', session,<br/>cookie auth re-checked per request,<br/>deny by default + [Authorize], no-store"]
+        P1["1.0 Authenticate<br/>Register, Login, VerifyTotp, ConfirmLogin,<br/>ForgotPassword, ResetPassword"]
+        P2["2.0 Browse catalogue<br/>Index, Marsvin, Tilbehor (search, filters),<br/>Maerker, guides, FAQ"]
+        P3["3.0 Manage cart<br/>Cart/Index - guest or Customer"]
+        P4["4.0 Checkout<br/>Cart/Payment, Cart/Confirmation<br/>shipping priced server-side"]
+        P5["5.0 Administer shop<br/>Products, Animals, Stock, Promotions,<br/>Orders (status, tracking), Users"]
+        P6["6.0 Staff scheduling<br/>Shifts, time off"]
+        P7["7.0 Generate PDF<br/>QuestPDF"]
+        P8["8.0 Audit logging"]
+        P9["9.0 Inactive account cleanup<br/>BackgroundService, every 24h"]
+        P10["10.0 Self-service account<br/>Profile: details, password, TOTP,<br/>orders, cancel, log out everywhere, delete"]
+        P11["11.0 Contact and donations<br/>Kontakt, Stoet - saved for staff;<br/>a donation with an email address<br/>gets a fixed-wording thank-you"]
+        P12["12.0 Support chat (Pip)<br/>keyword lookup - no AI service,<br/>nothing stored"]
+    end
+
+    subgraph DB["Trust boundary 2 - SQL Server LocalDB"]
+        D1[("D1 Users<br/>PendingLogins<br/>TotpSecret encrypted, SecurityStamp")]
+        D2[("D2 Products<br/>Animals / StockProducts")]
+        D3[("D3 CartItems")]
+        D4[("D4 Orders / OrderItems<br/>Promotions")]
+        D5[("D5 AuditLog")]
+        D6[("D6 Shifts<br/>TimeOffRequests")]
+        D9[("D9 ContactMessages<br/>Donations")]
+    end
+
+    D7[("D7 LoginLockoutTracker<br/>in memory, lost on restart")]
+    D8[("D8 Session store<br/>guest cart, guest receipt pass<br/>in memory, 60 min idle")]
+
+    GUEST -->|"browse, cart, guest checkout<br/>+ marsvin-lang cookie: da or en"| MW
+    CUST -->|"email + password over TLS"| MW
+    EMP -->|"all requests"| MW
+    ATK -.->|"SQL injection, XSS, credential stuffing, code guessing"| MW
+    ATK -.->|"forced browsing to /Admin, other people's orders"| MW
+    ATK -.->|"tampered productId, quantity, price, shipping cost"| MW
+    ATK -.->|"stolen session cookie"| MW
+    ATK -.->|"donation form used to send mail to a stranger"| MW
+
+    MW --> P1
+    MW --> P2
+    MW --> P3
+    MW --> P4
+    MW --> P5
+    MW --> P6
+    MW --> P7
+    MW --> P10
+    MW --> P11
+    MW --> P12
+    MW -->|"every signed-in request:<br/>active? stamp? age? role?<br/>language cookie copied to the account if it changed"| D1
+
+    P1 <--> D1
+    P1 <--> D7
+    P1 -->|"captcha token"| RECAP
+    P1 -->|"confirmation and reset links"| SMTP
+    P1 -->|"merge guest cart, claim guest order"| D8
+    P2 --> D2
+    P3 <--> D3
+    P3 <--> D8
+    P3 -->|"read live prices and stock"| D2
+    P4 -->|"re-read prices, stock and weights<br/>UPDLOCK, HOLDLOCK"| D2
+    P4 <--> D3
+    P4 <--> D8
+    P4 -->|"order + snapshot items<br/>+ shipping cost, weight, parcels, language"| D4
+    P4 -->|"order confirmation"| SMTP
+    P5 <--> D2
+    P5 <--> D4
+    P5 <--> D1
+    P5 --> D9
+    P5 -->|"order status emails"| SMTP
+    P6 <--> D6
+    P6 -->|"shift and leave notices"| SMTP
+    P7 --> D2
+    P9 --> D1
+    P9 -->|"2 warnings, then delete"| SMTP
+    P10 <--> D1
+    P10 <--> D4
+    P10 <--> D3
+    P10 -->|"password / email change and cancel notices"| SMTP
+    P11 -->|"message or donation - public form"| D9
+    P11 -->|"donation thank-you, to the address typed in"| SMTP
+    P12 -->|"public catalogue only"| D2
+
+    P1 --> P8
+    P5 --> P8
+    P8 -->|"append only in practice"| D5
+
+    P1 -->|"auth cookie: HttpOnly, SameSite=Lax,<br/>30 min idle, 8 h max"| CUST
+    P4 -->|"confirmation page"| CUST
+    P4 -->|"confirmation page, gated by the session's own order id"| GUEST

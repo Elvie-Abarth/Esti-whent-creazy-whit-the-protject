@@ -62,7 +62,7 @@ marsvin-web/
   Program.cs        - composition root: DI registrations, middleware pipeline, startup
   appsettings.json  - connection string, SMTP host/port (not credentials - see below), base URL
   DocumentationInformation/ - the project docs (this file, the database docs, SECURITY-NOTES.txt,
-                      JWT-NOTES.txt); the diagrams are kept next to the project, see README
+                      JWT-NOTES.txt); the diagrams (Mermaid sources, PNGs, PDF) are in diagrams/ at the repo root
 
 marsvin-web.Tests/
   Data/             - store tests, against a real (disposable) SQL Server LocalDB database

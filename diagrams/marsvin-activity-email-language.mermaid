@@ -1,0 +1,64 @@
+flowchart TB
+    START(["An email is about to be sent"])
+
+    subgraph BROWSER["In the browser"]
+        TOGGLE["EN / DA toggle (lang-toggle.js)<br/>choice kept in localStorage"]
+        COOKIE["marsvin-lang cookie<br/>'da' or 'en', path /, one year, SameSite=Lax<br/>written on every page load"]
+        TOGGLE --> COOKIE
+    end
+
+    subgraph READ["SiteLanguage.Read - the only place the cookie is read"]
+        CHECK{"cookie value?"}
+        EN["English"]
+        DA["Danish"]
+        NONE["not set<br/>(missing, or any other value)"]
+        CHECK -->|"exactly 'en'"| EN
+        CHECK -->|"exactly 'da'"| DA
+        CHECK -->|"anything else"| NONE
+    end
+
+    COOKIE -.->|"sent with every request"| CHECK
+
+    WHO{"Who caused the mail?"}
+    START --> WHO
+
+    SELF["The recipient, in their own browser:<br/>login link, new account, password reset,<br/>password or email changed, order confirmation,<br/>donation thank-you, cancelling their own order"]
+    STAFF["Staff, about an order:<br/>status changed on /Admin/Orders"]
+    OTHER["Someone else, about an account:<br/>shift added or removed, day-off request<br/>to the admins, failed-login warning"]
+    JOB["Nobody: the daily inactivity job"]
+
+    WHO --> SELF
+    WHO --> STAFF
+    WHO --> OTHER
+    WHO --> JOB
+
+    USECOOKIE["Language of this request<br/>PageModel.IsEnglish()"]
+    USEORDER["Orders.PlacedInEnglish<br/>saved at checkout"]
+    USEUSER["Users.PrefersEnglish<br/>of the recipient"]
+
+    SELF --> USECOOKIE
+    STAFF --> USEORDER
+    OTHER --> USEUSER
+    JOB --> USEUSER
+
+    EN -.-> USECOOKIE
+    DA -.-> USECOOKIE
+    NONE -.->|"counts as Danish"| USECOOKIE
+
+    SAVEORDER["Checkout stores the request's language<br/>on the order"]
+    SAVEUSER["Every signed-in request<br/>(AuthCookiePrincipal.RevalidateAsync):<br/>copy the cookie to the account,<br/>only when it is 'da' or 'en' AND differs.<br/>Registration sets it for a new account"]
+
+    USECOOKIE -.-> SAVEORDER
+    SAVEORDER -.-> USEORDER
+    CHECK -.-> SAVEUSER
+    SAVEUSER -.-> USEUSER
+
+    SEND["IEmailSender.SendAsync(to, subject, body, english)<br/>subject and body already written in that language;<br/>the flag only picks the footer the sender adds"]
+    USECOOKIE --> SEND
+    USEORDER --> SEND
+    USEUSER --> SEND
+
+    SEND --> DONE(["Mail in Danish or English, footer included"])
+
+    NOTE["The cookie is never echoed anywhere - it is compared against two<br/>fixed values, so a tampered value cannot inject text into a mail or a page.<br/>Product names in an order mail stay as the order recorded them (Danish).<br/>Accounts and orders from before this existed count as Danish."]
+    SEND --- NOTE

@@ -1,0 +1,96 @@
+sequenceDiagram
+    autonumber
+    actor K as Kunde
+    participant LM as LoginModel
+    participant RL as RateLimiter ("auth")
+    participant RC as IRecaptchaVerifier
+    participant LO as LoginLockoutTracker
+    participant US as IUserAccountStore
+    participant PL as IPendingLoginStore
+    participant ES as IEmailSender
+    participant TM as VerifyTotpModel
+    participant CM as ConfirmLoginModel
+
+    Note over K,CM: Two steps. A correct password alone never signs anyone in:<br/>the second step is either an emailed link or, if the account has 2FA, a TOTP code.
+
+    K->>LM: POST /Account/Login (email, password, captcha token)
+    LM->>RL: 50 requests per minute per IP?
+    alt over the limit
+        RL-->>K: 429 Too Many Requests
+    else within the limit
+        LM->>RC: VerifyAsync(captcha token)
+        Note over RC: Google siteverify. Skipped when no SecretKey is set,<br/>fails closed if Google is unreachable.
+        alt captcha rejected
+            LM-->>K: "Bekraeft at du ikke er en robot"
+        else captcha ok
+            LM->>LO: IsLockedOut(email)
+            alt locked out
+                LO-->>LM: true
+                LM-->>K: "Too many attempts" or, after 5 failures,<br/>"reset your password to unlock"
+            else not locked
+                LM->>US: FindByEmail(email)
+                US-->>LM: ApplicationUser or null
+                LM->>LM: PasswordHasher.VerifyHashedPassword
+
+                alt wrong password, unknown email, or inactive account
+                    LM->>LO: RegisterFailedAttempt(email)
+                    Note over LO: Delay grows 3^n seconds (cap 5 min).<br/>3rd failure: notice emailed to the owner, in the<br/>owner's stored language (Users.PrefersEnglish).<br/>5th failure: locked until a password reset.
+                    LM-->>K: "Forkert e-mail eller adgangskode"
+                    Note over LM: One message for all three cases -<br/>no account enumeration.
+                else password correct
+                    LM->>LO: Clear(email)
+                    LM->>LM: IsSafeLocalUrl(returnUrl)?
+                    alt TotpEnabled
+                        LM->>PL: Create(userId, safeReturnUrl, 5 min)
+                        PL-->>LM: raw token (SHA-256 hash stored, never emailed)
+                        LM-->>K: Redirect to /Account/VerifyTotp?token=...
+                    else no 2FA
+                        LM->>PL: Create(userId, safeReturnUrl, 15 min)
+                        PL-->>LM: raw token (SHA-256 hash stored)
+                        LM->>ES: SendAsync(confirmation link) - Danish or English,<br/>after the marsvin-lang cookie of this browser
+                        LM-->>K: Redirect to /Account/CheckEmail
+                    end
+                end
+            end
+        end
+    end
+
+    alt second step: TOTP code
+        K->>TM: POST /Account/VerifyTotp (token, 6-digit code)
+        TM->>PL: Peek(token)
+        Note over PL: Peek does not spend the token, so a typo<br/>can be retried until it expires.
+        TM->>LO: IsLockedOut(email)
+        TM->>TM: Totp.ValidateCode(secret, code)<br/>HMAC-SHA1, 30 s step, plus or minus one step
+        alt wrong code
+            TM->>LO: RegisterFailedAttempt(email)
+            TM-->>K: "Forkert kode"
+        else code ok
+            TM->>LO: Clear(email)
+            TM->>PL: Consume(token)
+            TM->>US: RecordActivity(userId)
+            TM->>TM: merge the guest cart into the account's cart
+            TM->>TM: SignInAsync - auth cookie with the account's security stamp<br/>HttpOnly, SameSite=Lax, 30 min idle, 8 h max
+            TM-->>K: LocalRedirect(returnUrl) or /Index
+        end
+    else second step: emailed link
+        K->>CM: GET /Account/ConfirmLogin?token=...
+        CM->>PL: Consume(token)
+        Note over PL: Single use. Expired, already used<br/>or unknown all return null.
+        alt token invalid
+            PL-->>CM: null
+            CM-->>K: "Log ind igen"
+        else token valid
+            PL-->>CM: ticket(userId, returnUrl)
+            CM->>US: FindById(userId)
+            alt account gone or deactivated meanwhile
+                CM-->>K: "Log ind igen"
+            else account active
+                CM->>US: RecordActivity(userId)
+                CM->>CM: merge the guest cart into the account's cart,<br/>claim a guest order just placed in this session<br/>(same session AND same email)
+                CM->>CM: SignInAsync - auth cookie with the account's security stamp<br/>HttpOnly, SameSite=Lax, 30 min idle, 8 h max
+                CM-->>K: LocalRedirect(returnUrl) or /Index
+            end
+        end
+    end
+
+    Note over K,CM: The "check your email" tab polls /Account/Profile (check-email.js)<br/>and moves on by itself once another tab has confirmed the link.<br/>From here on, every request re-checks the account - see the session-check diagram.

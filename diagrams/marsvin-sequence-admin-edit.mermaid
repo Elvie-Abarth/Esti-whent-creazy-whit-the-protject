@@ -1,0 +1,44 @@
+sequenceDiagram
+    autonumber
+    actor A as Admin
+    participant AU as Authorization middleware
+    participant EM as Admin/Products/Edit
+    participant PH as PhotoUploadHelper
+    participant CA as ICatalogAdmin
+    participant AL as IAuditLogStore
+    participant DB as MarsvinDb
+
+    A->>AU: POST /Admin/Products/Edit/{id} (fields, optional photo)
+    AU->>AU: auth cookie present?<br/>[Authorize(Roles = "Admin")] satisfied?
+
+    alt not signed in
+        AU-->>A: Redirect to /Account/Login
+    else signed in, wrong role (Employee or Customer)
+        AU-->>A: Redirect to /Account/AccessDenied
+    else authorised
+        AU->>EM: handler runs
+        EM->>EM: validate ModelState + anti-forgery token<br/>(a typed photo address must point at an image under /img)
+
+        alt invalid
+            EM-->>A: Page() with errors
+        else valid
+            opt a photo was uploaded
+                EM->>PH: SaveAsync(file, "products")
+                Note over PH: Declared type must be JPEG, PNG, WebP or GIF,<br/>the file's own first bytes must match it,<br/>max 5 MB. Saved under a new random name.
+                PH-->>EM: url, or a validation error
+            end
+            alt id = 0 (new product)
+                EM->>CA: CreateStockProduct(product)
+                EM->>AL: Record(actorId, actorName, "Product.Created", name)
+            else existing product
+                EM->>CA: UpdateStockProduct(product)
+                EM->>AL: Record(actorId, actorName, "Product.Updated", name)
+            end
+            CA->>DB: INSERT / UPDATE dbo.Products + dbo.StockProducts
+            AL->>DB: INSERT dbo.AuditLog
+            Note over AL,DB: ActorName is a snapshot, not a FK -<br/>the entry survives the account being deleted.<br/>The app never updates or deletes AuditLog rows.
+            EM-->>A: Redirect to /Admin/Products
+        end
+    end
+
+    Note over AU,EM: All 16 pages under /Admin carry their own [Authorize].<br/>CRUD pages, Users, Export and AuditLog are Admin only,<br/>Stock, Orders, Messages, Donations, Shop, Schedule and the<br/>/Admin start page are open to Employee as well. Employee changes<br/>to stock, animal status and order status are audited too.<br/>The role in the cookie is re-read from the database on every request.
