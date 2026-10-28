@@ -1,13 +1,16 @@
-MARSVIN AND JWT - WHY THIS PROJECT USES COOKIES INSTEAD
-=======================================================
+MARSVIN AND JWT - COOKIES FOR THE WEBSITE, JWT FOR THE API
+==========================================================
 
 SHORT ANSWER
 ------------
-Marsvin does not use JWT (JSON Web Token). There is no JWT package, no
-bearer authentication and no REST API controller anywhere in the project.
-Login is handled with cookie authentication instead. This file explains
-why, how the two compare, and what it would take to add JWT properly if
-an assignment requires it.
+The website itself logs in with a cookie, not a JWT (JSON Web Token) - the
+reasons are below. Next to it there is a small JSON API under /api that
+uses JWT bearer tokens, so both are in the project and each is used where
+it fits. The cookie login was left alone: the API was ADDED beside it, the
+way the last section of this file always recommended.
+
+  Website pages   cookie login (email link, optional authenticator code)
+  /api/*          "Authorization: Bearer <JWT>"
 
 For how the cookie login itself works (the email link, 2FA, session
 limits, the security stamp), see WEBSITE-ARCHITECTURE.md, section 4.
@@ -131,21 +134,79 @@ be copied into real code:
     needs at least 256 bits of real randomness to be safe.
 
 
-IF JWT IS REQUIRED LATER
-------------------------
-Replacing the cookie login with JWT would make this site less secure, for
-the reasons above. If an assignment explicitly asks for JWT, the sensible
-way is to ADD a small REST API next to the site and leave the website's
-own cookie login alone:
+THE JWT API THAT WAS ADDED
+--------------------------
+Code: Data/JwtTokens.cs (key, token creation, per-request account check),
+Data/ApiEndpoints.cs (the endpoints and role policies), and the AddJwtBearer
+block in Program.cs. Tests: Pages/Account/EndToEndJwtApiTests.cs and
+Data/JwtSettingsTests.cs.
 
-  - a login endpoint that checks the password with the existing
-    PasswordHasher and issues a JWT
-  - one or two protected endpoints, e.g. a read-only /api/products
-  - the signing key from user-secrets, never in the code
-  - issuer and audience both set and validated
-  - a short lifetime (minutes, not hours), with the role as a claim
-  - HTTPS required outside Development
-  - the same rate limiting as the login pages
+How a client gets and uses a token:
 
-That would demonstrate JWT done properly, without weakening anything
-that already works.
+  1. Sign in on the website as usual (password, email link, authenticator
+     code if the account has one).
+  2. POST /api/auth/token with that session's cookie. The answer is
+     { "token": "...", "tokenType": "Bearer", "expiresAt": "..." }.
+  3. Send "Authorization: Bearer <token>" on every /api call.
+
+Endpoints:
+
+  POST /api/auth/token   needs the login cookie; hands out a token
+  GET  /api/me           any role - who the token says you are
+  GET  /api/orders       any role - the caller's OWN orders
+  GET  /api/orders/{id}  the caller's own order, otherwise 404
+  GET  /api/admin/orders Admin and Employee
+  GET  /api/admin/users  Admin only
+
+Choices, and why they differ from the course example:
+
+  - The token comes from an existing website session, not from a
+    username-and-password endpoint. A password-only endpoint would be a way
+    round the email-link step and the authenticator code, which would make
+    the API the weakest door into every account. Rate limiting ("auth"
+    policy) still applies to the token endpoint.
+
+  - The key is Jwt:Key from user-secrets or an environment variable, at
+    least 32 bytes (set it with: dotnet user-secrets set Jwt:Key <random>).
+    Outside Development the app refuses to start without it; in
+    Development it makes a random key for each run, so tokens die when the
+    app restarts. No key is in the source.
+
+  - Issuer and audience are both set and validated, the algorithm is pinned
+    to HS256 (a token cannot ask for "none"), the lifetime is 15 minutes and
+    clock skew 30 seconds. HTTPS is required outside Development.
+
+  - Tokens CAN be called back, which the course example cannot do: on every
+    request the account is looked up again. A token stops working when the
+    account is deactivated or deleted, when its password changes (the
+    security stamp, same as the cookie), or when its role changed - the
+    role is taken from the database, so a demoted Admin loses /api/admin at
+    once even though the token still says Admin.
+
+  - There are no refresh tokens. A client that needs a new token asks again
+    with a live website session, so ending that session (logout, "log out
+    everywhere", password change) ends the ability to get more.
+
+  - The token holds id, name, email, role and the stamp - never the password
+    hash. It is only signed, not encrypted, so anyone who has it can read it.
+
+  - The two schemes never mix. The pages ignore bearer tokens, and /api
+    ignores the cookie, so a forged form post from another site cannot act
+    through a visitor's cookie on the API. /api answers a bare 401/403/404 as
+    JSON clients expect, not the website's HTML error page.
+
+  - Where the client keeps the token is the client's business. The
+    localStorage risk described above is the reason this project does not
+    ship a JavaScript client that stores one.
+
+Trying it by hand (PowerShell, site running, signed in in a browser):
+copy the auth cookie from the browser's developer tools, then
+
+  $t = (Invoke-RestMethod -Method Post http://localhost:5080/api/auth/token `
+        -Headers @{ Cookie = ".AspNetCore.Cookies=<value>" }).token
+  Invoke-RestMethod http://localhost:5080/api/me -Headers @{ Authorization = "Bearer $t" }
+
+Still true, and honest: this is a small demonstration API. There is no
+CORS configuration (so a browser frontend on another origin cannot call it),
+no token revocation list beyond the account checks above, and no refresh
+tokens.

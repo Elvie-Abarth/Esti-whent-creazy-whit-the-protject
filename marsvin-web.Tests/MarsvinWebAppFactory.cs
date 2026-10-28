@@ -46,6 +46,9 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
         // far more Login/Register requests than the 50 a minute the real
         // limit allows any single client.
         Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", "5000");
+        // Production-environment tests (SecurityHeadersTests) refuse to start
+        // without a configured JWT key; Development makes its own random one.
+        Environment.SetEnvironmentVariable("Jwt__Key", "test-only-key-0123456789-abcdefghijklmnop");
     }
 
     protected override void Dispose(bool disposing)
@@ -57,6 +60,7 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("Email__Username", null);
         Environment.SetEnvironmentVariable("Recaptcha__SecretKey", null);
         Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", null);
+        Environment.SetEnvironmentVariable("Jwt__Key", null);
 
         SqlConnection.ClearAllPools();
         using var connection = new SqlConnection("Server=(localdb)\\MSSQLLocalDB;Trusted_Connection=True;TrustServerCertificate=True;");

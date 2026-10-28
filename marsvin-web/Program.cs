@@ -1,7 +1,9 @@
 using System.Threading.RateLimiting;
 using MarsvinWebExample.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 
 // Community licence: free for this kind of project (small team, not
@@ -224,6 +226,9 @@ builder.Services.AddHostedService(sp =>
         connectionString, appBaseUrl, sp.GetRequiredService<IEmailSender>(),
         sp.GetRequiredService<ILogger<InactiveAccountCleanupService>>()));
 
+var jwtSettings = JwtSettings.From(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton(jwtSettings);
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -266,8 +271,33 @@ builder.Services
         // been changed (security stamp), and one older than 8 hours however
         // active it has been. One extra indexed lookup per signed-in request.
         options.Events.OnValidatePrincipal = AuthCookiePrincipal.RevalidateAsync;
+    })
+    // Second scheme, for the JSON API under /api only (see Data/ApiEndpoints.cs
+    // and JWT-NOTES.txt). Not the default, so the pages never look at a bearer
+    // token; the /api policies name it explicitly.
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = jwtSettings.SigningKey,
+            ValidateIssuer = true,
+            ValidIssuer = JwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = JwtSettings.Audience,
+            ValidateLifetime = true,
+            RequireExpirationTime = true,
+            // Pinned: a token may not choose its own algorithm (the "alg: none" trick).
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = JwtTokens.NameClaim,
+            RoleClaimType = JwtTokens.RoleClaim
+        };
+        options.Events = new JwtBearerEvents { OnTokenValidated = JwtTokens.ValidateAccountAsync };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(ApiEndpoints.AddApiPolicies);
 
 // Smaller downloads for the files that are the same for everyone: the
 // stylesheet, the scripts and SVGs shrink to about a fifth. Deliberately
@@ -299,8 +329,12 @@ else
 // Re-executes the pipeline against /Error for any response that reaches here
 // with an error status code and no body yet - an unmatched route, or an
 // explicit NotFound()/Forbid() result from a page handler - instead of
-// leaving the visitor looking at a blank page.
-app.UseStatusCodePagesWithReExecute("/Error", "?code={0}");
+// leaving the visitor looking at a blank page. Not for /api: a program
+// calling the JSON API wants the bare 401/403/404, not an HTML page (and the
+// page's layout expects the website's cookie login, not a bearer token).
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/Error", "?code={0}"));
 
 // Defence in depth alongside Razor's automatic HTML-encoding and the
 // anti-forgery token on every POST: none of these cost anything to add, and
@@ -365,6 +399,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.MapRazorPages();
+app.MapApi();
 
 app.Run();
 

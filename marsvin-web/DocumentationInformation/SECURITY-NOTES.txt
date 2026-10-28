@@ -122,6 +122,96 @@ A wrong role is redirected to an "access denied" page; a visitor who is
 not logged in is sent to the login page.
 
 
+2A. ACCESS CONTROL MODELS - WHERE MARSVIN SITS
+----------------------------------------------
+The course describes four models. Marsvin is RBAC with owner checks on
+top. The others are not used, and here is why.
+
+  Model  Idea                              In Marsvin
+  -----  --------------------------------  ---------------------------------
+  DAC    The OWNER of a resource decides   Not used. Nobody can share an
+         who may use it, and may pass      order, an account or a page with
+         that right on (the house key).    anyone else. "You can only see
+                                           your own order" looks like owner
+                                           access but is fixed by the
+                                           system: the owner cannot grant
+                                           or delegate it.
+  MAC    The SYSTEM decides, from          Not used: there are no clearance
+         clearance levels on users and     levels or classified data
+         labels on data (Bell-LaPadula     (Bell-LaPadula, Biba). A few
+         for secrecy, Biba for             rules are fixed for everyone,
+         integrity). Users cannot          which is the mandatory flavour:
+         change it.                        an Admin cannot demote or
+                                           deactivate themselves, and the
+                                           last active Admin cannot be
+                                           removed by anyone.
+  RBAC   Users get roles; roles get        THE MAIN MODEL. Three roles
+         permissions. Nobody is given      (Customer, Employee, Admin) on
+         access directly.                  the Users table, enforced with
+                                           [Authorize(Roles = ...)] on the
+                                           page models and with named
+                                           policies on /api. See section 2
+                                           and the matrix below.
+  ABAC   The decision is a rule over       Not as a model. A few checks use
+         ATTRIBUTES of the user, the       an attribute besides the role:
+         resource and the situation        the order must belong to the
+         (role, time, place...).           caller (user id), the account
+                                           must be active, the session must
+                                           be under 8 hours old, and the
+                                           security stamp must still match.
+                                           There are no rules about time of
+                                           day or network location.
+
+Why RBAC fits: a small shop with three clearly different kinds of people,
+staff who change rarely, and no data that needs graded secrecy. It is also
+the easiest model to test - one end-to-end test per role and page.
+
+The limits the course names for RBAC apply here too: one role per account
+(a person who is both Employee and Admin simply is an Admin), and no
+fine-grained permissions inside a role beyond the few handler checks
+described in section 2 (for example only an Admin may change a shift).
+
+
+ACCESS CONTROL MATRIX (RBAC)
+Rows are roles, columns are resources, cells are what the role may do.
+R = read, W = write (create/edit), D = delete, "own" = only the caller's
+own record. "-" = no access, redirected or 401/403. Taken from the
+[Authorize] attributes, the checks inside handlers and the /api policies;
+EndToEndAdminAccessTests and EndToEndJwtApiTests pin the staff and API
+cells.
+
+  Resource                     Guest   Customer     Employee   Admin
+  ---------------------------  ------  -----------  ---------  ---------
+  Shop, animals, care guide    R       R            R          R
+  Cart and checkout            R W     R W          -          -
+  Orders, own receipt/history  own     own R, cancel -         -
+  Orders, all (/Admin/Orders)  -       -            R, status  R, status
+                                                    + tracking + tracking
+  Own profile and account      -       own R W D    own R W    own R W
+  Contact messages             W       W            R          R
+  Donations                    W       W            R          R
+  Stock levels                 -       -            R W        R W
+  Products, animals, prices,   -       -            -          R W D
+  promotions
+  User accounts and roles      -       -            -          R W
+  Audit log                    -       -            -          R
+  Shifts and time off          -       -            own R,     R W D,
+                                                    request    decide
+  /api/me, /api/orders (own)   -       own R        own R      own R
+  /api/admin/orders            -       -            R          R
+  /api/admin/users             -       -            -          R
+
+Notes on the matrix:
+  - Staff cannot use the cart because of the staff-only rule in
+    section 3, not because the page is hidden.
+  - A Guest's receipt is tied to that browser session, not to an account.
+  - Only a Customer can delete their own account; staff accounts are
+    removed by an Admin. An Admin cannot change their own role, so "own
+    R W" for the Admin's profile excludes that field.
+  - The matrix is the RBAC one. An ABAC matrix would add columns for the
+    attributes in the table above; Marsvin does not have one.
+
+
 3. LEAST PRIVILEGE - NO MORE RIGHTS THAN NEEDED
 -----------------------------------------------
 - An Employee can run the shop day to day, but cannot change prices,
@@ -424,7 +514,7 @@ email and a log.
 
 HOW IT IS TESTED
 ================
-"dotnet test" runs 696 automated tests. The ones that pin down a claim
+"dotnet test" runs 722 automated tests. The ones that pin down a claim
 made in this file:
 
   Claim                                 Test
@@ -529,4 +619,4 @@ RELATED DOCUMENTS
 WEBSITE-ARCHITECTURE.md   section 4: roles, the login flow, 2FA, sessions
                           section 9: the full list of security practices
 DATABASE-ARCHITECTURE.md  the Users and PendingLogins tables, the audit log
-JWT-NOTES.txt             why the login uses cookies rather than JWT
+JWT-NOTES.txt             why the website uses cookies, and the JWT API next to it

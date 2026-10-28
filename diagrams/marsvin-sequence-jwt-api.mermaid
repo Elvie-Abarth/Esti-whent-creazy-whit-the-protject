@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor C as Client (signed in on the website)
+    participant T as POST /api/auth/token
+    participant J as JwtTokens
+    participant A as /api endpoint (JWT bearer)
+    participant DB as dbo.Users
+
+    Note over C,T: Step 1 - get a token. Needs the website login cookie,<br/>so the email link and authenticator code already happened.
+    C->>T: POST (login cookie)
+    T->>DB: FindById(user id from cookie)
+    DB-->>T: user (active?)
+    alt cookie missing, or account inactive
+        T-->>C: 302 to login / 401
+    else
+        T->>J: Create(user, key, now)
+        J-->>T: HS256 token: sub, name, email, role, stamp<br/>iss, aud, exp = now + 15 min
+        T-->>C: 200 { token, tokenType, expiresAt } - Cache-Control: no-store
+    end
+
+    Note over C,A: Step 2 - use it. The cookie is ignored on /api.
+    C->>A: GET /api/... Authorization: Bearer token
+    A->>A: signature, issuer, audience, expiry (30 s skew),<br/>algorithm pinned to HS256
+    alt bad, tampered, expired or "alg: none"
+        A-->>C: 401 (bare, no HTML error page)
+    else token accepted
+        A->>DB: FindById(sub)
+        DB-->>A: user
+        alt inactive, stamp changed (password), or role changed
+            A-->>C: 401 - token refused
+        else account unchanged
+            A->>A: role policy (Any user / Staff / Admin)
+            alt role not allowed
+                A-->>C: 403
+            else allowed
+                A-->>C: 200 JSON (own orders: user id from token only)
+            end
+        end
+    end

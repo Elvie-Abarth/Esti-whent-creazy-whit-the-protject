@@ -15,8 +15,10 @@ see `DATABASE-NOTES.txt`.
   holding the `OnGet`/`OnPost*` handlers).
 - **Plain ADO.NET, no ORM** - see `DATABASE-ARCHITECTURE.md` §1.
 - **Cookie authentication** (`Microsoft.AspNetCore.Authentication.Cookies`)
-  - no ASP.NET Core Identity, no JWTs, no external auth providers. A hand-
-    rolled claims principal, described in §4.
+  for the website - no ASP.NET Core Identity, no external auth providers. A
+  hand-rolled claims principal, described in §4. A small JSON API under
+  `/api` uses **JWT bearer authentication**
+  (`Microsoft.AspNetCore.Authentication.JwtBearer`), also in §4.
 - **No frontend framework** - no React/Vue/etc., no build step, no NPM
   dependency for the site itself. Styling is one hand-written CSS file
   (`wwwroot/css/site.css`); JavaScript is a dozen small, single-purpose
@@ -411,6 +413,31 @@ about, and a customer session also opens an order history with a name and
 an address. The cost is convenience - a customer who walks away for half an
 hour logs in again. The cart is not lost by that: a signed-in customer's
 cart is stored in the database.
+
+### The JSON API and JWT (`/api`)
+
+Next to the cookie login there is a second authentication scheme, JWT bearer,
+used only by the endpoints in `Data/ApiEndpoints.cs` (mapped after
+`MapRazorPages`). The cookie scheme stays the default, so the pages never look
+at a bearer token, and the `/api` policies name the bearer scheme explicitly,
+so `/api` never accepts the cookie.
+
+| Endpoint | Who |
+|---|---|
+| `POST /api/auth/token` | A signed-in website session (cookie); returns a 15-minute JWT. Rate limited with the `auth` policy |
+| `GET /api/me`, `/api/orders`, `/api/orders/{id}` | Any role with a token; orders are the caller's own, taken from the token, never from the URL |
+| `GET /api/admin/orders` | Admin, Employee |
+| `GET /api/admin/users` | Admin |
+
+The token is issued from a session that has already passed the email link and
+the authenticator code, so the API is no way round them. HS256 with a key from
+`Jwt:Key` (user-secrets or an environment variable; the app will not start
+without one outside Development), issuer and audience validated, algorithm
+pinned. On every request `JwtTokens.ValidateAccountAsync` looks the account up
+again, so deactivating it, changing its password or changing its role ends the
+token's use immediately. `/api` is left out of the status-code error pages: a
+client gets a bare 401/403/404. Full reasoning and a try-it-by-hand recipe:
+`JWT-NOTES.txt`. Tests: `EndToEndJwtApiTests`, `JwtSettingsTests`.
 
 **Leaving nothing behind.** Logging out (and "log out everywhere", and
 deleting your account) also empties the server-side session, so a guest
@@ -855,7 +882,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 696 tests (all of them need
+`dotnet test` from the solution root runs 722 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-696 tests, three layers:
+722 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -174,6 +174,7 @@ Data/            ICatalog / ICatalogAdmin (catalog), IUserAccountStore, ICartSto
                  ITimeOffRequestStore, IAuditLogStore, IInboxStore, IEmailSender —
                  each with a Sql* ADO.NET implementation; DbInitializer, Sql/schema.sql;
                  AuthCookiePrincipal (builds and re-validates the signed-in user);
+                 JwtTokens / ApiEndpoints (the JSON API under /api, JWT bearer auth);
                  OrderEmails, SiteLanguage (which language an email is written in);
                  the chat: ChatAssistants, ChatSkills, ShopKnowledge, ChatHelp
 Pages/Account/   Register, Login, ConfirmLogin, VerifyTotp, ForgotPassword, ResetPassword,
@@ -367,11 +368,13 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
 - **Diagrams** — the ER diagram, class diagrams, data flow diagram with
   trust boundaries, navigation map, sequence and state diagrams live in
   `diagrams/` (the 12 October set; the
-  earlier sets are still kept outside the repository): 24 Mermaid sources, PNGs
+  earlier sets are still kept outside the repository): 25 Mermaid sources, PNGs
   (`png/`) and one PDF. Two were added on 12 October: which language an email is
-  written in, and the donation flow.
-- **`JWT-NOTES.txt`** — why the project uses cookie authentication and
-  not JWT, how the two compare, and what adding JWT properly would take.
+  written in, and the donation flow. The JWT API sequence
+  (`marsvin-sequence-jwt-api.mermaid`) was added later and has no PNG yet.
+- **`JWT-NOTES.txt`** — why the website uses cookie authentication, how
+  cookies and JWT compare, and the small JWT-secured JSON API under `/api`
+  that sits next to it (how to get and use a token, what makes one useless).
 - **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,
   auth flow, site map, checkout and shipping, the bilingual DA/EN system,
   security practices, testing strategy, and how the support chat works.
