@@ -24,6 +24,7 @@ flowchart TB
         P9["9.0 Inactive account cleanup<br/>BackgroundService, every 24h"]
         P10["10.0 Self-service account<br/>Profile: details, password, TOTP,<br/>orders, cancel, log out everywhere, delete"]
         P11["11.0 Contact and donations<br/>Kontakt, Stoet - saved for staff;<br/>a donation with an email address<br/>gets a fixed-wording thank-you"]
+        P13["13.0 JSON API (JWT)<br/>POST /api/auth/token from a login cookie;<br/>/api/me, /api/orders, /api/admin/*<br/>bearer token only, 15 min, account re-read per request"]
         P12["12.0 Support chat (Pip)<br/>keyword lookup - no AI service,<br/>nothing stored"]
     end
 
@@ -48,6 +49,9 @@ flowchart TB
     ATK -.->|"tampered productId, quantity, price, shipping cost"| MW
     ATK -.->|"stolen session cookie"| MW
     ATK -.->|"donation form used to send mail to a stranger"| MW
+    ATK -.->|"forged, edited, expired or unsigned token; role rewritten to Admin"| MW
+    EMP -->|"Authorization: Bearer token"| MW
+    CUST -->|"Authorization: Bearer token"| MW
 
     MW --> P1
     MW --> P2
@@ -59,6 +63,7 @@ flowchart TB
     MW --> P10
     MW --> P11
     MW --> P12
+    MW --> P13
     MW -->|"every signed-in request:<br/>active? stamp? age? role?<br/>language cookie copied to the account if it changed"| D1
 
     P1 <--> D1
@@ -92,6 +97,8 @@ flowchart TB
     P11 -->|"message or donation - public form"| D9
     P11 -->|"donation thank-you, to the address typed in"| SMTP
     P12 -->|"public catalogue only"| D2
+    P13 -->|"issuer, audience, expiry, HS256 checked;<br/>then active? stamp? role? from the database"| D1
+    P13 -->|"own orders only (user id from the token);<br/>all orders for staff"| D4
 
     P1 --> P8
     P5 --> P8

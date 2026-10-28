@@ -1,9 +1,11 @@
 # Marsvin - diagram set, 12 October 2026
 
-Twenty-four diagrams, redrawn against the code as it stands on 12 October 2026 (the
-`marsvin-web` project, commit `03c9513`). Each `.mermaid` file renders at
+Twenty-five diagrams. Twenty-four were redrawn on 12 October 2026 (commit `03c9513`);
+the JWT API added on 28 October changed four of them and added one (see "What changed
+since 12 October" below). Each `.mermaid` file renders at
 <https://mermaid.live>, or paste it into a ```` ```mermaid ```` block. Ready-made PNGs
-are in `png/`, and `marsvin-diagrams.pdf` has them all in one file.
+are in `png/`, and `marsvin-diagrams.pdf` has them all in one file - but see the
+**stale images** note below: the 28 October changes are in the `.mermaid` sources only.
 
 The previous sets (`diagrams 09102026`, `diagrams 02102026`) are left untouched for
 comparison.
@@ -12,13 +14,14 @@ comparison.
 |---|---|---|
 | `marsvin-er-diagram` | ER diagram, 15 tables | updated |
 | `marsvin-domain-model` | Class diagram, entities and enums | updated |
-| `marsvin-class-services` | Class diagram, stores and DI lifetimes | updated |
-| `marsvin-dfd` | Data flow diagram with trust boundaries | updated |
-| `marsvin-navigation` | Navigation and access-control map | updated |
+| `marsvin-class-services` | Class diagram, stores and DI lifetimes | updated, **JWT classes added 28 Oct** |
+| `marsvin-dfd` | Data flow diagram with trust boundaries | updated, **process 13.0 (JWT API) added 28 Oct** |
+| `marsvin-navigation` | Navigation and access-control map | updated, **/api group added 28 Oct** |
 | `marsvin-activity-email-language` | Activity, which language an email is written in | **new** |
 | `marsvin-sequence-donation` | Sequence, a donation and its thank-you email | **new** |
 | `marsvin-sequence-checkout` | Sequence, checkout (guest or customer) | updated |
 | `marsvin-sequence-order-status` | Sequence, order status and cancelling | updated |
+| `marsvin-sequence-jwt-api` | Sequence, getting and using a JWT for /api | **new, 28 Oct - no PNG yet** |
 | `marsvin-sequence-session-check` | Sequence, the per-request session check | updated |
 | `marsvin-sequence-chat` | Sequence, the support chat (Pip) | unchanged |
 | `marsvin-sequence-login` | Sequence, login (email link or TOTP) | updated |
@@ -30,13 +33,33 @@ comparison.
 | `marsvin-sequence-inactivity-cleanup` | Sequence, GDPR account deletion | updated |
 | `marsvin-state-animal` | State machine, Animal | unchanged |
 | `marsvin-state-order` | State machine, Order | updated |
-| `marsvin-deployment` | Deployment | updated |
+| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key, 722 tests - 28 Oct** |
 | `marsvin-activity-checkout` | Activity diagram | updated |
 | `marsvin-ssd-place-order` | System sequence diagram | updated |
 | `marsvin-communication-checkout` | Communication diagram | updated |
 
-All 24 PNGs in this set were rendered again, the unchanged ones included, so the set is
-drawn in one style.
+All 24 PNGs from 12 October were rendered in one style.
+
+**Stale images (28 October).** The four diagrams marked "28 Oct" above were edited in
+their `.mermaid` sources only. Their PNGs in `png/` and the PDF still show the 12 October
+version, and `marsvin-sequence-jwt-api` has no PNG. Re-render those five at
+<https://mermaid.live> or with `mmdc -i file.mermaid -o png/file.png`, then rebuild the PDF.
+The `.mermaid` files are the source of truth.
+
+## What changed since 12 October
+
+- **A JSON API with JWT bearer tokens** under `/api`, next to the unchanged cookie login.
+  A token is issued only from a signed-in website session (`POST /api/auth/token`), lives
+  15 minutes, and the account is looked up again on every request, so deactivating it,
+  changing its password or its role ends the token at once. `/api` ignores the cookie and
+  the pages ignore bearer tokens. New sequence diagram; new classes `JwtSettings`,
+  `JwtTokens`, `ApiEndpoints` in the class diagram; process 13.0 and two attacker arrows
+  in the DFD; an API group in the navigation map; `Jwt:Key` and the endpoints in the
+  deployment diagram.
+- **Tests.** 722, was 696: 22 end-to-end API tests (roles, tampered / expired / unsigned /
+  wrong-key / wrong-audience tokens, deactivated, password-changed and demoted accounts)
+  and 4 on where the signing key comes from.
+- No database change: still 15 tables, so the ER and domain diagrams are unchanged.
 
 ## What changed since 9 October
 
@@ -76,6 +99,8 @@ drawn in one style.
 | Spoofing | Attacker to 1.0 | PBKDF2, reCAPTCHA, per-email lockout, per-IP limiter, emailed link or TOTP |
 | Spoofing | Stolen cookie to 0.0 | HttpOnly cookie, security stamp replaced on password change, 30 min idle / 8 h max |
 | Spoofing | Attacker to 11.0 to SMTP | A donation mail comes from the shop to an address the sender chose: fixed wording, none of the giver's free text repeated, name kept to one line, rate limited, optional reCAPTCHA |
+| Spoofing | Attacker to 13.0 | Tokens are HS256-signed with a key from configuration (32+ bytes), algorithm pinned, issuer, audience and expiry checked; a token is only issued from a session that passed the email link / TOTP |
+| Tampering | Attacker to 13.0 | An edited payload (role rewritten to Admin) breaks the signature; the role is also re-read from the database on every request |
 | Tampering | Kunde to 3.0 / 4.0 | Prices, stock and shipping cost worked out in the transaction, `ValidateLine`, antiforgery |
 | Tampering | Attacker to 2.0 | Filter, sort and page parameters matched against known values |
 | Tampering | Language cookie to 0.0 | Compared against `da` and `en` only, never echoed; anything else counts as not set |

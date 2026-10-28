@@ -6,6 +6,7 @@ classDiagram
         DbInitializer.EnsureCreatedAndSeeded()
         Deny by default: AuthorizeFolder("/") + public list
         AddAuthentication(cookie, 30 min idle)
+        AddJwtBearer for /api only (not the default scheme)
         OnValidatePrincipal = AuthCookiePrincipal.RevalidateAsync
         AddRateLimiter("auth" 50/min, "chat" 20/min, per IP)
         AddSession(guest cart, 60 min idle)
@@ -20,6 +21,29 @@ classDiagram
         MaxSessionAge = 8 h
         +Build(user, signedInAt)
         +RevalidateAsync(context)
+    }
+
+    class JwtSettings {
+        +SigningKey - from Jwt:Key (32 bytes or more)
+        +Issuer, Audience, Lifetime = 15 min
+        +From(configuration, environment)
+        Production without a key - app refuses to start
+        Development without a key - random key per run
+    }
+    class JwtTokens {
+        <<static>>
+        +Create(user, settings, now) - HS256
+        claims: sub, name, email, role, stamp
+        +ValidateAccountAsync(context)
+        re-reads the account on every API request
+    }
+    class ApiEndpoints {
+        <<static>>
+        POST /api/auth/token - needs the login cookie
+        GET /api/me, /api/orders, /api/orders/id
+        GET /api/admin/orders - Staff policy
+        GET /api/admin/users - Admin policy
+        bearer scheme only, cookie is ignored
     }
 
     class ICatalog {
@@ -230,8 +254,15 @@ classDiagram
     Program ..> IRecaptchaVerifier : typed HttpClient
     Program ..> InactiveAccountCleanupService : hosted service
     Program ..> AuthCookiePrincipal : every authenticated request
+    Program ..> JwtSettings : Singleton
+    Program ..> ApiEndpoints : MapApi()
 
     AuthCookiePrincipal ..> IUserAccountStore : active? stamp? role?
+    ApiEndpoints ..> JwtTokens : issues the token
+    ApiEndpoints ..> IOrderStore : caller's own orders (id from the token)
+    ApiEndpoints ..> IUserAccountStore : token endpoint, admin list
+    JwtTokens ..> JwtSettings : signing key
+    JwtTokens ..> IUserAccountStore : active? stamp? role? - every request
     AuthCookiePrincipal ..> SiteLanguage : keeps Users.PrefersEnglish current
     OrderEmails ..> SqlOrderStore : Order.PlacedInEnglish
     SqlOrderStore ..> ShippingCalculator : cost, weight, parcels

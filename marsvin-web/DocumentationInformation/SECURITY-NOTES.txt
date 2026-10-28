@@ -551,6 +551,18 @@ made in this file:
                                         frame), Tilbehor/IndexModelTests
   A donation mail repeats none of       StoetModelTests
   the giver's own text
+  A JWT cannot be forged, edited or    EndToEndJwtApiTests: a rewritten
+  reused after it should be dead        role, "alg: none", another key,
+                                        wrong issuer or audience, an
+                                        expired token - all 401; a
+                                        deactivated, re-passworded or
+                                        demoted account loses its token
+  The API follows the same roles        EndToEndJwtApiTests: customer,
+                                        employee and admin tokens against
+                                        /api/admin/*; own orders only
+  The JWT signing key is never in       JwtSettingsTests: no key outside
+  the code                              Development stops the app; a short
+                                        key is refused
 
 Not covered by any test: the JavaScript files, and actually delivering a
 mail through SMTP.

@@ -65,6 +65,13 @@ flowchart TB
         ALOG["/Admin/AuditLog"]
     end
 
+    subgraph API["JSON API - JWT bearer, not pages (no HTML, bare 401 / 403 / 404)"]
+        ATOK["POST /api/auth/token<br/>needs the website login cookie<br/>returns a 15 min token"]
+        AME["/api/me, /api/orders<br/>any role - own data only"]
+        AAORD["/api/admin/orders<br/>Admin and Employee"]
+        AAUSR["/api/admin/users<br/>Admin only"]
+    end
+
     HOME --> MAR
     HOME --> TIL
     HOME --> PAS
@@ -96,6 +103,10 @@ flowchart TB
     FOR -->|emailed link| RES
     RES --> LOG
     PRO --> OUT
+    PRO -.->|"signed in, ask for a token"| ATOK
+    ATOK -->|Authorization: Bearer| AME
+    ATOK -->|Staff token| AAORD
+    ATOK -->|Admin token| AAUSR
     PRO -->|log out everywhere| LOG
 
     CONF -.->|Role = Employee or Admin| AIDX
