@@ -4,8 +4,9 @@ Twenty-five diagrams. Twenty-four were redrawn on 12 October 2026 (commit `03c95
 the JWT API added on 28 October changed four of them and added one (see "What changed
 since 12 October" below). Each `.mermaid` file renders at
 <https://mermaid.live>, or paste it into a ```` ```mermaid ```` block. Ready-made PNGs
-are in `png/`, and `marsvin-diagrams.pdf` has them all in one file - but see the
-**stale images** note below: the 28 October changes are in the `.mermaid` sources only.
+are in `png/`, and `marsvin-diagrams.pdf` has them all in one file. The five 28 October
+diagrams (four changed, one new) had their PNGs rendered again, and the PDF was rebuilt, so
+images, PDF and sources agree.
 
 The previous sets (`diagrams 09102026`, `diagrams 02102026`) are left untouched for
 comparison.
@@ -21,7 +22,7 @@ comparison.
 | `marsvin-sequence-donation` | Sequence, a donation and its thank-you email | **new** |
 | `marsvin-sequence-checkout` | Sequence, checkout (guest or customer) | updated |
 | `marsvin-sequence-order-status` | Sequence, order status and cancelling | updated |
-| `marsvin-sequence-jwt-api` | Sequence, getting and using a JWT for /api | **new, 28 Oct - no PNG yet** |
+| `marsvin-sequence-jwt-api` | Sequence, getting and using a JWT for /api | **new, 28 Oct** |
 | `marsvin-sequence-session-check` | Sequence, the per-request session check | updated |
 | `marsvin-sequence-chat` | Sequence, the support chat (Pip) | unchanged |
 | `marsvin-sequence-login` | Sequence, login (email link or TOTP) | updated |
@@ -39,12 +40,6 @@ comparison.
 | `marsvin-communication-checkout` | Communication diagram | updated |
 
 All 24 PNGs from 12 October were rendered in one style.
-
-**Stale images (28 October).** The four diagrams marked "28 Oct" above were edited in
-their `.mermaid` sources only. Their PNGs in `png/` and the PDF still show the 12 October
-version, and `marsvin-sequence-jwt-api` has no PNG. Re-render those five at
-<https://mermaid.live> or with `mmdc -i file.mermaid -o png/file.png`, then rebuild the PDF.
-The `.mermaid` files are the source of truth.
 
 ## What changed since 12 October
 

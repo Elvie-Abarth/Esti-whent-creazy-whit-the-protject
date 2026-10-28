@@ -371,7 +371,8 @@ Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
   earlier sets are still kept outside the repository): 25 Mermaid sources, PNGs
   (`png/`) and one PDF. Two were added on 12 October: which language an email is
   written in, and the donation flow. The JWT API sequence
-  (`marsvin-sequence-jwt-api.mermaid`) was added later and has no PNG yet.
+  (`marsvin-sequence-jwt-api`) was added on 28 October, when the class, data flow,
+  navigation and deployment diagrams were also updated for it.
 - **`JWT-NOTES.txt`** — why the website uses cookie authentication, how
   cookies and JWT compare, and the small JWT-secured JSON API under `/api`
   that sits next to it (how to get and use a token, what makes one useless).
