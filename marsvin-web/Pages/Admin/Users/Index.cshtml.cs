@@ -101,6 +101,18 @@ public class IndexModel(IUserAccountStore users, IAuditLogStore audit) : PageMod
         Items = users.GetAll();
         if (!ModelState.IsValid) return Page();
 
+        // A staff password an admin sets must meet the same policy as any
+        // customer's (PasswordPolicy) - and not be built from the new staff
+        // member's own email or name either. This form shows only the
+        // ModelOnly summary, so the error goes there.
+        var passwordProblem = PasswordPolicy.Validate(
+            NewStaff.Password, NewStaff.Email, NewStaff.DisplayName, this.IsEnglish());
+        if (passwordProblem is not null)
+        {
+            ModelState.AddModelError(string.Empty, passwordProblem);
+            return Page();
+        }
+
         var hasher = new PasswordHasher<ApplicationUser>();
         var passwordHash = hasher.HashPassword(null!, NewStaff.Password);
 
@@ -130,7 +142,8 @@ public class IndexModel(IUserAccountStore users, IAuditLogStore audit) : PageMod
         [Required, StringLength(200)]
         public string DisplayName { get; set; } = "";
 
-        [Required, StringLength(100, MinimumLength = 8)]
+        // Full policy enforced in the handler by PasswordPolicy; attribute caps length.
+        [Required, StringLength(100)]
         [DataType(DataType.Password)]
         public string Password { get; set; } = "";
 

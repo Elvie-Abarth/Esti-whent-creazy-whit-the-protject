@@ -72,7 +72,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         var (userId, token) = NewUserWithResetToken();
         var (model, sentEmail) = MakeModel();
         model.Token = token;
-        model.Input = new ResetPasswordModel.InputModel { NewPassword = "NewPass456!", ConfirmNewPassword = "NewPass456!" };
+        model.Input = new ResetPasswordModel.InputModel { NewPassword = "FreshPass456!", ConfirmNewPassword = "FreshPass456!" };
 
         var result = await model.OnPostAsync();
 
@@ -80,7 +80,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         Assert.Equal("Login", redirect.PageName);
         var hasher = new PasswordHasher<ApplicationUser>();
         var updated = _users.FindById(userId)!;
-        Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, updated.PasswordHash, "NewPass456!"));
+        Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, updated.PasswordHash, "FreshPass456!"));
 
         // ASVS 2.5.5 - the account owner is notified their password changed.
         var notification = Assert.Single(sentEmail.Sent);
@@ -92,7 +92,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         replay.Input = new ResetPasswordModel.InputModel { NewPassword = "AnotherPass789!", ConfirmNewPassword = "AnotherPass789!" };
         await replay.OnPostAsync();
         Assert.False(replay.TokenIsValid);
-        Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, _users.FindById(userId)!.PasswordHash, "NewPass456!"));
+        Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, _users.FindById(userId)!.PasswordHash, "FreshPass456!"));
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         var originalHash = _users.FindById(userId)!.PasswordHash;
         var (model, _) = MakeModel();
         model.Token = "not-a-real-token";
-        model.Input = new ResetPasswordModel.InputModel { NewPassword = "NewPass456!", ConfirmNewPassword = "NewPass456!" };
+        model.Input = new ResetPasswordModel.InputModel { NewPassword = "FreshPass456!", ConfirmNewPassword = "FreshPass456!" };
 
         await model.OnPostAsync();
 
@@ -117,11 +117,40 @@ public class ResetPasswordModelTests(SqlCatalogFixture fixture)
         var originalHash = _users.FindById(userId)!.PasswordHash;
         var (model, _) = MakeModel();
         model.Token = token;
-        model.Input = new ResetPasswordModel.InputModel { NewPassword = "NewPass456!", ConfirmNewPassword = "Different789!" };
+        model.Input = new ResetPasswordModel.InputModel { NewPassword = "FreshPass456!", ConfirmNewPassword = "Different789!" };
         model.ModelState.AddModelError("Input.ConfirmNewPassword", "Adgangskoderne er ikke ens.");
 
         await model.OnPostAsync();
 
         Assert.Equal(originalHash, _users.FindById(userId)!.PasswordHash);
+    }
+
+    [Fact]
+    public async Task OnPostAsync_WeakPassword_IsRejected_AndTheOneTimeLinkStaysUsable()
+    {
+        // The policy is checked by peeking at the token first, so a password
+        // that fails it must NOT spend the link - the visitor can try again.
+        var (userId, token) = NewUserWithResetToken();
+        var originalHash = _users.FindById(userId)!.PasswordHash;
+        var (model, sentEmail) = MakeModel();
+        model.Token = token;
+        model.Input = new ResetPasswordModel.InputModel { NewPassword = "weakpass", ConfirmNewPassword = "weakpass" };
+
+        var result = await model.OnPostAsync();
+
+        Assert.IsType<PageResult>(result);
+        Assert.True(model.ModelState.ContainsKey("Input.NewPassword"));
+        Assert.Equal(originalHash, _users.FindById(userId)!.PasswordHash);
+        Assert.Empty(sentEmail.Sent);
+
+        // Same token, a strong password this time - it still works.
+        var (retry, _) = MakeModel();
+        retry.Token = token;
+        retry.Input = new ResetPasswordModel.InputModel { NewPassword = "FreshPass456!", ConfirmNewPassword = "FreshPass456!" };
+
+        Assert.IsType<RedirectToPageResult>(await retry.OnPostAsync());
+        var hasher = new PasswordHasher<ApplicationUser>();
+        var updated = _users.FindById(userId)!;
+        Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(updated, updated.PasswordHash, "FreshPass456!"));
     }
 }

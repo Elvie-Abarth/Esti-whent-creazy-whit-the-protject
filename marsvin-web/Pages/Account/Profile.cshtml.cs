@@ -88,6 +88,22 @@ public class ProfileModel(
             return Page();
         }
 
+        // A new password (when one is given) must meet the full policy before
+        // anything is saved - checked here, not just by the field's length
+        // cap, so the server enforces what the strength meter shows. Validated
+        // before UpdateProfile so a rejected password never leaves the name or
+        // email half-changed (PasswordPolicy / wwwroot/js/password-meter.js).
+        if (!string.IsNullOrEmpty(Input.NewPassword))
+        {
+            var passwordProblem = PasswordPolicy.Validate(
+                Input.NewPassword, Input.Email, Input.DisplayName, this.IsEnglish());
+            if (passwordProblem is not null)
+            {
+                ModelState.AddModelError("Input.NewPassword", passwordProblem);
+                return Page();
+            }
+        }
+
         var originalEmail = user.Email;
         var email = Input.Email.Trim().ToLowerInvariant();
         var emailChanged = !string.Equals(originalEmail, email, StringComparison.OrdinalIgnoreCase);
@@ -463,7 +479,9 @@ public class ProfileModel(
         [Required, EmailAddress, StringLength(256)]
         public string Email { get; set; } = "";
 
-        [StringLength(100, MinimumLength = 8)]
+        // Optional (empty = don't change it); when set, the full policy is
+        // enforced in the handler by PasswordPolicy. The attribute only caps length.
+        [StringLength(100)]
         [DataType(DataType.Password)]
         public string? NewPassword { get; set; }
 

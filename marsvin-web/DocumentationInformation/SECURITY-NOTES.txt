@@ -42,8 +42,25 @@ OVERVIEW
 
 1. AUTHENTICATION - PROVING WHO YOU ARE
 ---------------------------------------
-- Passwords are at least 8 characters and are hashed with ASP.NET Core's
-  PasswordHasher (PBKDF2). The plain password is never stored or logged.
+- Passwords must be at least 12 characters and contain upper- and
+  lower-case letters, a digit and a symbol, and must not be an obvious
+  password - not a common one, not the shop's own words, and not built
+  from the person's own email or name. The rule lives in one place
+  (Models/PasswordPolicy.cs) and is enforced on the server everywhere a
+  password is set: register, reset, the profile page, and an admin
+  creating a staff account. The strength meter on the form shows those
+  exact five requirements, so what it calls "strong" is precisely what
+  the server accepts - the meter no longer promises more than is enforced.
+  Passwords are hashed with ASP.NET Core's PasswordHasher (PBKDF2); the
+  plain password is never stored or logged.
+
+- Registration does not reveal whether an email is already in use. A taken
+  address gets the same "check your email" response as a brand-new one;
+  rather than telling the browser, a notice goes to that address instead
+  ("you already have an account - log in or reset your password"). This
+  closes the same user-enumeration gap that "forgot password" already
+  avoids. The notice is written in the owner's language, never echoes what
+  the submitter typed, and is sent nowhere else.
 
 - A correct password alone does not log anyone in. It only proves the
   first factor; the session is created at the second step.
@@ -537,6 +554,15 @@ made in this file:
                                         EndToEndAuthTests
   Own order only (no IDOR)              ConfirmationModelTests,
                                         EndToEndCartTests
+  Password rules are enforced on the    PasswordPolicyTests, plus the
+  server, not just shown by the meter   weak-password tests in
+                                        RegisterModelTests,
+                                        ResetPasswordModelTests and
+                                        ProfileModelTests
+  Registration doesn't reveal which     RegisterModelTests: a taken email
+  emails already exist                  gives the same redirect as a new
+                                        one, with no form error, and the
+                                        account is left untouched
   Rate limits really stop a client      EndToEndErrorPagesAndRateLimitTests
                                         (429 on login/register/forgot
                                         password, and on the chat)
@@ -579,6 +605,14 @@ Honest gaps, worth knowing for a report or an exam:
   limited and behind the optional reCAPTCHA. Guest checkout has the same
   property. A stricter design would confirm the address before writing
   to it.
+
+- The password policy is deliberately stricter and more visible than
+  NIST 800-63B, which prefers length plus a breached-password check over
+  mandatory composition rules (upper/lower/digit/symbol). The project
+  chooses the stricter, meter-matching policy on purpose, but the
+  blocklist in PasswordPolicy is a short high-signal list, not a full
+  breach corpus. A real deployment would add a proper breach check (for
+  example HaveIBeenPwned's k-anonymity range API).
 
 - The scripts in wwwroot/js have no automated tests. There is no browser
   test setup, so the language toggle, the cart and the payment form are

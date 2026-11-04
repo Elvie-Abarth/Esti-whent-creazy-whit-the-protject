@@ -731,6 +731,7 @@ Gmail SMTP, or `LoggingEmailSender` if no credentials are configured - see
 |---|---|---|
 | Login attempt with a correct password | The account itself | `LoginModel.OnPostAsync` |
 | A new account registers | The address just registered | `RegisterModel.OnPostAsync` |
+| A sign-up uses an email that's already registered | That existing address ("you already have an account") - never the browser, so it can't be used to probe which emails exist | `RegisterModel.SendAlreadyRegisteredEmailAsync` |
 | A password-reset is requested (only if the email matches an active account) | The account itself | `ForgotPasswordModel.OnPostAsync` |
 | A checkout completes | The buyer | `Cart/PaymentModel.OnPostAsync` |
 | An order's status changes (processing, sent / ready for pickup, completed) | The buyer | `Admin/Orders/IndexModel` via `Data/OrderEmails.cs` |
@@ -786,7 +787,19 @@ validation, output sanitising, and the known gaps - see
 - **SQL injection**: every query is parameterised, no exceptions -
   see `DATABASE-ARCHITECTURE.md` §5.
 - **Passwords**: PBKDF2 via `PasswordHasher<ApplicationUser>`, never
-  compared or stored as plain text.
+  compared or stored as plain text. The strength rule itself is one shared
+  policy (`Models/PasswordPolicy.cs`): at least 12 characters, upper and
+  lower case, a digit, a symbol, and not an obvious password (a common one,
+  the shop's own words, or built from the account's own email or name).
+  It's enforced server-side everywhere a password is set
+  (Register/ResetPassword/Profile/Admin create-staff), and the strength
+  meter mirrors those exact five rules so it never promises more than the
+  server accepts.
+- **No user enumeration on registration**: a sign-up with an email that's
+  already taken returns the *same* "check your email" redirect as a new
+  one and sends the notice to that address ("you already have an account"),
+  instead of telling the browser - the same thing `ForgotPassword` already
+  does, so neither form can be used to map which addresses have accounts.
 - **Login tokens**: only ever stored as a SHA-256 hash
   (`PendingLogins.TokenHash`) - the raw token exists only in the email.
 - **CSRF**: Razor Pages' built-in antiforgery token on every form
@@ -882,7 +895,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 722 tests (all of them need
+`dotnet test` from the solution root runs 742 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests
@@ -1039,11 +1052,16 @@ A few reusable patterns worth knowing before touching a page's markup:
   text as an interpolated JavaScript string.
 - **`data-password-meter`** - opt a password `<input>` into the live
   strength meter (`password-meter.js`): a guinea pig walks along a track
-  toward a carrot, one step for each thing the password gets right, with
-  the five things it looks for listed underneath and ticked off as they are
-  met. No colour before anything is typed, red for weak through to green
-  for strong. Client-side guidance only, not validation - set on
-  every *new*-password field (Register, Profile's change-password,
+  toward a carrot, one step for each requirement the password meets, with
+  the five requirements listed underneath and ticked off as they are met.
+  No colour before anything is typed, red for weak through to green for
+  strong. The five are exactly the ones the server enforces
+  (`Models/PasswordPolicy.cs`) - 12+ characters, upper and lower case, a
+  digit, a symbol, and "not an obvious password" (which also watches the
+  email and name fields on the same form) - and the carrot is reached only
+  when all five pass, i.e. only for a password the server will accept. So
+  it's a live preview of the real rule, not just guidance. Set on every
+  *new*-password field (Register, Profile's change-password,
   ResetPassword, admin staff creation), deliberately not on any
   *current*-password field, which is confirming a password rather than
   choosing one.

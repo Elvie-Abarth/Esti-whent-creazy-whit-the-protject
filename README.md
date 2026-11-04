@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-722 tests, three layers:
+742 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -199,13 +199,25 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 ## How the security-relevant parts work
 
 - **Passwords**: hashed with ASP.NET Core's `PasswordHasher<T>` (PBKDF2-HMAC-SHA512,
-  100k iterations, salted) — never stored or logged in plain text.
+  100k iterations, salted) — never stored or logged in plain text. One shared
+  policy (`Models/PasswordPolicy.cs`) is enforced server-side wherever a
+  password is set: at least 12 characters, upper and lower case, a digit, a
+  symbol, and not an obvious password (a common one, the shop's own words, or
+  built from the account's own email or name). The strength meter on the form
+  shows those exact five rules, so "strong" means a password the server will
+  actually accept.
 - **Login and registration both require email confirmation**, not just a
   password: a single-use, 15-minute link is emailed, and only opening it
   (`ConfirmLoginModel`) actually signs the session in — proof of inbox
   access, not just of knowing (or guessing) a password. Only the SHA-256
   hash of the token is ever stored (`PendingLogins`), the same way a
   password never is. Forgot-password reuses the same mechanism.
+- **No account enumeration.** Login gives one "wrong email or password" for
+  every failure, forgot-password answers the same whether or not the address
+  exists, and registering with an already-registered email returns the same
+  "check your email" as a new sign-up — the "you already have an account"
+  notice goes to that inbox, never back to the browser. None of the three
+  forms can be used to find out who has an account.
 - **Sessions**: cookie authentication (`HttpOnly`, `SameSite=Lax`, `Secure`
   outside Development), checked server-side on every request via
   `[Authorize]`.

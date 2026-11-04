@@ -182,6 +182,34 @@ public class ProfileModelTests(SqlCatalogFixture fixture)
     }
 
     [Fact]
+    public async Task OnPostAsync_WeakNewPassword_IsRejected_AndNothingElseIsSavedEither()
+    {
+        // The new password is validated before UpdateProfile runs, so a
+        // rejected password leaves the name and email untouched too.
+        var user = NewCustomer();
+        var (model, _, sentEmail) = MakeModel(user.UserId);
+        model.Input = new ProfileModel.InputModel
+        {
+            DisplayName = "A Brand New Name",
+            Email = user.Email,
+            CurrentPassword = OriginalPassword,
+            NewPassword = "weakpass",            // under 12, no upper/digit/symbol
+            ConfirmNewPassword = "weakpass"
+        };
+
+        var result = await model.OnPostAsync();
+
+        Assert.IsType<PageResult>(result);
+        Assert.True(model.ModelState.ContainsKey("Input.NewPassword"));
+        var unchanged = _users.FindById(user.UserId)!;
+        Assert.Equal(user.DisplayName, unchanged.DisplayName);
+        var hasher = new PasswordHasher<ApplicationUser>();
+        Assert.NotEqual(PasswordVerificationResult.Failed,
+            hasher.VerifyHashedPassword(unchanged, unchanged.PasswordHash, OriginalPassword));
+        Assert.Empty(sentEmail.Sent);
+    }
+
+    [Fact]
     public void OnPostStartTotpEnrollment_GeneratesAndStoresAPendingSecret()
     {
         var user = NewCustomer();

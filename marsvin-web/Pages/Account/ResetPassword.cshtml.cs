@@ -37,13 +37,30 @@ public class ResetPasswordModel(
 
         if (!ModelState.IsValid) return Page();
 
-        // Consumed here, at the point of actual use - the OnGet check above
-        // only peeked, so the token is still good for this one redemption
-        // even if the visitor sat on the form for a while first.
-        var ticket = pendingLogins.Consume(Token);
-        var user = ticket is null ? null : users.FindById(ticket.UserId);
+        // Resolve the account from the token WITHOUT spending it yet (Peek,
+        // not Consume), so we can check the account's own name/email against
+        // the new password and still leave the one-time link usable if the
+        // password is rejected.
+        var peeked = pendingLogins.Peek(Token);
+        var user = peeked is null ? null : users.FindById(peeked.UserId);
         if (user is null)
         {
+            TokenIsValid = false;
+            return Page();
+        }
+
+        var passwordProblem = PasswordPolicy.Validate(Input.NewPassword, user.Email, user.DisplayName, this.IsEnglish());
+        if (passwordProblem is not null)
+        {
+            ModelState.AddModelError("Input.NewPassword", passwordProblem);
+            return Page();
+        }
+
+        // Only now spend the token, at the point the change actually happens.
+        if (pendingLogins.Consume(Token) is null)
+        {
+            // Raced with another use between the Peek and here - treat the
+            // link as gone rather than changing the password twice.
             TokenIsValid = false;
             return Page();
         }
@@ -94,7 +111,9 @@ public class ResetPasswordModel(
 
     public sealed class InputModel
     {
-        [Required, StringLength(100, MinimumLength = 8)]
+        // Full policy enforced in the handler by PasswordPolicy (one localized
+        // message per rule); the attribute only caps length and requires a value.
+        [Required, StringLength(100)]
         [DataType(DataType.Password)]
         public string NewPassword { get; set; } = "";
 

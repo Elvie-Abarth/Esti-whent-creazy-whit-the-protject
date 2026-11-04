@@ -1,15 +1,18 @@
-// Live strength meter for any <input data-password-meter> - no server
-// round-trip, just a quick heuristic so the user gets feedback while
-// typing. The server's own [StringLength(MinimumLength = 8)] check (see
-// Register/Profile/ResetPassword InputModel) is still what's actually
-// enforced - this is guidance, not validation.
+// Live strength meter for any <input data-password-meter>. It mirrors the
+// server's real rule exactly (Models/PasswordPolicy.cs): the same five
+// requirements, and "strong" - the guinea pig reaching the carrot - means a
+// password the server will actually accept, with all five met. So the meter
+// isn't guidance that could over-promise; what it shows is what is enforced.
+// The authoritative check still runs server-side in the page handlers; this
+// only saves a round-trip.
 //
 // What it shows, in the shop's own terms rather than a generic bar:
 // a guinea pig walks along a track toward a carrot, one step further for
-// every thing the password gets right, and the track fills in behind it.
-// Under the track, the five things it's looking for are listed as chips
-// that tick off as they're met - so the meter doesn't just say "weak", it
-// says what to add. Reaching "strong" lets the guinea pig eat the carrot.
+// every requirement the password meets, and the track fills in behind it.
+// Under the track, the five requirements are listed as chips that tick off
+// as they're met - so the meter doesn't just say "weak", it says what to
+// add. The last chip, "not an obvious password", also watches the email and
+// name fields on the same form, the same substrings the server rejects.
 //
 // Everything is built with createElement/textContent and positioned through
 // element.style - no innerHTML with user input, and nothing the page's
@@ -19,7 +22,10 @@
 
     var SVG_NS = "http://www.w3.org/2000/svg";
 
+    // Six entries, indexed straight by the 0-5 score (how many of the five
+    // requirements are met). Only a 5 is "Strong" - the one the server accepts.
     var LEVELS = [
+        { da: "Meget svag", en: "Very weak" },
         { da: "Meget svag", en: "Very weak" },
         { da: "Svag", en: "Weak" },
         { da: "Rimelig", en: "Fair" },
@@ -32,14 +38,48 @@
     // Shown in place of a level while the field is still empty.
     var EMPTY = { da: "Skriv en adgangskode", en: "Type a password" };
 
-    // Each rule is one point. Any four of the five makes "strong" - a long
-    // passphrase doesn't have to contain a symbol as well.
+    // The common passwords and shop words the server also rejects
+    // (Models/PasswordPolicy.cs Blocklist) - kept in step with it by hand.
+    var COMMON = [
+        "password", "passord", "adgangskode", "123456", "1234567", "12345678",
+        "123456789", "1234567890", "qwerty", "qwertyui", "asdfgh", "abc123",
+        "111111", "000000", "iloveyou", "letmein", "welcome", "admin", "login",
+        "dragon", "monkey", "football", "princess", "sunshine", "superman",
+        "marsvin", "guineapig", "guinea", "cavy", "gnavling", "butik"
+    ];
+
+    // The value of a sibling field on the same form (the email, the name), so
+    // the "not obvious" rule can reject a password built out of them - exactly
+    // what the server checks. Empty when the field isn't on this form (the
+    // reset-password form has neither).
+    function siblingValue(input, selector) {
+        var form = input.form;
+        var node = form && form.querySelector(selector);
+        return node ? String(node.value || "") : "";
+    }
+
+    function isObvious(password, input) {
+        var lower = password.toLowerCase();
+        if (!lower) return false;
+        for (var i = 0; i < COMMON.length; i++) {
+            if (lower.indexOf(COMMON[i]) !== -1) return true;
+        }
+        var local = siblingValue(input, 'input[name$="Email"]').toLowerCase().split("@")[0];
+        if (local.length >= 3 && lower.indexOf(local) !== -1) return true;
+        var name = siblingValue(input, 'input[name$="DisplayName"]').trim().toLowerCase();
+        if (name.length >= 3 && lower.indexOf(name) !== -1) return true;
+        return false;
+    }
+
+    // Each requirement is one point, and ALL five are needed for "strong" -
+    // the exact set the server enforces. The fifth takes the input too, so it
+    // can look at the email/name fields next to it.
     var RULES = [
-        { da: "Mindst 8 tegn", en: "At least 8 characters", test: function (p) { return p.length >= 8; } },
-        { da: "12 tegn eller flere", en: "12 or more characters", test: function (p) { return p.length >= 12; } },
+        { da: "Mindst 12 tegn", en: "At least 12 characters", test: function (p) { return p.length >= 12; } },
         { da: "Store og små bogstaver", en: "Upper and lower case", test: function (p) { return /[a-z]/.test(p) && /[A-Z]/.test(p); } },
         { da: "Et tal", en: "A number", test: function (p) { return /[0-9]/.test(p); } },
-        { da: "Et tegn som ! eller ?", en: "A symbol like ! or ?", test: function (p) { return /[^A-Za-z0-9]/.test(p); } }
+        { da: "Et tegn som ! eller ?", en: "A symbol like ! or ?", test: function (p) { return /[^A-Za-z0-9]/.test(p); } },
+        { da: "Ikke en oplagt adgangskode", en: "Not an obvious password", test: function (p, input) { return p.length > 0 && !isObvious(p, input); } }
     ];
 
     // Weak to strong reads the way everyone expects: red, orange, a
@@ -155,11 +195,12 @@
         return { wrap: wrap, title: title, level: level, fill: fill, walker: walker, goal: goal, chips: chips, lastScore: -1 };
     }
 
-    function update(meter, password) {
+    function update(meter, input) {
+        var password = input.value;
         var language = lang();
-        var met = RULES.map(function (rule) { return rule.test(password); });
-        var score = Math.min(met.filter(Boolean).length, 4);
-        var t = score / 4;
+        var met = RULES.map(function (rule) { return rule.test(password, input); });
+        var score = met.filter(Boolean).length;      // 0 to 5
+        var t = score / RULES.length;
         var color = colorAt(t);
 
         // An empty field isn't "very weak" yet - it's just not started: the
@@ -169,7 +210,7 @@
         meter.level.style.color = password ? color : "";
         meter.wrap.classList.toggle("is-empty", !password);
 
-        var strong = score === 4;
+        var strong = score === RULES.length;
 
         // Up to "good", the walker's left edge travels toward a point just
         // short of the carrot, and the fill reaches the middle of the guinea
@@ -188,7 +229,7 @@
         meter.wrap.classList.toggle("is-strong", strong);
         // The little celebration plays when "strong" is reached, not on every
         // keystroke typed after that.
-        meter.walker.classList.toggle("is-celebrating", strong && meter.lastScore !== 4);
+        meter.walker.classList.toggle("is-celebrating", strong && meter.lastScore !== RULES.length);
 
         meter.chips.forEach(function (chip, i) {
             chip.textContent = RULES[i][language];
@@ -201,8 +242,16 @@
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll("input[data-password-meter]").forEach(function (input) {
             var meter = build(input);
-            update(meter, input.value);
-            input.addEventListener("input", function () { update(meter, input.value); });
+            update(meter, input);
+            input.addEventListener("input", function () { update(meter, input); });
+
+            // The "not an obvious password" rule depends on the email and name
+            // on the same form, so re-check when those change too.
+            if (input.form) {
+                input.form.querySelectorAll('input[name$="Email"], input[name$="DisplayName"]').forEach(function (field) {
+                    field.addEventListener("input", function () { update(meter, input); });
+                });
+            }
 
             // The texts here are written by this script, not by the page's
             // own DA/EN swap, so they're redrawn when the language button is
@@ -210,7 +259,7 @@
             var toggle = document.getElementById("lang-toggle");
             if (toggle) {
                 toggle.addEventListener("click", function () {
-                    setTimeout(function () { update(meter, input.value); }, 0);
+                    setTimeout(function () { update(meter, input); }, 0);
                 });
             }
         });
