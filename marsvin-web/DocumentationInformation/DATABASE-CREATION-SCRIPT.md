@@ -470,10 +470,10 @@ sqlcmd -S "(localdb)\MSSQLLocalDB" -d MarsvinDb -i "Data\Sql\schema.sql"
 sqlcmd -S "(localdb)\MSSQLLocalDB" -d MarsvinDb -Q "SELECT name FROM sys.tables ORDER BY name;"
 ```
 
-You should see 15 tables: `Animals`, `AuditLog`, `CartItems`,
+You should see 16 tables: `Animals`, `AuditLog`, `CartItems`,
 `ContactMessages`, `Donations`, `OrderItems`, `Orders`, `PendingLogins`,
-`Products`, `Promotions`, `SeedBatches`, `Shifts`, `StockProducts`,
-`TimeOffRequests` and `Users`.
+`Products`, `Promotions`, `SecurityEvents`, `SeedBatches`, `Shifts`,
+`StockProducts`, `TimeOffRequests` and `Users`.
 
 At that point the database has every table and constraint, but no data -
 `dotnet run` still needs to start once to seed the catalog and the demo

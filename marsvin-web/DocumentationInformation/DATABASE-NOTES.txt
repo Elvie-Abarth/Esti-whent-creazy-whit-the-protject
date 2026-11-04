@@ -30,7 +30,7 @@ Using SQL Server Management Studio (SSMS):
   4. Expand Databases -> MarsvinDb -> Tables to see Products, Animals,
      StockProducts, Users, PendingLogins, CartItems, Orders, OrderItems,
      Promotions, Shifts, TimeOffRequests, AuditLog, ContactMessages,
-     Donations, SeedBatches (15 tables in all).
+     Donations, SeedBatches, SecurityEvents (16 tables in all).
      Right-click a table -> "Select Top 1000 Rows" to view its data.
 
 From the command line:
@@ -151,6 +151,10 @@ Data\SqlShiftStore.cs        - staff work schedule (Admin/Schedule)
 Data\SqlTimeOffRequestStore.cs - employee day-off requests (Account/Profile, Admin/Schedule)
 Data\SqlAuditLogStore.cs     - who changed what and when (Admin/AuditLog), written from every
                                admin/employee write action
+Data\SqlSecurityEventStore.cs - recorded attack attempts (Admin/SecurityLog): failed logins,
+                               locked accounts, wrong-role requests, rate limits, rejected forms;
+                               SecurityMonitor records them and SecurityAlerter emails the admins
+                               when a pattern crosses a threshold
 Data\SmtpEmailSender.cs      - real SMTP email (login confirmation, inactivity warnings, notifications,
                                donation thank-you) - every mail in Danish or English
 Data\SiteLanguage.cs         - reads the browser's language cookie (marsvin-lang: da or en); the

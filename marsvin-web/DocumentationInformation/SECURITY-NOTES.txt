@@ -256,6 +256,40 @@ Notes on the matrix:
   log that only an Admin can read and nobody can edit.
 
 
+3b. SECURITY MONITORING - SEEING THE ATTEMPTS
+---------------------------------------------
+The audit log above records what *staff* do. A second log records what
+*attackers* try, so an admin can see it and be warned about it.
+
+- What is recorded (table SecurityEvents, page /Admin/SecurityLog, Admin
+  only): failed logins, attempts on an already-locked account, requests to
+  a page the signed-in user's role isn't allowed on, rate-limit hits, and
+  rejected forms (a missing or invalid anti-forgery token, i.e. a forged or
+  expired request). Each row has the time, the targeted email, the client
+  IP and the path - never the attempted password or any token.
+
+- Being warned: when a *pattern* crosses a threshold - for example 10+
+  failed logins from one IP against 3+ different accounts in 10 minutes
+  (credential stuffing), many wrong-role requests, or a sustained flood of
+  rate-limit hits - every active admin is emailed (SecurityAlerter), once
+  per pattern per 30 minutes so a scanner can't bury them in mail. A single
+  failed login emails no one.
+
+- An honest limit, stated plainly in the page and the email: this sees
+  attack *attempts* in the app's own logs. It is NOT breach or
+  data-leak detection - no application can truthfully tell that data has
+  been taken - and nothing here claims otherwise.
+
+- The IP is personal data, so these rows are not kept forever: the daily
+  cleanup job deletes them after 90 days, and /Privatliv documents this.
+
+  Code: Models/SecurityEvent.cs, Data/SqlSecurityEventStore.cs,
+        Data/SecurityMonitor.cs, Data/SecurityAlerter.cs,
+        Pages/Admin/SecurityLog/, and the hooks in Program.cs
+        (rate-limiter OnRejected, cookie OnRedirectToAccessDenied, and the
+        400-on-POST middleware) and Pages/Account/Login.cshtml.cs
+
+
 4. SESSION MANAGEMENT - STAYING LOGGED IN, SAFELY
 -------------------------------------------------
 - The login is a cookie that is signed and encrypted, HttpOnly (scripts
@@ -531,7 +565,7 @@ email and a log.
 
 HOW IT IS TESTED
 ================
-"dotnet test" runs 722 automated tests. The ones that pin down a claim
+"dotnet test" runs 752 automated tests. The ones that pin down a claim
 made in this file:
 
   Claim                                 Test
@@ -589,6 +623,18 @@ made in this file:
   The JWT signing key is never in       JwtSettingsTests: no key outside
   the code                              Development stops the app; a short
                                         key is refused
+  Attack attempts are recorded          SqlSecurityEventStoreTests, and
+                                        LoginModelTests (a failed login
+                                        writes an event with the email but
+                                        not the password)
+  Admins are warned on a pattern,       SecurityAlerterTests: 10 failed
+  not on a single attempt               logins across 3+ accounts from one
+                                        IP emails the admins once (then the
+                                        cooldown holds); a couple of
+                                        failures email no one; the alert
+                                        says it is not a confirmed breach
+  The security log is Admin-only        EndToEndAdminAccessTests (the role
+                                        matrix includes /Admin/SecurityLog)
 
 Not covered by any test: the JavaScript files, and actually delivering a
 mail through SMTP.
@@ -617,6 +663,15 @@ Honest gaps, worth knowing for a report or an exam:
 - The scripts in wwwroot/js have no automated tests. There is no browser
   test setup, so the language toggle, the cart and the payment form are
   checked by hand.
+
+- The security log sees attack *attempts*, not a breach. It cannot tell
+  that data was actually read or taken - no application can from its own
+  logs - so it must not be mistaken for intrusion/exfiltration detection.
+  The client IP it records is whatever reached the app; behind a reverse
+  proxy or load balancer that would be the proxy's address unless the app
+  is configured to read a forwarded-for header (it isn't here). The alert
+  cooldown is in memory, so it resets on restart and isn't shared across
+  several servers - the same limitation as the login lockout above.
 
 - The Admin role is all-or-nothing. There are no finer permissions, so
   an admin who only needs to edit products can also manage accounts.

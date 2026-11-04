@@ -605,6 +605,7 @@ concerns:
 | `/Admin/Users` | Account management - all roles, create staff, change role/active, delete (Admin only) |
 | `/Admin/Schedule` ("Vagtplan") | Shift assignment (Admin) / own shifts (Employee); day-off requests and their approval; rejects an overlapping shift or one falling on approved time off |
 | `/Admin/AuditLog` ("Logbog") | Who changed what, and when - every admin/employee write action (Admin only) |
+| `/Admin/SecurityLog` ("Sikkerhedslog") | Recorded attack *attempts* - failed logins, locked accounts, wrong-role requests, rate-limit hits, rejected forms (Admin only, read-only). Not breach detection - §9 |
 
 ### Shop management - `/Admin/Shop` ("Butiksstyring")
 
@@ -740,6 +741,7 @@ Gmail SMTP, or `LoggingEmailSender` if no credentials are configured - see
 | Account approaching the 2-year inactivity cutoff (2 months out, then 1 month out) | The customer | `InactiveAccountCleanupService` |
 | An Employee submits a day-off request | Every active Admin | `ProfileModel.OnPostRequestTimeOffAsync` |
 | An Admin adds or removes a shift | That specific staff member | `Admin/Schedule/IndexModel.OnPostCreateAsync` / `OnPostDeleteAsync` |
+| A suspicious-activity pattern crosses a threshold (e.g. a burst of failed logins from one IP across several accounts) | Every active admin, once per pattern per 30 min | `SecurityAlerter.ConsiderAsync` |
 | A donation is made with an email address given | The donor (the address typed into the form) | `StoetModel.SendThankYouEmailAsync` |
 
 The contact form does **not** send email - it is saved to the database and
@@ -892,10 +894,23 @@ validation, output sanitising, and the known gaps - see
   change, a deletion, a staff account being created) is recorded with who
   did it and when (`/Admin/AuditLog`, `IAuditLogStore`) - the
   accountability half of the role-based access control described above.
+- **Security monitoring**: the audit log's counterpart for the *attacker*
+  side. Failed logins, attempts on a locked account, wrong-role page
+  requests, rate-limit hits and rejected (forged/expired) forms are each
+  recorded as a `SecurityEvent` (metadata only - never the attempted
+  password or a token), readable by an admin on `/Admin/SecurityLog`. When
+  a *pattern* crosses a threshold (e.g. 10+ failed logins from one IP
+  across 3+ accounts in 10 minutes), `SecurityAlerter` emails the admins
+  once per pattern per 30 minutes. The hooks are small and central: the
+  rate-limiter's `OnRejected`, cookie auth's `OnRedirectToAccessDenied`,
+  a 400-on-POST middleware, and `LoginModel` itself. This is honest about
+  what it is - alerting on *attempts* seen in the logs, **not** breach or
+  data-leak detection, which no app can truthfully do. Rows hold an IP
+  (personal data) and are pruned after 90 days (`/Privatliv`).
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 742 tests (all of them need
+`dotnet test` from the solution root runs 752 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

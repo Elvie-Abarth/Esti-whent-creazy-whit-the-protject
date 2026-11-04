@@ -49,6 +49,17 @@
                     <p data-en="Who changed what, and when.">Hvem ændrede hvad, og hvornår.</p>
                 </a>
             </li>
+            <li>
+                <a asp-page="/Admin/SecurityLog/Index">
+                    <h3 data-en="Security log">Sikkerhedslog
+                        @if (Model.SecurityEventsLast24Hours > 0)
+                        {
+                            <span class="status status--denied" data-en="@($"{Model.SecurityEventsLast24Hours} in 24h")">@Model.SecurityEventsLast24Hours i 24t</span>
+                        }
+                    </h3>
+                    <p data-en="Recorded attack attempts (failed logins, wrong-role requests, rate limits).">Registrerede angrebsforsøg (mislykkede logins, forkert rolle, for mange forsøg).</p>
+                </a>
+            </li>
         }
     </ul>
 </div>

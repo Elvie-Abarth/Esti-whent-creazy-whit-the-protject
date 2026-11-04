@@ -355,6 +355,21 @@ machine-readable `Action` (e.g. `"Product.StockChanged"`), a human-readable
 or deletes a row here once written - it's the accountability record, read
 from `/Admin/AuditLog` and never edited.
 
+### `SecurityEvents` - recorded attack attempts
+
+The audit log's counterpart for the *attacker* side: one row per attack
+attempt - a failed login, a locked-account attempt, a wrong-role page
+request, a rate-limit hit, or a rejected (forged/expired) form. `Type` is a
+`TINYINT` (the `SecurityEventType` enum), with a nullable `Email` (the
+targeted account), `IpAddress` (`NVARCHAR(45)`, fits IPv6), `Path`, a short
+`Detail`, and `CreatedAt`. Only metadata is ever stored - never the attempted
+password or any token. Read by an admin on `/Admin/SecurityLog`, and queried
+by `SecurityAlerter` for the threshold emails. Two indexes
+(`CreatedAt`, and `IpAddress, CreatedAt`) support those count queries. Unlike
+the audit log it is *not* kept forever: the IP is personal data, so
+`InactiveAccountCleanupService` deletes rows older than 90 days on its daily
+pass (see `/Privatliv`). This brings the schema to **16 tables**.
+
 ## 4. How the tables relate to each other
 
 ```

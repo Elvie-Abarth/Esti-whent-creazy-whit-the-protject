@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using MarsvinWebExample.Data;
+using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -98,6 +99,22 @@ builder.Services.AddSession(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Record every turned-away request as a security event, so a client
+    // hammering login/register/reset or the chat shows up on /Admin/SecurityLog
+    // (and feeds the "hammering" alert). The scoped monitor is resolved from
+    // the request services at the moment of rejection.
+    options.OnRejected = async (context, _) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        var monitor = context.HttpContext.RequestServices.GetService<SecurityMonitor>();
+        if (monitor is not null)
+            await monitor.RecordAsync(
+                SecurityEventType.RateLimited, email: null,
+                context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                context.HttpContext.Request.Path, "Rate limit exceeded");
+    };
+
     options.AddPolicy("auth", httpContext => RateLimitPartition.GetSlidingWindowLimiter(
         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         factory: _ => new SlidingWindowRateLimiterOptions
@@ -182,6 +199,15 @@ builder.Services.AddScoped<ITimeOffRequestStore>(_ => new SqlTimeOffRequestStore
 builder.Services.AddScoped<IAuditLogStore>(_ => new SqlAuditLogStore(connectionString));
 builder.Services.AddScoped<IInboxStore>(_ => new SqlInboxStore(connectionString));
 
+// Records attack attempts (failed logins, locked accounts, wrong-role
+// requests, rate-limit hits, rejected forms) for /Admin/SecurityLog, and
+// lets SecurityAlerter email the admins when a pattern crosses a threshold.
+// The store is scoped like every other; SecurityMonitor is the one entry
+// point the pages and middleware call. SecurityAlerter is a singleton (it
+// holds the per-category cooldown) - registered below, once appBaseUrl is known.
+builder.Services.AddScoped<ISecurityEventStore>(_ => new SqlSecurityEventStore(connectionString));
+builder.Services.AddScoped<SecurityMonitor>();
+
 // The support chat ("Pip") is a keyword lookup over the shop's own public
 // facts - no AI service, no API key, nothing that costs money to run. See
 // Data/ChatAssistants.cs.
@@ -218,6 +244,12 @@ builder.Services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>();
 // emails) from a BackgroundService, which has no HttpContext/Request to read
 // the real scheme+host from the way a PageModel can.
 var appBaseUrl = builder.Configuration["App:BaseUrl"] ?? "http://localhost:5080";
+
+// Singleton: the only state it keeps is the per-category alert cooldown, so
+// one attacker can't flood the admins' inboxes. It links to /Admin/SecurityLog
+// from the same appBaseUrl the inactivity emails use.
+builder.Services.AddSingleton(sp =>
+    new SecurityAlerter(appBaseUrl, sp.GetRequiredService<ILogger<SecurityAlerter>>()));
 
 // See /Privatliv for the policy this enforces: a Customer account with no
 // login for 2 years is deleted automatically, with warning emails first.
@@ -271,6 +303,23 @@ builder.Services
         // been changed (security stamp), and one older than 8 hours however
         // active it has been. One extra indexed lookup per signed-in request.
         options.Events.OnValidatePrincipal = AuthCookiePrincipal.RevalidateAsync;
+
+        // A signed-in user hitting a page their role isn't allowed on (an
+        // Employee or Customer poking at an Admin-only URL) is recorded as a
+        // security event before the default redirect to the access-denied
+        // page - that's the "forced browsing / privilege probing" signal. The
+        // JSON API uses the JWT scheme, not this cookie, so /api never lands here.
+        options.Events.OnRedirectToAccessDenied = async context =>
+        {
+            var monitor = context.HttpContext.RequestServices.GetService<SecurityMonitor>();
+            if (monitor is not null)
+                await monitor.RecordAsync(
+                    SecurityEventType.AccessDenied,
+                    context.HttpContext.User.Identity?.Name,
+                    context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    context.Request.Path, "Role not allowed on this page");
+            context.Response.Redirect(context.RedirectUri);
+        };
     })
     // Second scheme, for the JSON API under /api only (see Data/ApiEndpoints.cs
     // and JWT-NOTES.txt). Not the default, so the pages never look at a bearer
@@ -325,6 +374,34 @@ else
     app.UseExceptionHandler("/ServerError");
     app.UseHsts();
 }
+
+// Records a rejected state-changing request (a POST/PUT/DELETE that came back
+// 400) as a security event. In this app that status on such a request is,
+// in practice, a missing or invalid antiforgery token or an expired form -
+// the forged/scripted-request signal. Placed outside UseStatusCodePages so
+// it runs exactly once and reads the final status and the original path
+// (which that middleware restores after re-executing to /Error); User is read
+// after next() has run, by which point authentication has populated it. /api
+// is skipped - it uses bearer tokens, not antiforgery.
+app.Use(async (context, next) =>
+{
+    await next();
+
+    var method = context.Request.Method;
+    if (context.Response.StatusCode == StatusCodes.Status400BadRequest
+        && (HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsDelete(method) || HttpMethods.IsPatch(method))
+        && !context.Request.Path.StartsWithSegments("/api"))
+    {
+        var monitor = context.RequestServices.GetService<SecurityMonitor>();
+        if (monitor is not null)
+            await monitor.RecordAsync(
+                SecurityEventType.AntiforgeryRejected,
+                context.User.Identity?.Name,
+                context.Connection.RemoteIpAddress?.ToString(),
+                context.Request.Path,
+                "400 on a state-changing request (usually a missing/invalid antiforgery token or an expired form)");
+    }
+});
 
 // Re-executes the pipeline against /Error for any response that reaches here
 // with an error status code and no body yet - an unmatched route, or an

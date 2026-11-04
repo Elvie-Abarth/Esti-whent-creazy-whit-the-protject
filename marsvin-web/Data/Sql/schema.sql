@@ -432,6 +432,29 @@ BEGIN
     );
 END
 
+-- Attack *attempts* seen by the app: failed logins, locked accounts,
+-- wrong-role page requests, rate-limit hits, rejected (forged/expired)
+-- forms. Read by an admin on /Admin/SecurityLog, and the source for the
+-- threshold alerts (SecurityAlerter). Only metadata - never a password, a
+-- token or any secret. Rows are pruned after a retention window
+-- (InactiveAccountCleanupService), since the IP is personal data.
+IF OBJECT_ID('dbo.SecurityEvents', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SecurityEvents
+    (
+        SecurityEventId BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Type            TINYINT NOT NULL,       -- SecurityEventType: 0 LoginFailed, 1 AccountLocked, 2 AccessDenied, 3 RateLimited, 4 AntiforgeryRejected
+        Email           NVARCHAR(256) NULL,     -- the targeted account, normalised; null when there is none
+        IpAddress       NVARCHAR(45) NULL,      -- fits IPv6; personal data, pruned on retention
+        Path            NVARCHAR(400) NULL,
+        Detail          NVARCHAR(500) NULL,
+        CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    -- The threshold queries filter by time, by IP+time, and by type.
+    CREATE INDEX IX_SecurityEvents_CreatedAt ON dbo.SecurityEvents (CreatedAt DESC);
+    CREATE INDEX IX_SecurityEvents_Ip_CreatedAt ON dbo.SecurityEvents (IpAddress, CreatedAt DESC);
+END
+
 -- Brand of an accessory (see Tilbehor's brand filter and the Maerker page).
 -- Added for new and existing databases alike; DbInitializer fills in the demo
 -- catalog's own brands once, the same way it does the weights.

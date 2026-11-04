@@ -31,6 +31,10 @@ public sealed class InactiveAccountCleanupService(
     private static readonly TimeSpan TwoMonthWarningLeadTime = TimeSpan.FromDays(60);
     private static readonly TimeSpan OneMonthWarningLeadTime = TimeSpan.FromDays(30);
 
+    // How long a security-log row (which holds an attacker IP) is kept before
+    // this same daily job deletes it - see /Privatliv.
+    public static readonly TimeSpan SecurityEventRetention = TimeSpan.FromDays(90);
+
     // Daily is frequent enough for thresholds measured in months/years, and cheap
     // enough (a handful of queries, usually zero rows) not to matter if it's not.
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(24);
@@ -82,6 +86,14 @@ public sealed class InactiveAccountCleanupService(
         // not silently miss both.
         await WarnAsync(users, stage: 2, leadTime: OneMonthWarningLeadTime, now, monthsLeftText: "en måned", monthsLeftTextEn: "one month");
         await WarnAsync(users, stage: 1, leadTime: TwoMonthWarningLeadTime, now, monthsLeftText: "to måneder", monthsLeftTextEn: "two months");
+
+        // Security-log retention: the rows hold attacker IPs (personal data),
+        // so they don't live forever. 90 days is long enough to investigate an
+        // incident, short enough to be proportionate (see /Privatliv).
+        var prunedEvents = new SqlSecurityEventStore(connectionString)
+            .DeleteOlderThan(now - SecurityEventRetention);
+        if (prunedEvents > 0)
+            logger.LogInformation("Security-log cleanup removed {Count} event(s) older than 90 days.", prunedEvents);
     }
 
     private async Task WarnAsync(

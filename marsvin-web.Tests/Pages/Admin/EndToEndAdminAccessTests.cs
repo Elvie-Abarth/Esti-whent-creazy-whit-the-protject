@@ -26,7 +26,8 @@ public class EndToEndAdminAccessTests(MarsvinWebAppFactory factory)
     private static readonly string[] AdminOnlyPages =
     [
         "/Admin/Products/Index", "/Admin/Products/Edit/0", "/Admin/Animals/Index", "/Admin/Animals/Edit/0",
-        "/Admin/Promotions/Index", "/Admin/Promotions/Edit/0", "/Admin/Users/Index", "/Admin/AuditLog/Index"
+        "/Admin/Promotions/Index", "/Admin/Promotions/Edit/0", "/Admin/Users/Index", "/Admin/AuditLog/Index",
+        "/Admin/SecurityLog/Index"
     ];
 
     private static readonly string[] AllAdminPages = [.. StaffPages, .. AdminOnlyPages];

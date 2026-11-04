@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-742 tests, three layers:
+752 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -143,6 +143,7 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Kampagner | `/Admin/Promotions/Index` + `Edit` | Admin | Time-boxed discounts, shop-wide or per product |
 | Konti | `/Admin/Users/Index` | Admin | Change roles, activate/deactivate accounts, create Employee/Admin accounts, export a customer's data |
 | Logbog | `/Admin/AuditLog/Index` | Admin | Who changed what, and when — every admin/employee write action |
+| Sikkerhedslog | `/Admin/SecurityLog/Index` | Admin | Recorded attack *attempts* — failed logins, locked accounts, wrong-role requests, rate limits, rejected forms; admins are emailed when a pattern crosses a threshold (attempt alerting, not breach detection) |
 
 Every page also has an **EN / DA** toggle in the header — the site defaults
 to Danish and switches to English client-side, remembering the choice per
@@ -176,12 +177,14 @@ Data/            ICatalog / ICatalogAdmin (catalog), IUserAccountStore, ICartSto
                  AuthCookiePrincipal (builds and re-validates the signed-in user);
                  JwtTokens / ApiEndpoints (the JSON API under /api, JWT bearer auth);
                  OrderEmails, SiteLanguage (which language an email is written in);
+                 ISecurityEventStore/SqlSecurityEventStore, SecurityMonitor, SecurityAlerter
+                 (recorded attack attempts + threshold alerts for /Admin/SecurityLog);
                  the chat: ChatAssistants, ChatSkills, ShopKnowledge, ChatHelp
 Pages/Account/   Register, Login, ConfirmLogin, VerifyTotp, ForgotPassword, ResetPassword,
                  CheckEmail, Logout, Profile, AccessDenied
 Pages/Cart/      Index (view/add/remove), Payment (delivery choice + checkout), Confirmation
 Pages/Admin/     Index, Schedule/, Shop/, Stock/, Orders/, Messages/, Donations/, Products/,
-                 Animals/, Promotions/, Users/ (+ Export), AuditLog/
+                 Animals/, Promotions/, Users/ (+ Export), AuditLog/, SecurityLog/
 Pages/Shared/    _Layout.cshtml (header, footer, the chat), _Cavy.cshtml (the drawn guinea pig)
 Pages/           the storefront and info pages, Chat (the chat's endpoint), Error/ServerError;
                  PageModelExtensions.cs — CurrentUserId/SignInAsync/IsSafeLocalUrl,
@@ -315,6 +318,15 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   (`confirm-delete.js`), rather than building a JavaScript string directly —
   the latter is decoded back to raw characters by the browser before being
   parsed as JS, which HTML-encoding alone doesn't protect against.
+- **Security monitoring**: attack *attempts* (failed logins, locked
+  accounts, wrong-role page requests, rate-limit hits, rejected forms) are
+  recorded as `SecurityEvent`s — metadata only, never a password or token —
+  readable by an admin on `/Admin/SecurityLog`. When a pattern crosses a
+  threshold (e.g. a burst of failed logins from one IP across several
+  accounts), `SecurityAlerter` emails the admins, with a cooldown so a
+  scanner can't flood them. It is deliberately honest: alerting on attempts
+  seen in the logs, **not** breach or data-leak detection, which no app can
+  truthfully do. The IP is pruned after 90 days (`/Privatliv`).
 - **Audit log**: every admin/employee write action (price/stock/role
   changes, deletions, account creation) is recorded with who did it and when
   (`/Admin/AuditLog`), read-only after writing.

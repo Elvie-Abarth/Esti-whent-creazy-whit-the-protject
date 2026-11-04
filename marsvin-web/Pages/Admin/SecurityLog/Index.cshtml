@@ -1,0 +1,61 @@
+@page
+@using MarsvinWebExample.Models
+@model MarsvinWebExample.Pages.Admin.SecurityLog.IndexModel
+@{
+    ViewData["Title"] = "Sikkerhedslog (admin)";
+    ViewData["TitleEn"] = "Security log (admin)";
+}
+
+@* Recorded attack attempts. Admin only, read-only - there is no form here.
+   The text is careful to say "attempts", not "break-in": the app can see
+   what was tried, not whether anything was actually accessed. *@
+
+<div class="wrap section">
+    <div class="section-head">
+        <div>
+            <h2 data-en="Security log">Sikkerhedslog</h2>
+            <p data-en="Recorded attack attempts - failed logins, locked accounts, wrong-role page requests, rate-limit hits and rejected forms. These are attempts seen in the logs, not proof that anything was accessed or leaked.">
+                Registrerede angrebsforsøg - mislykkede logins, låste konti, sideforespørgsler med forkert rolle, for mange forsøg og afviste formularer. Det er forsøg set i logfilerne, ikke bevis på at noget er blevet tilgået eller lækket.
+            </p>
+            <p class="field-hint" data-en="@($"{Model.Last24Hours} event(s) in the last 24 hours. Admins are emailed automatically when a pattern crosses a threshold (e.g. many failed logins from one address across several accounts).")">
+                @Model.Last24Hours hændelse(r) i de seneste 24 timer. Administratorer får automatisk en mail, når et mønster overskrider en grænse (f.eks. mange mislykkede logins fra én adresse mod flere konti).
+            </p>
+        </div>
+    </div>
+    <div class="actions">
+        <a class="btn btn--quiet" asp-page="/Admin/Index" data-en="Back to staff area">Til personalesiden</a>
+    </div>
+
+    @if (Model.Events.Count == 0)
+    {
+        <p data-en="No attack attempts recorded yet.">Ingen angrebsforsøg registreret endnu.</p>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th data-en="When">Hvornår</th>
+                    <th data-en="Type">Type</th>
+                    <th data-en="Email">E-mail</th>
+                    <th data-en="IP address">IP-adresse</th>
+                    <th data-en="Path">Sti</th>
+                    <th data-en="Detail">Detalje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Events)
+                {
+                    <tr>
+                        <td>@e.CreatedAt.ToString("d MMM yyyy HH:mm:ss")</td>
+                        <td data-en="@e.Type.DisplayName(english: true)">@e.Type.DisplayName()</td>
+                        <td>@(string.IsNullOrEmpty(e.Email) ? "-" : e.Email)</td>
+                        <td>@(string.IsNullOrEmpty(e.IpAddress) ? "-" : e.IpAddress)</td>
+                        <td>@(string.IsNullOrEmpty(e.Path) ? "-" : e.Path)</td>
+                        <td>@(string.IsNullOrEmpty(e.Detail) ? "-" : e.Detail)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

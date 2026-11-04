@@ -86,7 +86,7 @@ public class EmailLanguageTests(SqlCatalogFixture fixture)
     public async Task LoginConfirmation_FollowsTheBrowser(string? language, string expectedSubject, string expectedGreeting)
     {
         var user = NewUser();
-        var model = new LoginModel(_users, _pendingLogins, _email, new AlwaysPassRecaptchaVerifier(), new LoginLockoutTracker())
+        var model = new LoginModel(_users, _pendingLogins, _email, new AlwaysPassRecaptchaVerifier(), new LoginLockoutTracker(), SecurityTestHelpers.Monitor(fixture.ConnectionString))
         {
             PageContext = Browser(language),
             Input = new LoginModel.InputModel { Email = user.Email, Password = Password }
@@ -224,7 +224,7 @@ public class EmailLanguageTests(SqlCatalogFixture fixture)
 
         for (var attempt = 0; attempt < 3; attempt++)
         {
-            var model = new LoginModel(_users, _pendingLogins, _email, new AlwaysPassRecaptchaVerifier(), lockout)
+            var model = new LoginModel(_users, _pendingLogins, _email, new AlwaysPassRecaptchaVerifier(), lockout, SecurityTestHelpers.Monitor(fixture.ConnectionString))
             {
                 PageContext = Browser(guessersLanguage),
                 Input = new LoginModel.InputModel { Email = owner.Email, Password = "WrongPassword!" }

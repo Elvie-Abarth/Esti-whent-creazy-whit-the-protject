@@ -18,7 +18,7 @@ namespace MarsvinWebExample.Pages.Account;
 [EnableRateLimiting("auth")]
 public class LoginModel(
     IUserAccountStore users, IPendingLoginStore pendingLogins, IEmailSender emailSender,
-    IRecaptchaVerifier recaptcha, LoginLockoutTracker lockout)
+    IRecaptchaVerifier recaptcha, LoginLockoutTracker lockout, SecurityMonitor security)
     : PageModel
 {
     // Long enough that "check your email" doesn't feel like a race against the
@@ -58,6 +58,10 @@ public class LoginModel(
 
         if (lockout.IsLockedOut(email))
         {
+            // Still hammering an account that's already locked - the brute-force
+            // persistence signal for the security log and the lockout alert.
+            await security.RecordAsync(
+                SecurityEventType.AccountLocked, email, ClientIp(), Request.Path, "Attempt on a locked account");
             ModelState.AddModelError(string.Empty, lockout.RequiresManualReset(email)
                 ? "Din konto er låst efter flere mislykkede forsøg. Nulstil din adgangskode for at logge ind igen."
                 : "For mange forkerte forsøg. Prøv igen om lidt.");
@@ -71,6 +75,12 @@ public class LoginModel(
 
         if (!verified)
         {
+            // Recorded whether or not the email matches an account - the log
+            // stores the attempted address and the IP, never the password.
+            await security.RecordAsync(
+                SecurityEventType.LoginFailed, email, ClientIp(), Request.Path,
+                user is null ? "No such account" : "Wrong password");
+
             var shouldNotify = lockout.RegisterFailedAttempt(email);
             // Only ever reaches a real inbox if the email actually matches
             // an account - an attacker probing random addresses never
@@ -175,6 +185,8 @@ public class LoginModel(
 
         return RedirectToPage("CheckEmail", new { returnUrl = safeReturnUrl });
     }
+
+    private string? ClientIp() => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     public sealed class InputModel
     {

@@ -86,7 +86,7 @@ public class LoginModelTests(SqlCatalogFixture fixture)
         var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
         var email = new RecordingEmailSender();
-        var model = new LoginModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier(), _lockout)
+        var model = new LoginModel(_users, _pendingLogins, email, new AlwaysPassRecaptchaVerifier(), _lockout, SecurityTestHelpers.Monitor(fixture.ConnectionString))
             { PageContext = new PageContext { HttpContext = httpContext } };
         return (model, auth, email);
     }
@@ -226,6 +226,21 @@ public class LoginModelTests(SqlCatalogFixture fixture)
         var notification = Assert.Single(thirdAttemptEmail!.Sent);
         Assert.Equal(email, notification.ToEmail);
         Assert.Contains("Mistænkelig aktivitet", notification.Subject);
+    }
+
+    [Fact]
+    public async Task OnPostAsync_FailedLogin_RecordsASecurityEvent_WithTheEmailButNoPassword()
+    {
+        var email = NewCustomerWithPassword("CorrectPass123!");
+        var (model, _, _) = MakeModel();
+        model.Input = new LoginModel.InputModel { Email = email, Password = "WrongPassword!" };
+
+        await model.OnPostAsync(returnUrl: null);
+
+        var events = new SqlSecurityEventStore(fixture.ConnectionString).GetRecent(500);
+        var mine = Assert.Single(events, e => e.Type == SecurityEventType.LoginFailed && e.Email == email.ToLowerInvariant());
+        Assert.DoesNotContain("WrongPassword", mine.Detail ?? "");
+        Assert.DoesNotContain("CorrectPass", mine.Detail ?? "");
     }
 
     [Fact]
