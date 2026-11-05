@@ -266,7 +266,11 @@ The audit log above records what *staff* do. A second log records what
   a page the signed-in user's role isn't allowed on, rate-limit hits, and
   rejected forms (a missing or invalid anti-forgery token, i.e. a forged or
   expired request). Each row has the time, the targeted email, the client
-  IP and the path - never the attempted password or any token.
+  IP and the path - never the attempted password or any token. On the page
+  each row is colour-coded by severity (derived from the type, not stored):
+  high for a locked account or a wrong-role request, medium for rate limits
+  and rejected forms, low for a single failed login - so an admin sees which
+  rows to look at first.
 
 - Being warned: when a *pattern* crosses a threshold - for example 10+
   failed logins from one IP against 3+ different accounts in 10 minutes
@@ -565,7 +569,7 @@ email and a log.
 
 HOW IT IS TESTED
 ================
-"dotnet test" runs 752 automated tests. The ones that pin down a claim
+"dotnet test" runs 761 automated tests. The ones that pin down a claim
 made in this file:
 
   Claim                                 Test

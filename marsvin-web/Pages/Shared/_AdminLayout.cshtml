@@ -1,0 +1,112 @@
+@using System.Security.Claims
+@{
+    // A dedicated shell for everything under /Admin: a left sidebar grouped by
+    // area, a slim top strip, and no storefront chrome (no public nav, footer,
+    // mascot or chat). Chosen by Pages/Admin/_ViewStart.cshtml so every admin
+    // page picks it up automatically. Showing or hiding a link here is only
+    // tidiness - each page behind it still enforces its own role.
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    bool IsAdmin = User.IsInRole("Admin");
+
+    // Highlights the matching sidebar item. A folder prefix so an Edit/Create
+    // sub-page still lights up its section's link (e.g. /Admin/Orders/Edit ->
+    // Orders), while the Dashboard stays exact so it isn't always on.
+    string NavClass(string page, bool exact = false)
+    {
+        var on = exact ? currentPage == page : currentPage.StartsWith(page, StringComparison.OrdinalIgnoreCase);
+        return on ? "admin-nav-link is-active" : "admin-nav-link";
+    }
+}
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-en="@(ViewData["TitleEn"] ?? ViewData["Title"]) - Marsvin admin">@ViewData["Title"] - Marsvin admin</title>
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="admin-body">
+
+<div class="admin-shell">
+    <aside class="admin-sidebar">
+        <a class="admin-brand" asp-page="/Admin/Index">
+            <svg viewBox="0 0 240 160" aria-hidden="true">
+                <ellipse cx="132" cy="92" rx="96" ry="50" fill="#B5643C" />
+                <ellipse cx="58" cy="80" rx="46" ry="41" fill="#B5643C" />
+                <ellipse cx="52" cy="44" rx="17" ry="12" transform="rotate(-28 52 44)" fill="#F3EAD8" />
+                <circle cx="34" cy="74" r="6.5" fill="#23301F" />
+            </svg>
+            <span>Marsvin</span>
+        </a>
+
+        <nav class="admin-nav" aria-label="Administration">
+            <a asp-page="/Admin/Index" class="@NavClass("/Admin/Index", exact: true)" data-en="Dashboard">Oversigt</a>
+
+            <p class="admin-nav-group" data-en="Operations">Drift</p>
+            <a asp-page="/Admin/Schedule/Index" class="@NavClass("/Admin/Schedule")" data-en="Work schedule">Vagtplan</a>
+            <a asp-page="/Admin/Messages/Index" class="@NavClass("/Admin/Messages")" data-en="Messages">Beskeder</a>
+
+            <p class="admin-nav-group" data-en="Shop">Butik</p>
+            <a asp-page="/Admin/Stock/Index" class="@NavClass("/Admin/Stock")" data-en="Stock &amp; status">Lager &amp; status</a>
+            <a asp-page="/Admin/Orders/Index" class="@NavClass("/Admin/Orders")" data-en="Orders">Ordrer</a>
+            <a asp-page="/Admin/Donations/Index" class="@NavClass("/Admin/Donations")" data-en="Donations">Donationer</a>
+            @if (IsAdmin)
+            {
+                <a asp-page="/Admin/Products/Index" class="@NavClass("/Admin/Products")" data-en="Accessories">Tilbehør</a>
+                <a asp-page="/Admin/Animals/Index" class="@NavClass("/Admin/Animals")" data-en="Guinea pigs">Marsvin</a>
+                <a asp-page="/Admin/Promotions/Index" class="@NavClass("/Admin/Promotions")" data-en="Promotions">Kampagner</a>
+            }
+
+            @if (IsAdmin)
+            {
+                <p class="admin-nav-group" data-en="Administration">Administration</p>
+                <a asp-page="/Admin/Users/Index" class="@NavClass("/Admin/Users")" data-en="Accounts">Konti</a>
+                <a asp-page="/Admin/AuditLog/Index" class="@NavClass("/Admin/AuditLog")" data-en="Activity log">Logbog</a>
+                <a asp-page="/Admin/SecurityLog/Index" class="@NavClass("/Admin/SecurityLog")" data-en="Security log">Sikkerhedslog</a>
+            }
+        </nav>
+    </aside>
+
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <a class="admin-viewsite" asp-page="/Index" target="_blank" rel="noopener"
+               data-en="View storefront &#8599;">Se butikken &#8599;</a>
+            <div class="admin-topbar-right">
+                <button type="button" id="lang-toggle" class="header-btn lang-toggle" aria-label="Switch to English">EN</button>
+                <a class="account-name" asp-page="/Account/Profile"
+                   aria-label="Kontoindstillinger" data-en-aria-label="Account settings">@User.Identity!.Name</a>
+                <form method="post" asp-page="/Account/Logout" class="logout-form">
+                    <button type="submit" class="header-btn" data-en="Log out">Log ud</button>
+                </form>
+            </div>
+        </header>
+
+        <main class="admin-content">
+            @* Same TempData toast contract as the storefront layout: a page sets
+               ToastMessage/ErrorMessage right before redirecting, and it is shown
+               once here. Packed as Bilingual (Models/Bilingual.cs). *@
+            @if (TempData["ToastMessage"] is string toastMessageRaw)
+            {
+                var toastMessage = Bilingual.Parse(toastMessageRaw);
+                <p class="toast" role="status" aria-live="polite" data-en="@toastMessage.En">@toastMessage.Da</p>
+            }
+            @if (TempData["ErrorMessage"] is string errorToastMessageRaw)
+            {
+                var errorToastMessage = Bilingual.Parse(errorToastMessageRaw);
+                <p class="toast toast--error" role="alert" aria-live="assertive" data-en="@errorToastMessage.En">@errorToastMessage.Da</p>
+            }
+
+            @RenderBody()
+        </main>
+    </div>
+</div>
+
+@* Only the scripts the admin pages actually use: the language toggle, the
+   delete-confirm helper for the catalog pages, and the print helper for the
+   account-export page. Chat and the storefront mascot are left out. *@
+<script src="~/js/lang-toggle.js" asp-append-version="true"></script>
+<script src="~/js/confirm-delete.js" asp-append-version="true"></script>
+<script src="~/js/print-button.js" asp-append-version="true"></script>
+</body>
+</html>

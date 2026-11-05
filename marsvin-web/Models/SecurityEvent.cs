@@ -43,6 +43,24 @@ public enum SecurityEventType : byte
     AntiforgeryRejected = 4
 }
 
+/// <summary>
+/// How much an event is worth an admin's immediate attention, so the security
+/// log can be colour-coded. It is derived from the type (not stored), so it
+/// stays a single source of truth. The reasoning:
+///   Low    - a single failed login is almost always a typo.
+///   Medium - rate-limiting (automated flooding) or a rejected form (often
+///            just an expired session, sometimes a forged request).
+///   High   - an account locked by repeated failures (a brute-force attempt
+///            in progress), or a signed-in user reaching for a page their
+///            role forbids (privilege probing / forced browsing).
+/// </summary>
+public enum SecurityEventSeverity : byte
+{
+    Low = 0,
+    Medium = 1,
+    High = 2
+}
+
 public static class SecurityEventTypeExtensions
 {
     public static string DisplayName(this SecurityEventType type, bool english = false) => type switch
@@ -54,4 +72,25 @@ public static class SecurityEventTypeExtensions
         SecurityEventType.AntiforgeryRejected => english ? "Rejected form (CSRF/expired)" : "Afvist formular (CSRF/udløbet)",
         _ => type.ToString()
     };
+
+    public static SecurityEventSeverity Severity(this SecurityEventType type) => type switch
+    {
+        SecurityEventType.LoginFailed => SecurityEventSeverity.Low,
+        SecurityEventType.RateLimited => SecurityEventSeverity.Medium,
+        SecurityEventType.AntiforgeryRejected => SecurityEventSeverity.Medium,
+        SecurityEventType.AccountLocked => SecurityEventSeverity.High,
+        SecurityEventType.AccessDenied => SecurityEventSeverity.High,
+        _ => SecurityEventSeverity.Medium
+    };
+
+    public static string DisplayName(this SecurityEventSeverity severity, bool english = false) => severity switch
+    {
+        SecurityEventSeverity.Low => english ? "Low" : "Lav",
+        SecurityEventSeverity.Medium => english ? "Medium" : "Middel",
+        SecurityEventSeverity.High => english ? "High" : "Høj",
+        _ => severity.ToString()
+    };
+
+    /// <summary>The CSS modifier suffix - "low", "medium" or "high" - for the badge and row classes.</summary>
+    public static string CssName(this SecurityEventSeverity severity) => severity.ToString().ToLowerInvariant();
 }

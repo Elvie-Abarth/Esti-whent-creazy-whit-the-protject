@@ -1,25 +1,28 @@
 @page
 @model MarsvinWebExample.Pages.Admin.IndexModel
 @{
-    ViewData["Title"] = "Personale";
-    ViewData["TitleEn"] = "Staff";
+    ViewData["Title"] = "Oversigt";
+    ViewData["TitleEn"] = "Dashboard";
+    var isAdmin = User.IsInRole("Admin");
 }
 
 <div class="wrap section">
     <div class="section-head">
         <div>
-            <h2 data-en="Staff area">Personale</h2>
-            <p data-en="@($"Signed in as {User.Identity!.Name} ({(User.IsInRole("Admin") ? "Admin" : "Employee")}).")">
-                Logget ind som @User.Identity!.Name (@(User.IsInRole("Admin") ? "Admin" : "Medarbejder")).
+            <h2 data-en="Dashboard">Oversigt</h2>
+            <p data-en="@($"Signed in as {User.Identity!.Name} ({(isAdmin ? "Admin" : "Employee")}). Use the menu on the left to get around.")">
+                Logget ind som @User.Identity!.Name (@(isAdmin ? "Admin" : "Medarbejder")). Brug menuen til venstre for at navigere.
             </p>
         </div>
     </div>
 
+    @* Shortcuts to the day-to-day tasks. The full set lives in the sidebar;
+       these are just the ones staff reach for most. *@
     <ul class="admin-links">
         <li>
-            <a asp-page="/Admin/Schedule/Index">
-                <h3 data-en="Work schedule">Vagtplan</h3>
-                <p data-en="See who's working when, or assign a shift.">Se hvem der arbejder hvornår, eller tilføj en vagt.</p>
+            <a asp-page="/Admin/Orders/Index">
+                <h3 data-en="Orders">Ordrer</h3>
+                <p data-en="Every order placed in the shop.">Alle ordrer afgivet i butikken.</p>
             </a>
         </li>
         <li>
@@ -29,35 +32,28 @@
             </a>
         </li>
         <li>
-            <a asp-page="/Admin/Donations/Index">
-                <h3 data-en="Donations">Donationer</h3>
-                <p data-en="Amounts and items given towards rehomed guinea pigs.">Beløb og varer givet til genplacerede marsvin.</p>
+            <a asp-page="/Admin/Schedule/Index">
+                <h3 data-en="Work schedule">Vagtplan</h3>
+                <p data-en="See who's working when, or assign a shift.">Se hvem der arbejder hvornår, eller tilføj en vagt.</p>
             </a>
         </li>
-        @* Links an Employee has no use for. The pages behind them are Admin-only on their own - this just keeps dead links out of sight. *@
-        @if (User.IsInRole("Admin"))
+        <li>
+            <a asp-page="/Admin/Stock/Index">
+                <h3 data-en="Stock &amp; status">Lager &amp; status</h3>
+                <p data-en="Update stock counts and mark animals reserved / not for sale.">Opdatér lagerantal og markér dyr reserveret / ikke til salg.</p>
+            </a>
+        </li>
+        @if (isAdmin)
         {
-            <li>
-                <a asp-page="/Admin/Users/Index">
-                    <h3 data-en="Accounts">Konti</h3>
-                    <p data-en="Manage customer, employee, and admin accounts.">Administrér kunde-, medarbejder- og admin-konti.</p>
-                </a>
-            </li>
-            <li>
-                <a asp-page="/Admin/AuditLog/Index">
-                    <h3 data-en="Activity log">Logbog</h3>
-                    <p data-en="Who changed what, and when.">Hvem ændrede hvad, og hvornår.</p>
-                </a>
-            </li>
             <li>
                 <a asp-page="/Admin/SecurityLog/Index">
                     <h3 data-en="Security log">Sikkerhedslog
                         @if (Model.SecurityEventsLast24Hours > 0)
                         {
-                            <span class="status status--denied" data-en="@($"{Model.SecurityEventsLast24Hours} in 24h")">@Model.SecurityEventsLast24Hours i 24t</span>
+                            <span class="status status--denied" data-en="@($"{Model.SecurityEventsLast24Hours} in 24h")">@Model.SecurityEventsLast24Hours på 24t</span>
                         }
                     </h3>
-                    <p data-en="Recorded attack attempts (failed logins, wrong-role requests, rate limits).">Registrerede angrebsforsøg (mislykkede logins, forkert rolle, for mange forsøg).</p>
+                    <p data-en="Recorded attack attempts - failed logins, wrong-role requests, rate limits.">Registrerede angrebsforsøg - mislykkede logins, forkert-rolle-forespørgsler, rate limits.</p>
                 </a>
             </li>
         }

@@ -17,8 +17,8 @@
             <p data-en="Recorded attack attempts - failed logins, locked accounts, wrong-role page requests, rate-limit hits and rejected forms. These are attempts seen in the logs, not proof that anything was accessed or leaked.">
                 Registrerede angrebsforsøg - mislykkede logins, låste konti, sideforespørgsler med forkert rolle, for mange forsøg og afviste formularer. Det er forsøg set i logfilerne, ikke bevis på at noget er blevet tilgået eller lækket.
             </p>
-            <p class="field-hint" data-en="@($"{Model.Last24Hours} event(s) in the last 24 hours. Admins are emailed automatically when a pattern crosses a threshold (e.g. many failed logins from one address across several accounts).")">
-                @Model.Last24Hours hændelse(r) i de seneste 24 timer. Administratorer får automatisk en mail, når et mønster overskrider en grænse (f.eks. mange mislykkede logins fra én adresse mod flere konti).
+            <p class="field-hint" data-en="@($"{Model.Last24Hours} event(s) in the last 24 hours. Each row is colour-coded by severity - high (red) first, then medium (amber) and low (grey). Admins are emailed automatically when a pattern crosses a threshold (e.g. many failed logins from one address across several accounts).")">
+                @Model.Last24Hours hændelse(r) i de seneste 24 timer. Hver række er farvekodet efter alvorlighed - høj (rød) først, derefter middel (gul) og lav (grå). Administratorer får automatisk en mail, når et mønster overskrider en grænse (f.eks. mange mislykkede logins fra én adresse mod flere konti).
             </p>
         </div>
     </div>
@@ -35,6 +35,7 @@
         <table class="admin-table">
             <thead>
                 <tr>
+                    <th data-en="Severity">Alvorlighed</th>
                     <th data-en="When">Hvornår</th>
                     <th data-en="Type">Type</th>
                     <th data-en="Email">E-mail</th>
@@ -46,7 +47,40 @@
             <tbody>
                 @foreach (var e in Model.Events)
                 {
-                    <tr>
+                    var severity = e.Type.Severity();
+                    <tr class="sev-row--@severity.CssName()">
+                        <td>
+                            <span class="sev sev--@severity.CssName()">
+                                @switch (severity)
+                                {
+                                    case SecurityEventSeverity.High:
+                                        @* critical - an octagon *@
+                                        <svg class="sev-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M5.4 2h5.2l3.4 3.4v5.2L10.6 14H5.4L2 10.6V5.4z" />
+                                            <path d="M8 5v3.4" />
+                                            <path d="M8 10.9v0.1" />
+                                        </svg>
+                                        break;
+                                    case SecurityEventSeverity.Medium:
+                                        @* warning - a triangle *@
+                                        <svg class="sev-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M8 2.3 14.2 13.2H1.8z" />
+                                            <path d="M8 6.5v3" />
+                                            <path d="M8 11.3v0.1" />
+                                        </svg>
+                                        break;
+                                    default:
+                                        @* low - an info circle *@
+                                        <svg class="sev-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                            <circle cx="8" cy="8" r="6.3" />
+                                            <path d="M8 7.2v3.4" />
+                                            <path d="M8 4.9v0.1" />
+                                        </svg>
+                                        break;
+                                }
+                                <span data-en="@severity.DisplayName(english: true)">@severity.DisplayName()</span>
+                            </span>
+                        </td>
                         <td>@e.CreatedAt.ToString("d MMM yyyy HH:mm:ss")</td>
                         <td data-en="@e.Type.DisplayName(english: true)">@e.Type.DisplayName()</td>
                         <td>@(string.IsNullOrEmpty(e.Email) ? "-" : e.Email)</td>

@@ -910,7 +910,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 752 tests (all of them need
+`dotnet test` from the solution root runs 761 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

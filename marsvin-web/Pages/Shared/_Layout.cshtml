@@ -24,6 +24,10 @@
         </a>
 
         <nav class="site-nav" aria-label="Hovedmenu" data-en-aria-label="Main menu">
+            @* The storefront nav is the same for everyone. Staff get the admin
+               area through its own shell (Shared/_AdminLayout.cshtml) and a single
+               "Staff area" link in the account bar to the right - so when they
+               visit the storefront they see it just like a customer does. *@
             <a asp-page="/Marsvin/Index" data-en="Guinea pigs">Marsvinene</a>
             <a asp-page="/Tilbehor/Index" data-en="Accessories">Tilbehør</a>
             <a asp-page="/Pasningsguide" data-en="Care guide">Pasningsguide</a>
@@ -47,8 +51,9 @@
             {
                 if (User.IsInRole("Admin") || User.IsInRole("Employee"))
                 {
-                    <a asp-page="/Admin/Index" data-en="Staff">Personale</a>
-                    <a asp-page="/Admin/Shop/Index" data-en="Shop management">Butiksstyring</a>
+                    @* One link into the admin shell (Shared/_AdminLayout.cshtml),
+                       which has its own sidebar for everything staff can do. *@
+                    <a asp-page="/Admin/Index" class="header-btn" data-en="Staff area">Personale</a>
                 }
                 else
                 {
