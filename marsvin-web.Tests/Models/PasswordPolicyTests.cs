@@ -1,3 +1,4 @@
+using MarsvinWebExample.Data;
 using MarsvinWebExample.Models;
 
 namespace MarsvinWebExample.Tests.Models;
@@ -34,9 +35,9 @@ public class PasswordPolicyTests
     }
 
     [Theory]
-    [InlineData("Xx-Password-99!")]          // a blocklisted common password
+    [InlineData("Xx-Password-99!")]          // contains the literal word "password"
     [InlineData("Marsvin-Shop-99!")]         // the shop's own name
-    [InlineData("Qwerty-Fleece-9!")]         // keyboard run
+    [InlineData("Butik-Fleece-99!")]         // another shop-specific word (butik)
     public void Validate_RejectsAnObviousPassword(string password)
     {
         var problem = PasswordPolicy.Validate(password, null, null, english: false);
@@ -114,5 +115,60 @@ public class PasswordPolicyTests
     {
         Assert.True(PasswordPolicy.IsObvious("XX-PASSWORD-99!", null, null));
         Assert.True(PasswordPolicy.IsObvious("MARSVIN-is-best", null, null));
+    }
+
+    // ---- the seeded demo credentials must not break our own policy ----------
+
+    [Theory]
+    [InlineData("admin@marsvin.dk", "Butiksejer", UserRole.Admin)]
+    [InlineData("employee@marsvin.dk", "Medarbejder", UserRole.Employee)]
+    [InlineData("employee2@marsvin.dk", "Sofie", UserRole.Employee)]
+    [InlineData("employee3@marsvin.dk", "Mikkel", UserRole.Employee)]
+    [InlineData("employee4@marsvin.dk", "Freja", UserRole.Employee)]
+    public void SeededDemoPassword_PassesThePolicyForItsRole(string email, string name, UserRole role)
+    {
+        // Pin the demo seed to the policy so it can never drift back to
+        // something the server would itself reject (DbInitializer).
+        var password = role == UserRole.Admin
+            ? DbInitializer.DemoAdminPassword
+            : DbInitializer.DemoEmployeePassword;
+
+        Assert.Null(PasswordPolicy.Validate(password, email, name, english: false, role));
+    }
+
+    // ---- the large exact-match common-password list (ASVS 6.2.4) ------------
+
+    [Fact]
+    public void CommonPasswordList_IsLoadedFromTheFile()
+    {
+        // If the file wasn't copied to the test output, this is 0 and the two
+        // tests below would fail for the wrong reason - so assert it loaded.
+        Assert.True(CommonPasswordList.Count > 100);
+    }
+
+    [Theory]
+    [InlineData("letmein")]
+    [InlineData("Dragon")]        // exact match is case-insensitive
+    [InlineData("qwerty")]
+    public void IsObvious_RejectsACommonPasswordExactly(string password)
+    {
+        Assert.True(PasswordPolicy.IsObvious(password, null, null));
+    }
+
+    [Fact]
+    public void IsObvious_AllowsALongPassphraseThatMerelyContainsACommonWord()
+    {
+        // "dragon" and "monkey" are on the common list, but only as whole
+        // passwords; a long unique passphrase that contains one is fine.
+        Assert.False(PasswordPolicy.IsObvious("Happy-Monkey-Garden-River-7!", null, null));
+        Assert.False(PasswordPolicy.IsObvious("Correct-Horse-Dragon-Battery-9!", null, null));
+    }
+
+    [Fact]
+    public void IsObvious_StillRejectsAShopWordAnywhere()
+    {
+        // Shop-specific words stay a substring match, common or not.
+        Assert.True(PasswordPolicy.IsObvious("Guineapig-Garden-7!", null, null));
+        Assert.True(PasswordPolicy.IsObvious("My-Butik-Login-9!", null, null));
     }
 }

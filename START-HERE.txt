@@ -61,8 +61,8 @@ STEP 4 - LOG IN (optional, if you want to see the admin/staff side)
 -------------------------------------------------------------------
 These demo accounts are created automatically the first time you run it:
 
-    Admin:    admin@marsvin.dk     / Admin123!
-    Employee: employee@marsvin.dk  / Employee123!
+    Admin:    admin@marsvin.dk     / Hay-Carrot-Oak-River-7!
+    Employee: employee@marsvin.dk  / Clover-Meadow-8!
 
 Go to http://localhost:5080/Account/Login and sign in with one of those.
 

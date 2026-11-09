@@ -57,15 +57,31 @@
     // Shown in place of a level while the field is still empty.
     var EMPTY = { da: "Skriv en adgangskode", en: "Type a password" };
 
-    // The common passwords and shop words the server also rejects
-    // (Models/PasswordPolicy.cs Blocklist) - kept in step with it by hand.
-    var COMMON = [
-        "password", "passord", "adgangskode", "123456", "1234567", "12345678",
-        "123456789", "1234567890", "qwerty", "qwertyui", "asdfgh", "abc123",
-        "111111", "000000", "iloveyou", "letmein", "welcome", "admin", "login",
-        "dragon", "monkey", "football", "princess", "sunshine", "superman",
+    // Mirrors Models/PasswordPolicy.cs, which splits "obvious" into two checks:
+    //
+    //  - SHOP_WORDS: shop-specific and "password"-literal words, matched as a
+    //    SUBSTRING (never wanted anywhere in a password);
+    //  - COMMON_EXACT: common passwords, matched EXACTLY, so a long passphrase
+    //    that merely contains one of them is still fine.
+    //
+    // The server is the source of truth. This built-in exact set is a short
+    // fallback; if the full list loads from /common-passwords.txt (see the
+    // bottom of this file) it is merged in, but if that fetch fails the meter
+    // still works with this short set.
+    var SHOP_WORDS = [
+        "password", "passord", "adgangskode",
         "marsvin", "guineapig", "guinea", "cavy", "gnavling", "butik"
     ];
+    var COMMON_EXACT = new Set([
+        "123456", "123456789", "12345678", "1234567", "12345", "123123",
+        "111111", "000000", "qwerty", "qwerty123", "qwertyuiop", "1q2w3e4r",
+        "asdfgh", "zxcvbn", "abc123", "abcd1234", "letmein", "welcome",
+        "welcome1", "login", "admin", "admin123", "root", "guest", "user",
+        "test", "changeme", "default", "secret", "master", "dragon", "monkey",
+        "football", "baseball", "superman", "batman", "princess", "sunshine",
+        "iloveyou", "trustno1", "shadow", "hello", "freedom", "whatever",
+        "pokemon", "starwars", "hunter2"
+    ]);
 
     // The value of a sibling field on the same form (the email, the name), so
     // the "not obvious" rule can reject a password built out of them - exactly
@@ -80,8 +96,11 @@
     function isObvious(password, input) {
         var lower = password.toLowerCase();
         if (!lower) return false;
-        for (var i = 0; i < COMMON.length; i++) {
-            if (lower.indexOf(COMMON[i]) !== -1) return true;
+        // Exact match against the common-password list.
+        if (COMMON_EXACT.has(lower.trim())) return true;
+        // Substring match against the short shop-specific list.
+        for (var i = 0; i < SHOP_WORDS.length; i++) {
+            if (lower.indexOf(SHOP_WORDS[i]) !== -1) return true;
         }
         var local = siblingValue(input, 'input[name$="Email"]').toLowerCase().split("@")[0];
         if (local.length >= 3 && lower.indexOf(local) !== -1) return true;
@@ -268,9 +287,36 @@
         meter.lastScore = score;
     }
 
+    // Optional: pull the full common-password list the server uses, so the
+    // meter's exact-match set matches it. Same-origin and best-effort - if the
+    // file is absent, blocked by CSP, or the browser is offline, the short
+    // built-in set above stays in place. The server is the source of truth
+    // either way, so the meter only ever hints, never decides.
+    function loadFullCommonList(active) {
+        if (typeof fetch !== "function") return;
+        fetch("/common-passwords.txt", { cache: "force-cache" })
+            .then(function (response) { return response.ok ? response.text() : null; })
+            .then(function (text) {
+                if (!text) return;
+                var added = 0;
+                text.split(/\r?\n/).forEach(function (line) {
+                    var word = line.trim();
+                    if (word && word.charAt(0) !== "#") {
+                        COMMON_EXACT.add(word.toLowerCase());
+                        added++;
+                    }
+                });
+                // Re-check any password already typed against the fuller list.
+                if (added) active.forEach(function (a) { update(a.meter, a.input); });
+            })
+            .catch(function () { /* keep the short built-in set */ });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
+        var active = [];
         document.querySelectorAll("input[data-password-meter]").forEach(function (input) {
             var meter = build(input);
+            active.push({ meter: meter, input: input });
             update(meter, input);
             input.addEventListener("input", function () { update(meter, input); });
 
@@ -298,5 +344,7 @@
                 });
             }
         });
+
+        loadFullCommonList(active);
     });
 })();

@@ -18,10 +18,17 @@ namespace MarsvinWebExample.Models;
 ///      (a strength meter counting only structure would happily call
 ///      "Marsvin-Shop-99!" strong; to a guesser it is not)
 ///
-/// This is deliberately stricter than NIST 800-63B, which advises against
-/// mandatory composition rules in favour of length plus a breach-list check.
-/// The project chooses the stricter, more visible policy on purpose; the
-/// blocklist here is a short high-signal list, not a full breach corpus.
+/// "Not a common one" is two different checks (see <see cref="IsObvious"/>):
+///   - a short, shop-specific <see cref="ShopBlocklist"/>, matched as a
+///     *substring* - "marsvin", "guineapig", "butik" and the literal word
+///     "password" are never wanted anywhere inside a password;
+///   - the large common-password list (<see cref="CommonPasswordList"/>, loaded
+///     from Data/CommonPasswords.txt), matched *exactly* - so "letmein" is
+///     rejected but a long passphrase that merely contains "letmein" is not.
+///
+/// This is deliberately stricter than NIST 800-63B on composition, while the
+/// exact-match common-password list is the breach-list check both NIST and
+/// ASVS 6.2.4 ask for.
 /// </summary>
 public static class PasswordPolicy
 {
@@ -36,15 +43,16 @@ public static class PasswordPolicy
     public static int MinLengthFor(UserRole role) =>
         role == UserRole.Admin ? AdminMinLength : MinLength;
 
-    // The passwords people actually reach for first, plus this shop's own
-    // words. Matched as substrings and case-insensitively, so "Marsvin2026!"
-    // and "xPassword1!" are both caught.
-    private static readonly string[] Blocklist =
+    // Shop-specific and "password"-literal words we never want ANYWHERE inside
+    // a password, matched as substrings and case-insensitively, so "Marsvin2026!"
+    // and "xPassword1!" are both caught. Generic common passwords (123456,
+    // qwerty, dragon, letmein, ...) are NOT here - they live in the large
+    // exact-match list (CommonPasswordList), so a long passphrase that merely
+    // contains "dragon" is still allowed; only a password that *is* a common
+    // one is rejected.
+    private static readonly string[] ShopBlocklist =
     [
-        "password", "passord", "adgangskode", "123456", "1234567", "12345678",
-        "123456789", "1234567890", "qwerty", "qwertyui", "asdfgh", "abc123",
-        "111111", "000000", "iloveyou", "letmein", "welcome", "admin", "login",
-        "dragon", "monkey", "football", "princess", "sunshine", "superman",
+        "password", "passord", "adgangskode",
         "marsvin", "guineapig", "guinea", "cavy", "gnavling", "butik"
     ];
 
@@ -89,8 +97,8 @@ public static class PasswordPolicy
     }
 
     /// <summary>
-    /// Whether the password is one a guesser would try early: on the
-    /// blocklist, or containing the shop's own name, or built from this
+    /// Whether the password is one a guesser would try early: exactly equal to
+    /// a common password, or containing a shop-specific word, or built from this
     /// person's own email local part or display name. Shared so the meter and
     /// the server agree on what "obvious" means.
     /// </summary>
@@ -99,7 +107,11 @@ public static class PasswordPolicy
         var lower = (password ?? "").ToLowerInvariant();
         if (lower.Length == 0) return false;
 
-        foreach (var word in Blocklist)
+        // A whole password that IS a common one (exact match, case-insensitive)
+        // - but not a long passphrase that merely contains a common word.
+        if (CommonPasswordList.IsCommon(lower)) return true;
+
+        foreach (var word in ShopBlocklist)
             if (lower.Contains(word)) return true;
 
         // A fragment of three or more characters is enough: "anna" in

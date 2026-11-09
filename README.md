@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-769 tests, three layers:
+780 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -156,11 +156,11 @@ Demo login credentials (seeded once, on a fresh database — see
 `marsvin-web/DocumentationInformation/DATABASE-NOTES.txt`):
 
 ```
-Admin:    admin@marsvin.dk     / Admin123!
-Employee: employee@marsvin.dk  / Employee123!
-Employee: employee2@marsvin.dk / Employee123!
-Employee: employee3@marsvin.dk / Employee123!
-Employee: employee4@marsvin.dk / Employee123!
+Admin:    admin@marsvin.dk     / Hay-Carrot-Oak-River-7!
+Employee: employee@marsvin.dk  / Clover-Meadow-8!
+Employee: employee2@marsvin.dk / Clover-Meadow-8!
+Employee: employee3@marsvin.dk / Clover-Meadow-8!
+Employee: employee4@marsvin.dk / Clover-Meadow-8!
 ```
 
 Customers always self-register; there's no seeded customer account.
@@ -210,8 +210,10 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   policy (`Models/PasswordPolicy.cs`) is enforced server-side wherever a
   password is set: at least 12 characters (15 for an Admin account, which can
   change prices, roles and other accounts), upper and lower case, a digit, a
-  symbol, and not an obvious password (a common one, the shop's own words, or
-  built from the account's own email or name). The strength meter on the form
+  symbol, and not an obvious password - a shop-specific word (substring), a
+  common password (exact match against a list loaded from
+  `Data/CommonPasswords.txt`, ASVS 6.2.4), or one built from the account's own
+  email or name. The strength meter on the form
   shows those exact five rules, so "strong" means a password the server will
   actually accept.
 - **Login and registration both require email confirmation**, not just a

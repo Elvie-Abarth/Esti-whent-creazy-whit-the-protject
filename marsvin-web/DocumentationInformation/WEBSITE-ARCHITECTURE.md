@@ -800,8 +800,12 @@ validation, output sanitising, and the known gaps - see
   compared or stored as plain text. The strength rule itself is one shared
   policy (`Models/PasswordPolicy.cs`): at least 12 characters - 15 for an
   Admin account, the higher-value role that carries 2FA - upper and
-  lower case, a digit, a symbol, and not an obvious password (a common one,
-  the shop's own words, or built from the account's own email or name).
+  lower case, a digit, a symbol, and not an obvious password. "Not obvious"
+  is two checks: a substring list of shop-specific words (marsvin, butik, ...)
+  and a large EXACT-match list of common passwords (`CommonPasswordList`,
+  loaded from `Data/CommonPasswords.txt`, ASVS 6.2.4) - so a long passphrase
+  that merely contains a common word is still fine - plus a check that it
+  isn't built from the account's own email or name.
   It's enforced server-side everywhere a password is set
   (Register/ResetPassword/Profile/Admin create-staff), and the strength
   meter mirrors those exact five rules so it never promises more than the
@@ -919,7 +923,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 769 tests (all of them need
+`dotnet test` from the solution root runs 780 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

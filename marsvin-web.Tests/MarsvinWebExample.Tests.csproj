@@ -31,6 +31,10 @@
     <Content Include="..\marsvin-web\Data\Sql\*.sql" LinkBase="Data\Sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- CommonPasswordList.cs reads this from the output dir; tests need it too. -->
+    <Content Include="..\marsvin-web\Data\CommonPasswords.txt" LinkBase="Data">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

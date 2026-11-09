@@ -30,4 +30,12 @@
     </Content>
   </ItemGroup>
 
+  <!-- The common-password blocklist (CommonPasswordList.cs reads it at startup
+       from the output directory). A plain text file, no ORM. -->
+  <ItemGroup>
+    <Content Include="Data\CommonPasswords.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
