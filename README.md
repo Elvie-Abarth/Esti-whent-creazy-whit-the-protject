@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-762 tests, three layers:
+769 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -208,7 +208,8 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 - **Passwords**: hashed with ASP.NET Core's `PasswordHasher<T>` (PBKDF2-HMAC-SHA512,
   100k iterations, salted) — never stored or logged in plain text. One shared
   policy (`Models/PasswordPolicy.cs`) is enforced server-side wherever a
-  password is set: at least 12 characters, upper and lower case, a digit, a
+  password is set: at least 12 characters (15 for an Admin account, which can
+  change prices, roles and other accounts), upper and lower case, a digit, a
   symbol, and not an obvious password (a common one, the shop's own words, or
   built from the account's own email or name). The strength meter on the form
   shows those exact five rules, so "strong" means a password the server will

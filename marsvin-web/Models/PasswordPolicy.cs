@@ -6,7 +6,10 @@ namespace MarsvinWebExample.Models;
 /// mirrors these exact five requirements. A password is accepted only when
 /// all of them hold:
 ///
-///   1. at least <see cref="MinLength"/> characters
+///   1. at least <see cref="MinLength"/> characters, or <see cref="AdminMinLength"/>
+///      for an Admin account - an admin can change prices, roles and other
+///      accounts, so its password is held to a longer minimum (that account
+///      also carries 2FA where enabled)
 ///   2. both upper- and lower-case letters
 ///   3. a digit
 ///   4. a symbol (anything that isn't a letter or a digit)
@@ -22,7 +25,16 @@ namespace MarsvinWebExample.Models;
 /// </summary>
 public static class PasswordPolicy
 {
+    /// <summary>The minimum length for customers and employees.</summary>
     public const int MinLength = 12;
+
+    /// <summary>The minimum length for an Admin account - stricter, because it
+    /// can change prices, roles and other accounts.</summary>
+    public const int AdminMinLength = 15;
+
+    /// <summary>The minimum length this role's password must reach.</summary>
+    public static int MinLengthFor(UserRole role) =>
+        role == UserRole.Admin ? AdminMinLength : MinLength;
 
     // The passwords people actually reach for first, plus this shop's own
     // words. Matched as substrings and case-insensitively, so "Marsvin2026!"
@@ -43,14 +55,15 @@ public static class PasswordPolicy
     /// which the structural checks alone would pass - is still rejected; pass
     /// null for either when there is nothing to compare against.
     /// </summary>
-    public static string? Validate(string? password, string? email, string? displayName, bool english)
+    public static string? Validate(string? password, string? email, string? displayName, bool english, UserRole role = UserRole.Customer)
     {
         password ??= "";
 
-        if (password.Length < MinLength)
+        var minLength = MinLengthFor(role);
+        if (password.Length < minLength)
             return english
-                ? $"The password must be at least {MinLength} characters."
-                : $"Adgangskoden skal være mindst {MinLength} tegn.";
+                ? $"The password must be at least {minLength} characters."
+                : $"Adgangskoden skal være mindst {minLength} tegn.";
 
         if (!password.Any(char.IsLower) || !password.Any(char.IsUpper))
             return english

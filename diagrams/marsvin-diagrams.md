@@ -39,7 +39,7 @@ comparison.
 | `marsvin-sequence-inactivity-cleanup` | Sequence, GDPR account deletion | updated |
 | `marsvin-state-animal` | State machine, Animal | unchanged |
 | `marsvin-state-order` | State machine, Order | updated |
-| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 762 tests - 9 Nov** |
+| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 769 tests - 9 Nov** |
 | `marsvin-activity-checkout` | Activity diagram | updated |
 | `marsvin-ssd-place-order` | System sequence diagram | updated |
 | `marsvin-communication-checkout` | Communication diagram | updated |
@@ -72,6 +72,12 @@ All 24 PNGs from 12 October were rendered in one style.
 - **Staff land on the dashboard after signing in.** `PageModelExtensions.LandingPageFor`
   sends an Employee/Admin to `/Admin` and a Customer to `/Index`, from both login-completion
   flows (ConfirmLogin and VerifyTotp). Affects the **login** sequence.
+- **Admin passwords must be 15 characters.** `PasswordPolicy` now takes the
+  account's role: 12 characters for a customer or employee, 15 for an Admin
+  (the role that can change prices, roles and other accounts, and carries 2FA).
+  Enforced server-side at register / reset / profile / admin-create-staff, and
+  the strength meter shows the right number per role. 7 new tests (769 total) -
+  shows only as the test count in the **deployment** diagram; no shape moved.
 - No database or access-control change: the role checks on every `/Admin` page are
   unchanged, so only the two diagrams above moved.
 

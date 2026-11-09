@@ -54,7 +54,7 @@
 
         <label>
             <span data-en="New password (leave blank to keep your current one)">Ny adgangskode (lad stå tom for at beholde din nuværende)</span>
-            <input asp-for="Input.NewPassword" autocomplete="new-password" data-password-meter />
+            <input asp-for="Input.NewPassword" autocomplete="new-password" data-password-meter data-password-min="@PasswordPolicy.MinLengthFor(User.IsInRole("Admin") ? UserRole.Admin : UserRole.Customer)" />
             <span asp-validation-for="Input.NewPassword" class="field-error"></span>
         </label>
 

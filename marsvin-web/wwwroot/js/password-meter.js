@@ -22,6 +22,25 @@
 
     var SVG_NS = "http://www.w3.org/2000/svg";
 
+    // The length rule mirrors Models/PasswordPolicy.cs: 12 for customers and
+    // employees, 15 for an Admin account. A form can state the minimum straight
+    // out with data-password-min on the field (the account's own role is known
+    // server-side), or - on the admin's "create staff" form, where the role is
+    // still being chosen - the meter reads the Role <select> live. ADMIN_ROLE
+    // is UserRole.Admin's numeric value, the value Html.GetEnumSelectList emits.
+    var BASE_MIN = 12;
+    var ADMIN_MIN = 15;
+    var ADMIN_ROLE = "2";
+
+    function minLengthFor(input) {
+        var attr = parseInt(input.getAttribute("data-password-min"), 10);
+        if (attr >= 1) return attr;
+        var form = input.form;
+        var roleSelect = form && form.querySelector('select[name$="Role"]');
+        if (roleSelect && roleSelect.value === ADMIN_ROLE) return ADMIN_MIN;
+        return BASE_MIN;
+    }
+
     // Six entries, indexed straight by the 0-5 score (how many of the five
     // requirements are met). Only a 5 is "Strong" - the one the server accepts.
     var LEVELS = [
@@ -74,6 +93,8 @@
     // Each requirement is one point, and ALL five are needed for "strong" -
     // the exact set the server enforces. The fifth takes the input too, so it
     // can look at the email/name fields next to it.
+    // The first rule's label and threshold are overridden per-role in update()
+    // (see minLengthFor); the 12 here is only the customer/employee default.
     var RULES = [
         { da: "Mindst 12 tegn", en: "At least 12 characters", test: function (p) { return p.length >= 12; } },
         { da: "Store og små bogstaver", en: "Upper and lower case", test: function (p) { return /[a-z]/.test(p) && /[A-Z]/.test(p); } },
@@ -198,7 +219,13 @@
     function update(meter, input) {
         var password = input.value;
         var language = lang();
-        var met = RULES.map(function (rule) { return rule.test(password, input); });
+        // The length rule's threshold depends on the role (12 or 15); the other
+        // four rules are fixed. Index 0 is overridden here and in the chip
+        // labels below so the meter shows the exact number the server enforces.
+        var min = minLengthFor(input);
+        var met = RULES.map(function (rule, i) {
+            return i === 0 ? password.length >= min : rule.test(password, input);
+        });
         var score = met.filter(Boolean).length;      // 0 to 5
         var t = score / RULES.length;
         var color = colorAt(t);
@@ -232,7 +259,9 @@
         meter.walker.classList.toggle("is-celebrating", strong && meter.lastScore !== RULES.length);
 
         meter.chips.forEach(function (chip, i) {
-            chip.textContent = RULES[i][language];
+            chip.textContent = i === 0
+                ? (language === "en" ? "At least " + min + " characters" : "Mindst " + min + " tegn")
+                : RULES[i][language];
             chip.classList.toggle("is-met", met[i]);
         });
 
@@ -250,6 +279,12 @@
             if (input.form) {
                 input.form.querySelectorAll('input[name$="Email"], input[name$="DisplayName"]').forEach(function (field) {
                     field.addEventListener("input", function () { update(meter, input); });
+                });
+
+                // On the admin "create staff" form the length rule follows the
+                // chosen role (12 or 15), so re-check when it changes.
+                input.form.querySelectorAll('select[name$="Role"]').forEach(function (field) {
+                    field.addEventListener("change", function () { update(meter, input); });
                 });
             }
 

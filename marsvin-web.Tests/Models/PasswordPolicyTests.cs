@@ -65,6 +65,43 @@ public class PasswordPolicyTests
         Assert.Contains("mindst 12", PasswordPolicy.Validate("Ab1!cd", null, null, english: false));
     }
 
+    [Theory]
+    [InlineData(UserRole.Customer, 12)]
+    [InlineData(UserRole.Employee, 12)]
+    [InlineData(UserRole.Admin, 15)]
+    public void MinLengthFor_IsFifteenOnlyForAnAdmin(UserRole role, int expected)
+    {
+        Assert.Equal(expected, PasswordPolicy.MinLengthFor(role));
+    }
+
+    [Theory]
+    [InlineData(UserRole.Customer)]
+    [InlineData(UserRole.Employee)]
+    public void Validate_AcceptsAThirteenCharacterPassword_ForANonAdmin(UserRole role)
+    {
+        // Meets all five rules and is 13 characters - fine for a customer or
+        // an employee, whose minimum is 12.
+        Assert.Null(PasswordPolicy.Validate("Fresh-Hay-9b!", null, null, english: false, role));
+    }
+
+    [Fact]
+    public void Validate_RejectsTheSameThirteenCharacterPassword_ForAnAdmin()
+    {
+        // The admin minimum is 15, so a 13-character password an employee may
+        // use is refused for an admin, with the admin number in the message.
+        var problem = PasswordPolicy.Validate("Fresh-Hay-9b!", null, null, english: true, UserRole.Admin);
+
+        Assert.NotNull(problem);
+        Assert.Contains("at least 15", problem);
+    }
+
+    [Fact]
+    public void Validate_AcceptsAFifteenPlusCharacterPassword_ForAnAdmin()
+    {
+        // Eighteen characters, all five rules met - accepted for an admin.
+        Assert.Null(PasswordPolicy.Validate("Barn-Hay-Fleece-7?", null, null, english: false, UserRole.Admin));
+    }
+
     [Fact]
     public void IsObvious_IgnoresAnEmailFragmentShorterThanThreeCharacters()
     {

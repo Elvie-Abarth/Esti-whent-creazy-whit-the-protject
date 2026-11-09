@@ -21,6 +21,11 @@ public class ResetPasswordModel(
 
     public bool TokenIsValid { get; private set; }
 
+    /// <summary>The minimum length the meter should show - 15 for an admin
+    /// account, 12 otherwise. Resolved from the token so the meter matches
+    /// what the server will enforce for this specific account.</summary>
+    public int MinPasswordLength { get; private set; } = PasswordPolicy.MinLength;
+
     [TempData]
     public string? ToastMessage { get; set; }
 
@@ -28,6 +33,18 @@ public class ResetPasswordModel(
     {
         Token = token ?? "";
         TokenIsValid = !string.IsNullOrEmpty(token) && pendingLogins.IsValid(token);
+        MinPasswordLength = PasswordPolicy.MinLengthFor(RoleFromToken(Token));
+    }
+
+    // The account's role from a valid, unspent token - Customer when the token
+    // can't be resolved, so the meter never over-promises. Peek, never Consume:
+    // reading the role must not spend the one-time link.
+    private UserRole RoleFromToken(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return UserRole.Customer;
+        var peeked = pendingLogins.Peek(token);
+        var user = peeked is null ? null : users.FindById(peeked.UserId);
+        return user?.Role ?? UserRole.Customer;
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -49,7 +66,8 @@ public class ResetPasswordModel(
             return Page();
         }
 
-        var passwordProblem = PasswordPolicy.Validate(Input.NewPassword, user.Email, user.DisplayName, this.IsEnglish());
+        MinPasswordLength = PasswordPolicy.MinLengthFor(user.Role);
+        var passwordProblem = PasswordPolicy.Validate(Input.NewPassword, user.Email, user.DisplayName, this.IsEnglish(), user.Role);
         if (passwordProblem is not null)
         {
             ModelState.AddModelError("Input.NewPassword", passwordProblem);

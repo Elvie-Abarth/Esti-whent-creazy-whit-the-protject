@@ -798,7 +798,8 @@ validation, output sanitising, and the known gaps - see
   see `DATABASE-ARCHITECTURE.md` §5.
 - **Passwords**: PBKDF2 via `PasswordHasher<ApplicationUser>`, never
   compared or stored as plain text. The strength rule itself is one shared
-  policy (`Models/PasswordPolicy.cs`): at least 12 characters, upper and
+  policy (`Models/PasswordPolicy.cs`): at least 12 characters - 15 for an
+  Admin account, the higher-value role that carries 2FA - upper and
   lower case, a digit, a symbol, and not an obvious password (a common one,
   the shop's own words, or built from the account's own email or name).
   It's enforced server-side everywhere a password is set
@@ -918,7 +919,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 762 tests (all of them need
+`dotnet test` from the solution root runs 769 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

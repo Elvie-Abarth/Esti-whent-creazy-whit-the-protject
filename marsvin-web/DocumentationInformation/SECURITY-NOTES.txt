@@ -42,8 +42,9 @@ OVERVIEW
 
 1. AUTHENTICATION - PROVING WHO YOU ARE
 ---------------------------------------
-- Passwords must be at least 12 characters and contain upper- and
-  lower-case letters, a digit and a symbol, and must not be an obvious
+- Passwords must be at least 12 characters - 15 for an Admin account,
+  the role that can change prices, roles and other accounts - and contain
+  upper- and lower-case letters, a digit and a symbol, and must not be an obvious
   password - not a common one, not the shop's own words, and not built
   from the person's own email or name. The rule lives in one place
   (Models/PasswordPolicy.cs) and is enforced on the server everywhere a

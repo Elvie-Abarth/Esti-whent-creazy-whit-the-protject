@@ -96,7 +96,7 @@ public class ProfileModel(
         if (!string.IsNullOrEmpty(Input.NewPassword))
         {
             var passwordProblem = PasswordPolicy.Validate(
-                Input.NewPassword, Input.Email, Input.DisplayName, this.IsEnglish());
+                Input.NewPassword, Input.Email, Input.DisplayName, this.IsEnglish(), user.Role);
             if (passwordProblem is not null)
             {
                 ModelState.AddModelError("Input.NewPassword", passwordProblem);

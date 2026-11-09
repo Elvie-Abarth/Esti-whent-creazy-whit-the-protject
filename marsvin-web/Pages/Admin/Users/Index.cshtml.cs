@@ -106,7 +106,7 @@ public class IndexModel(IUserAccountStore users, IAuditLogStore audit) : PageMod
         // member's own email or name either. This form shows only the
         // ModelOnly summary, so the error goes there.
         var passwordProblem = PasswordPolicy.Validate(
-            NewStaff.Password, NewStaff.Email, NewStaff.DisplayName, this.IsEnglish());
+            NewStaff.Password, NewStaff.Email, NewStaff.DisplayName, this.IsEnglish(), NewStaff.Role);
         if (passwordProblem is not null)
         {
             ModelState.AddModelError(string.Empty, passwordProblem);
