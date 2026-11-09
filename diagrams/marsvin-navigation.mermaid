@@ -46,14 +46,14 @@ flowchart TB
         PRO["/Account/Profile<br/>details, password, TOTP, log out everywhere,<br/>staff: shifts and time off,<br/>Customer: orders, cancel, delete account"]
     end
 
-    subgraph STAFF["[Authorize(Roles=Admin,Employee)]"]
-        AIDX["/Admin - staff area"]
-        ASHP["/Admin/Shop - shop management"]
+    subgraph STAFF["[Authorize(Roles=Admin,Employee)] - admin shell: left sidebar on every page"]
+        AIDX["/Admin - dashboard (Oversigt)<br/>sidebar groups: Dashboard / Operations / Shop / Administration"]
         ASTO["/Admin/Stock"]
         AORD["/Admin/Orders<br/>status + tracking number"]
         AMSG["/Admin/Messages"]
         ADON["/Admin/Donations"]
         ASCH["/Admin/Schedule<br/>assign and decide: Admin only, inside the handlers"]
+        ASHP["/Admin/Shop - shop overview<br/>(kept, reachable by URL; the sidebar links pages directly)"]
     end
 
     subgraph ADMINONLY["[Authorize(Roles=Admin)]"]
@@ -63,6 +63,8 @@ flowchart TB
         AUSR["/Admin/Users"]
         AEXP["/Admin/Users/Export/{id}"]
         ALOG["/Admin/AuditLog"]
+        ASEC["/Admin/SecurityLog<br/>recorded attack attempts, severity-coded"]
+        AADM["/Admin/Administration - admin overview<br/>(kept, reachable by URL)"]
     end
 
     subgraph API["JSON API - JWT bearer, not pages (no HTML, bare 401 / 403 / 404)"]
@@ -109,18 +111,28 @@ flowchart TB
     ATOK -->|Admin token| AAUSR
     PRO -->|log out everywhere| LOG
 
-    CONF -.->|Role = Employee or Admin| AIDX
-    AIDX --> ASHP
-    AIDX --> ASCH
-    AIDX --> AMSG
-    AIDX --> ADON
-    AIDX --> AUSR
-    AIDX --> ALOG
-    ASHP --> ASTO
-    ASHP --> AORD
-    ASHP --> APRO
-    ASHP --> AANI
-    ASHP --> APRM
+    %% Both login-completion flows land a staff account on the dashboard
+    %% (a Customer lands on the storefront home instead).
+    CONF -.->|Role = staff -> dashboard| AIDX
+    TOTP -.->|Role = staff -> dashboard| AIDX
+
+    %% The admin shell's left sidebar (shown on every /Admin page) links the
+    %% dashboard straight to each admin page; every page also has one
+    %% Back to dashboard button. The two overview pages are kept but no longer
+    %% part of the primary navigation.
+    AIDX -->|sidebar| ASTO
+    AIDX -->|sidebar| AORD
+    AIDX -->|sidebar| AMSG
+    AIDX -->|sidebar| ADON
+    AIDX -->|sidebar| ASCH
+    AIDX -->|sidebar: Admin only| APRO
+    AIDX -->|sidebar: Admin only| AANI
+    AIDX -->|sidebar: Admin only| APRM
+    AIDX -->|sidebar: Admin only| AUSR
+    AIDX -->|sidebar: Admin only| ALOG
+    AIDX -->|sidebar: Admin only| ASEC
+    AIDX -.->|kept, by URL| ASHP
+    AIDX -.->|kept, by URL| AADM
     AUSR --> AEXP
 
     ANYUSER -.->|not signed in, idle 30 min,<br/>8 h old, or password changed| LOG

@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-761 tests, three layers:
+762 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -132,9 +132,9 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Min konto | `/Account/Profile` | Signed in | Update name/email/password, request time off (staff), order history + reorder (customers), delete account |
 | Kurv / Betaling | `/Cart/Index`, `/Cart/Payment` | Everyone (not staff) | View cart, remove lines, choose pickup or shipping (+ carrier, each with price, destination, expected delivery, weight and parcel count), private or company purchase, choose card or MobilePay (demo), check out — no account needed, a guest just gives a name and email. Registering or logging in partway through carries the guest cart into the new session instead of losing it |
 | Kvittering | `/Cart/Confirmation/{orderId}` | Everyone (not staff) | Order summary with status steps, a cancel button while the order can still be cancelled, and a confetti animation — only the buyer can view their own order (a guest's receipt is gated by a one-time id stamped into their own session at checkout, not an account) |
-| Personale | `/Admin/Index` | Employee, Admin | Dashboard with role-appropriate links |
+| Oversigt (dashboard) | `/Admin/Index` | Employee, Admin | Landing page of the admin area. Everything under `/Admin` uses a dedicated layout (`Shared/_AdminLayout.cshtml`) — a left sidebar grouped Dashboard / Operations / Shop / Administration, replacing the storefront header. Staff land here after logging in; every page has one "Back to dashboard" button |
 | Vagtplan | `/Admin/Schedule/Index` | Employee, Admin | See/assign shifts, approve or deny day-off requests |
-| Butiksstyring | `/Admin/Shop/Index` | Employee, Admin | Hub for stock, orders, and (Admin) the catalog/promotions pages |
+| Butiksstyring | `/Admin/Shop/Index` | Employee, Admin | Shop overview page — kept and reachable by URL, but navigation now goes through the sidebar, which links the Shop pages directly |
 | Lager & status | `/Admin/Stock/Index` | Employee, Admin | Adjust accessory stock counts, change animal status |
 | Ordrer | `/Admin/Orders/Index` | Employee, Admin | Every order placed in the shop, who placed it, and how it's being delivered; set status and tracking number (the buyer is emailed) |
 | Beskeder / Donationer | `/Admin/Messages`, `/Admin/Donations` | Employee, Admin | What came in through the contact form and the donation page |
@@ -183,11 +183,15 @@ Data/            ICatalog / ICatalogAdmin (catalog), IUserAccountStore, ICartSto
 Pages/Account/   Register, Login, ConfirmLogin, VerifyTotp, ForgotPassword, ResetPassword,
                  CheckEmail, Logout, Profile, AccessDenied
 Pages/Cart/      Index (view/add/remove), Payment (delivery choice + checkout), Confirmation
-Pages/Admin/     Index, Schedule/, Shop/, Stock/, Orders/, Messages/, Donations/, Products/,
-                 Animals/, Promotions/, Users/ (+ Export), AuditLog/, SecurityLog/
-Pages/Shared/    _Layout.cshtml (header, footer, the chat), _Cavy.cshtml (the drawn guinea pig)
+Pages/Admin/     Index (dashboard), Schedule/, Shop/, Administration/, Stock/, Orders/,
+                 Messages/, Donations/, Products/, Animals/, Promotions/, Users/ (+ Export),
+                 AuditLog/, SecurityLog/; _ViewStart.cshtml points them all at _AdminLayout
+Pages/Shared/    _Layout.cshtml (storefront header, footer, the chat),
+                 _AdminLayout.cshtml (the admin shell: left sidebar + slim top strip, used
+                 by everything under /Admin), _Cavy.cshtml (the drawn guinea pig)
 Pages/           the storefront and info pages, Chat (the chat's endpoint), Error/ServerError;
-                 PageModelExtensions.cs — CurrentUserId/SignInAsync/IsSafeLocalUrl,
+                 PageModelExtensions.cs — CurrentUserId/SignInAsync/IsSafeLocalUrl/LandingPageFor
+                 (where a signed-in account lands: staff on the dashboard, Customer on home),
                  shared across every page model that needs them
 wwwroot/css/     site.css — all the design tokens live at the top
 wwwroot/img/     page photos, products/ (square, 640 px), animals/, brands/

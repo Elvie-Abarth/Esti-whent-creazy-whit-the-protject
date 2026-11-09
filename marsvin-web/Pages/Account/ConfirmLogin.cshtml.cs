@@ -35,6 +35,6 @@ public class ConfirmLoginModel(
         // Same idea for an order placed as a guest just before signing up.
         this.ClaimGuestOrderIntoAccount(orders, user);
 
-        return !string.IsNullOrEmpty(ticket!.ReturnUrl) ? LocalRedirect(ticket.ReturnUrl) : RedirectToPage("/Index");
+        return !string.IsNullOrEmpty(ticket!.ReturnUrl) ? LocalRedirect(ticket.ReturnUrl) : RedirectToPage(LandingPageFor(user));
     }
 }

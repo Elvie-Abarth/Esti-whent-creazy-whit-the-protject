@@ -595,33 +595,41 @@ already present in both carts isn't quantity-summed (a guinea pig's
 quantity must stay 1); an accessory is, the same way merging two real
 carts naturally would be expected to work.
 
-### Staff area - `/Admin` ("Personale")
+### Admin area - `/Admin` (dashboard + left sidebar)
 
-Restricted to Admin + Employee. Deliberately holds **only** staff/people
-concerns:
+Restricted to Admin + Employee. Everything under `/Admin` uses its own layout,
+`Pages/Shared/_AdminLayout.cshtml` (selected for the whole folder by
+`Pages/Admin/_ViewStart.cshtml`), instead of the storefront header/footer: a
+**left sidebar** grouped into Dashboard / Operations / Shop / Administration, a
+slim top strip ("View storefront", the language toggle, account name, log out),
+and the page content. The Admin-only groups (catalog, promotions, accounts and
+the logs) are hidden from an Employee - but, as everywhere, hiding a link is only
+tidiness; each page behind it still enforces its own role.
+
+- **Landing**: `/Admin` is the dashboard ("Oversigt"). Staff land here straight
+  after signing in - `PageModelExtensions.LandingPageFor(user)` returns `/Admin`
+  for an Employee/Admin and `/Index` for a Customer, and **both** login-completion
+  flows (`ConfirmLoginModel` and `VerifyTotpModel`) route through it when there is
+  no explicit `returnUrl`. Every admin page also carries one "Back to dashboard"
+  button.
+- **Overview pages kept, no longer primary nav**: `/Admin/Shop` ("Butiksstyring")
+  and `/Admin/Administration` are the old hub-of-cards pages. They still render
+  and are reachable by URL, but the sidebar now links every page directly, so
+  they are no longer part of the navigation path.
 
 | Route | What it is |
 |---|---|
-| `/Admin/Users` | Account management - all roles, create staff, change role/active, delete (Admin only) |
 | `/Admin/Schedule` ("Vagtplan") | Shift assignment (Admin) / own shifts (Employee); day-off requests and their approval; rejects an overlapping shift or one falling on approved time off |
-| `/Admin/AuditLog` ("Logbog") | Who changed what, and when - every admin/employee write action (Admin only) |
-| `/Admin/SecurityLog` ("Sikkerhedslog") | Recorded attack *attempts* - failed logins, locked accounts, wrong-role requests, rate-limit hits, rejected forms (Admin only, read-only). Not breach detection - §9 |
-
-### Shop management - `/Admin/Shop` ("Butiksstyring")
-
-Also Admin + Employee, but everything here is about running the *shop*, not
-the *staff* - split out from the staff area specifically because they're
-different concerns (see the commit history for why):
-
-| Route | What it is |
-|---|---|
+| `/Admin/Messages` | Messages from the contact form - Admin + Employee |
 | `/Admin/Stock` | Stock levels, animal availability - Admin + Employee |
 | `/Admin/Orders` | Every order placed in the shop, who placed it, how it's being delivered; set its status and tracking number (audit-logged, and the buyer is emailed) - Admin + Employee |
-| `/Admin/Messages` | Messages from the contact form - Admin + Employee |
 | `/Admin/Donations` | Donations registered on `/Stoet` - Admin + Employee |
 | `/Admin/Products`, `/Admin/Products/Edit` | Accessory catalog CRUD - Admin only |
 | `/Admin/Animals`, `/Admin/Animals/Edit` | Guinea pig catalog CRUD - Admin only |
 | `/Admin/Promotions`, `/Admin/Promotions/Edit` | Time-boxed discounts - Admin only |
+| `/Admin/Users` | Account management - all roles, create staff, change role/active, delete (Admin only) |
+| `/Admin/AuditLog` ("Logbog") | Who changed what, and when - every admin/employee write action (Admin only) |
+| `/Admin/SecurityLog` ("Sikkerhedslog") | Recorded attack *attempts* - failed logins, locked accounts, wrong-role requests, rate-limit hits, rejected forms (Admin only, read-only). Not breach detection - §9 |
 
 ## 6. The bilingual DA/EN system
 
@@ -632,7 +640,7 @@ localisation resource file. The mechanism, end to end:
 1. Every piece of user-facing text carries a `data-en="..."` attribute
    alongside its Danish text:
    ```html
-   <h2 data-en="Staff area">Personale</h2>
+   <h2 data-en="Dashboard">Oversigt</h2>
    ```
 2. `wwwroot/js/lang-toggle.js` finds every `[data-en]` element on
    `DOMContentLoaded`, remembers the original Danish text, and swaps
@@ -910,7 +918,7 @@ validation, output sanitising, and the known gaps - see
 
 ## 10. Testing - two layers
 
-`dotnet test` from the solution root runs 761 tests (all of them need
+`dotnet test` from the solution root runs 762 tests (all of them need
 LocalDB).
 
 ### Layer 1: direct `PageModel`/store unit tests

@@ -67,6 +67,6 @@ public class VerifyTotpModel(
         await this.SignInAsync(user);
         MergeGuestCartIntoAccount(cart, accountCart, user.UserId);
 
-        return !string.IsNullOrEmpty(ticket.ReturnUrl) ? LocalRedirect(ticket.ReturnUrl) : RedirectToPage("/Index");
+        return !string.IsNullOrEmpty(ticket.ReturnUrl) ? LocalRedirect(ticket.ReturnUrl) : RedirectToPage(LandingPageFor(user));
     }
 }

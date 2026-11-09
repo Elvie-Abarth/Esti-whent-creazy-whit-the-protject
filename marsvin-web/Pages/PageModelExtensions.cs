@@ -154,4 +154,13 @@ public static class PageModelExtensions
     // protocol-relative and follow off-site.
     public static bool IsSafeLocalUrl(string? url) =>
         !string.IsNullOrEmpty(url) && url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\");
+
+    /// <summary>
+    /// Where a just-signed-in account should land when the login had no explicit
+    /// returnUrl: staff (Employee/Admin) open on the admin dashboard, customers
+    /// on the storefront home. Used by both login-completion flows (ConfirmLogin
+    /// and VerifyTotp) so they stay in step.
+    /// </summary>
+    public static string LandingPageFor(ApplicationUser user) =>
+        user.Role is UserRole.Admin or UserRole.Employee ? "/Admin/Index" : "/Index";
 }

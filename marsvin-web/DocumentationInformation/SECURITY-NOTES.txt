@@ -114,10 +114,16 @@ check runs on the server before any page code does.
 
 Which pages each staff role reaches:
 
-  Admin and Employee   /Admin, /Admin/Shop, /Admin/Stock, /Admin/Orders,
-                       /Admin/Messages, /Admin/Donations, /Admin/Schedule
+  Admin and Employee   /Admin (dashboard), /Admin/Shop, /Admin/Stock,
+                       /Admin/Orders, /Admin/Messages, /Admin/Donations,
+                       /Admin/Schedule
   Admin only           /Admin/Products, /Admin/Animals, /Admin/Promotions,
-                       /Admin/Users, /Admin/AuditLog
+                       /Admin/Users, /Admin/AuditLog, /Admin/SecurityLog,
+                       /Admin/Administration
+
+  (All /Admin pages share one layout - a left sidebar - but the layout only
+  shows the links a role may use; each page still enforces its own role, so
+  hiding a link is tidiness, not the access control.)
 
 Three things go beyond plain role checks:
 

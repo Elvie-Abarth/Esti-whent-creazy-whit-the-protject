@@ -70,7 +70,7 @@ sequenceDiagram
             TM->>US: RecordActivity(userId)
             TM->>TM: merge the guest cart into the account's cart
             TM->>TM: SignInAsync - auth cookie with the account's security stamp<br/>HttpOnly, SameSite=Lax, 30 min idle, 8 h max
-            TM-->>K: LocalRedirect(returnUrl) or /Index
+            TM-->>K: LocalRedirect(returnUrl), else staff -> /Admin (dashboard), Customer -> /Index
         end
     else second step: emailed link
         K->>CM: GET /Account/ConfirmLogin?token=...
@@ -88,7 +88,7 @@ sequenceDiagram
                 CM->>US: RecordActivity(userId)
                 CM->>CM: merge the guest cart into the account's cart,<br/>claim a guest order just placed in this session<br/>(same session AND same email)
                 CM->>CM: SignInAsync - auth cookie with the account's security stamp<br/>HttpOnly, SameSite=Lax, 30 min idle, 8 h max
-                CM-->>K: LocalRedirect(returnUrl) or /Index
+                CM-->>K: LocalRedirect(returnUrl), else staff -> /Admin (dashboard), Customer -> /Index
             end
         end
     end

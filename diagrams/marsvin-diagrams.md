@@ -8,6 +8,11 @@ are in `png/`, and `marsvin-diagrams.pdf` has them all in one file. The five 28 
 diagrams (four changed, one new) had their PNGs rendered again, and the PDF was rebuilt, so
 images, PDF and sources agree.
 
+> **Pending re-export (9 November).** Three sources changed on 9 November - `marsvin-navigation`,
+> `marsvin-sequence-login` and `marsvin-deployment` (see "What changed on 9 November" below).
+> Their `.mermaid` sources here are current; re-export their PNGs in `png/` and rebuild
+> `marsvin-diagrams.pdf` to bring the images back in step with the sources.
+
 The previous sets (`diagrams 09102026`, `diagrams 02102026`) are left untouched for
 comparison.
 
@@ -17,7 +22,7 @@ comparison.
 | `marsvin-domain-model` | Class diagram, entities and enums | updated |
 | `marsvin-class-services` | Class diagram, stores and DI lifetimes | updated, **JWT classes added 28 Oct** |
 | `marsvin-dfd` | Data flow diagram with trust boundaries | updated, **process 13.0 (JWT API) added 28 Oct** |
-| `marsvin-navigation` | Navigation and access-control map | updated, **/api group added 28 Oct** |
+| `marsvin-navigation` | Navigation and access-control map | updated, **/api group added 28 Oct; admin shell + dashboard landing 9 Nov** |
 | `marsvin-activity-email-language` | Activity, which language an email is written in | **new** |
 | `marsvin-sequence-donation` | Sequence, a donation and its thank-you email | **new** |
 | `marsvin-sequence-checkout` | Sequence, checkout (guest or customer) | updated |
@@ -25,7 +30,7 @@ comparison.
 | `marsvin-sequence-jwt-api` | Sequence, getting and using a JWT for /api | **new, 28 Oct** |
 | `marsvin-sequence-session-check` | Sequence, the per-request session check | updated |
 | `marsvin-sequence-chat` | Sequence, the support chat (Pip) | unchanged |
-| `marsvin-sequence-login` | Sequence, login (email link or TOTP) | updated |
+| `marsvin-sequence-login` | Sequence, login (email link or TOTP) | updated, **staff land on the dashboard 9 Nov** |
 | `marsvin-sequence-totp-enrollment` | Sequence, 2FA enrol / disable | unchanged |
 | `marsvin-sequence-register` | Sequence, registration | updated |
 | `marsvin-sequence-password-reset` | Sequence, forgot / reset password | updated |
@@ -34,7 +39,7 @@ comparison.
 | `marsvin-sequence-inactivity-cleanup` | Sequence, GDPR account deletion | updated |
 | `marsvin-state-animal` | State machine, Animal | unchanged |
 | `marsvin-state-order` | State machine, Order | updated |
-| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key, 722 tests - 28 Oct** |
+| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 762 tests - 9 Nov** |
 | `marsvin-activity-checkout` | Activity diagram | updated |
 | `marsvin-ssd-place-order` | System sequence diagram | updated |
 | `marsvin-communication-checkout` | Communication diagram | updated |
@@ -55,6 +60,20 @@ All 24 PNGs from 12 October were rendered in one style.
   wrong-key / wrong-audience tokens, deactivated, password-changed and demoted accounts)
   and 4 on where the signing key comes from.
 - No database change: still 15 tables, so the ER and domain diagrams are unchanged.
+
+## What changed on 9 November
+
+- **The admin area got its own shell.** Everything under `/Admin` now uses
+  `Shared/_AdminLayout.cshtml` instead of the storefront header: a left sidebar grouped
+  Dashboard / Operations / Shop / Administration, a slim top strip, and a "View storefront"
+  link. `/Admin` is the dashboard ("Oversigt"). The old hub-of-cards pages (`/Admin/Shop`,
+  `/Admin/Administration`) are kept but no longer part of the navigation. Every admin page
+  has one "Back to dashboard" button. Affects the **navigation** map.
+- **Staff land on the dashboard after signing in.** `PageModelExtensions.LandingPageFor`
+  sends an Employee/Admin to `/Admin` and a Customer to `/Index`, from both login-completion
+  flows (ConfirmLogin and VerifyTotp). Affects the **login** sequence.
+- No database or access-control change: the role checks on every `/Admin` page are
+  unchanged, so only the two diagrams above moved.
 
 ## What changed since 9 October
 

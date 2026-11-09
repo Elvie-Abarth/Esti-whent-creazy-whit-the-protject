@@ -272,6 +272,17 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 }
 .btn--quiet:hover { background: var(--meadow); color: var(--paper); border-color: var(--meadow); }
 
+/* Destructive actions (Delete). A warm brick-red - clearly "careful" without
+   being the bright pink accent - kept quiet (text + border only) until hover,
+   so it sits apart from the neutral row actions without shouting. */
+.btn--danger {
+    background: transparent;
+    border-color: #A23B2B;
+    color: #A23B2B;
+}
+.btn--danger:hover,
+.btn--danger:focus-visible { background: #A23B2B; color: var(--paper); border-color: #A23B2B; }
+
 .btn[aria-disabled="true"] {
     background: transparent;
     border-color: var(--line);
@@ -1754,10 +1765,64 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
 }
 .admin-table th, .admin-table td {
     text-align: left;
-    padding: 0.55rem 0.7rem;
+    padding: 0.6rem 0.75rem;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
 }
+/* Gentle colour to make rows easy to follow across a wide table: a shaded
+   header, soft zebra striping and a hover highlight. All translucent meadow
+   tints so they read the same whether the section behind is hay or paper. */
+.admin-table thead th {
+    background: rgba(44, 67, 39, 0.08);
+    color: var(--meadow);
+    border-bottom-color: var(--meadow);
+}
+.admin-table thead th:first-child { border-top-left-radius: 7px; }
+.admin-table thead th:last-child { border-top-right-radius: 7px; }
+.admin-table tbody tr:nth-child(even) { background: rgba(44, 67, 39, 0.035); }
+.admin-table tbody tr:hover { background: rgba(116, 150, 74, 0.13); }
+/* Row-action buttons are deliberately quiet: a table full of heavy, filled
+   buttons looks like button soup, so here they're light and low-chrome - a thin
+   neutral border, lighter weight - and only fill in on hover/focus. Labels stay
+   on one line, and a cell with several actions wraps them as a tidy row. */
+.admin-table .btn {
+    padding: 0.32rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-width: 1px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+.admin-table .btn--quiet {
+    border-color: var(--line);
+    color: var(--meadow);
+}
+.admin-table .btn--quiet:hover,
+.admin-table .btn--quiet:focus-visible {
+    background: var(--meadow);
+    color: var(--paper);
+    border-color: var(--meadow);
+}
+.admin-table .inline-form select { border-radius: 6px; }
+/* Keep each cell's controls on one line, side by side (select + Update, Export +
+   Delete) instead of letting the column squeeze them into a stack. The cell
+   grows to fit them, and nowrap labels stop any mid-word breaks. */
+.admin-table td > .inline-form { flex-wrap: nowrap; }
+.admin-table td:has(> .inline-form) { white-space: nowrap; }
+/* Accounts table: the controls (Role, Active, actions) each take only the width
+   they need, and the e-mail column takes whatever is left - but it may wrap and
+   break a long address across lines so the whole table always fits the screen
+   without a horizontal scrollbar. Name stays on one line. */
+.admin-table--accounts td, .admin-table--accounts th { width: 1%; }
+.admin-table--accounts td:first-child, .admin-table--accounts th:first-child { white-space: nowrap; }
+.admin-table--accounts td:nth-child(2), .admin-table--accounts th:nth-child(2) {
+    width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+/* Fixed-width role select so every row's Update (and everything right of it)
+   lines up, instead of shifting with the length of "Admin" vs "Employee". */
+.admin-table--accounts .inline-form select { width: 8.5rem; max-width: none; }
 
 /* Admin/Stock's Accessories/Guinea-pigs switch - two tables that used to sit
    stacked one under the other; only the tab picked is shown, so there's more
