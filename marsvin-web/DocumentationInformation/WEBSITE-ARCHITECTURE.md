@@ -1049,7 +1049,11 @@ A few reusable patterns worth knowing before touching a page's markup:
   day-off-request status (`pending`/`approved`/`denied`) with the same base
   class and new colour modifiers.
 - **`.admin-table`** - the shared table style for every admin/staff list
-  page (Accounts, Schedule, Products, Animals, Promotions, Orders, AuditLog).
+  page (Accounts, Schedule, Products, Animals, Promotions, Orders, AuditLog,
+  Messages, Donations, SecurityLog, Stock). The `.admin-table--tidy` modifier
+  keeps every column at its content width on one line (so dates and amounts
+  never wrap mid-value) while columns marked `.col-wrap` take the slack and
+  wrap, breaking a long email/path only when the column can't hold it.
 - **`.callout` / `.callout--danger`** - a bordered info box; the `--danger`
   variant (the site's one red, `#7A1F3D`) is reserved for irreversible or
   negative actions (delete account, day-off denied).
