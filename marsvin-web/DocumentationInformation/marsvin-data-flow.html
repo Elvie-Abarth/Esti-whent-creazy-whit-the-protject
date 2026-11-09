@@ -20,13 +20,20 @@ svg{width:100%;height:100%}
 .node rect{fill:var(--card);stroke:var(--line);stroke-width:2;transition:all .3s}
 .node text{fill:var(--txt);font-size:14px;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
 .node .sub{fill:var(--mut);font-size:10px}
-.node.read rect{stroke:var(--read);filter:drop-shadow(0 0 10px var(--read))}
-.node.write rect{stroke:var(--write);filter:drop-shadow(0 0 10px var(--write))}
-.node.active rect{stroke:var(--warn);filter:drop-shadow(0 0 10px var(--warn))}
+.node.read rect{fill:#0c3a47;stroke:var(--read);stroke-width:4;filter:drop-shadow(0 0 14px var(--read))}
+.node.write rect{fill:#0f3d24;stroke:var(--write);stroke-width:4;filter:drop-shadow(0 0 16px var(--write))}
+.node.active rect{fill:#4a3a0a;stroke:var(--warn);stroke-width:4;filter:drop-shadow(0 0 14px var(--warn))}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.node.read,.node.write,.node.active{animation:pulse 1.1s ease-in-out infinite}
+.node .badge{display:none;font-size:11px;font-weight:700;text-anchor:end}
+.node.read .badge.r,.node.write .badge.w,.node.active .badge.a{display:block}
+.badge.r{fill:var(--read)}.badge.w{fill:var(--write)}.badge.a{fill:var(--warn)}
+.wire{stroke:#475569;stroke-width:2;fill:none}
 .link{stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 6;fill:none;opacity:.7}
-#pkt{fill:var(--read);filter:drop-shadow(0 0 8px var(--read));transition:cx .55s ease-in-out,cy .55s ease-in-out,fill .3s}
+#pkt{fill:var(--read);filter:drop-shadow(0 0 8px var(--read));transition:cx .8s ease-in-out,cy .8s ease-in-out,fill .3s}
 #pkt.w{fill:var(--write)}
 aside{width:390px;background:#111827;border-radius:14px;padding:18px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+aside>*{flex-shrink:0}
 aside h2{margin:0;font-size:17px}
 #cap{color:var(--txt);font-size:14.5px;line-height:1.5;min-height:66px}
 pre{margin:0;background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;color:#a5f3fc;min-height:70px}
@@ -42,7 +49,7 @@ footer button{background:var(--card);color:var(--txt);border:1px solid var(--lin
 footer button:hover{border-color:var(--read)}
 #prog{width:200px;height:6px;background:var(--card);border-radius:3px;overflow:hidden}
 #prog div{height:100%;width:0;background:var(--read);transition:width .4s}
-@media(max-width:900px){main{flex-direction:column}aside{width:auto}}
+@media(max-width:900px){body{height:auto;min-height:100vh}main{flex-direction:column}#stage{height:70vw;min-height:320px;flex:none}aside{width:auto;overflow:visible}}
 </style>
 </head>
 <body>
@@ -59,7 +66,7 @@ footer button:hover{border-color:var(--read)}
   </aside>
 </main>
 <footer>
-  <button id="prev">◀</button><button id="play">⏸</button><button id="next">▶</button>
+  <button id="speed" title="Autoplay speed">Speed: Normal</button><button id="prev">◀</button><button id="play">⏸</button><button id="next">▶</button>
   <div id="prog"><div></div></div>
 </footer>
 
@@ -93,6 +100,7 @@ const N={
   captcha:{x:510,y:150,w:150,h:50,t:"🛡️ reCAPTCHA",s:"bot check"},
   mail:{x:510,y:620,w:150,h:50,t:"✉️ Email",s:"MailKit / logging"}
 };
+N.db={x:735,y:385,w:110,h:76,t:"🗄️ SQL Server",s:"the database"};
 TABLES.forEach((k,i)=>N[k]={x:960,y:36+i*49,w:210,h:42,t:"🗄️ "+k,s:PURPOSE[k]});
 
 const svg=document.getElementById('svg');
@@ -101,8 +109,13 @@ function el(n,a,p=svg){const e=document.createElementNS(NS,n);for(const k in a)e
 
 [["customer","web"],["web","back"]].forEach(([a,b])=>el('line',{class:'link',x1:N[a].x+N[a].w/2,y1:N[a].y,x2:N[b].x-N[b].w/2,y2:N[b].y}));
 ["captcha","mail"].forEach(k=>el('line',{class:'link',x1:N.back.x,y1:N.back.y+(k==="captcha"?-33:33),x2:N[k].x,y2:N[k].y+(k==="captcha"?25:-25)}));
-TABLES.forEach(k=>el('path',{class:'link',d:`M${N.back.x+75} ${N.back.y} C 740 ${N.back.y}, 760 ${N[k].y}, ${N[k].x-105} ${N[k].y}`}));
-el('text',{x:960,y:762,fill:'#64748b','font-size':12,'text-anchor':'middle'}).textContent="SQL Server (LocalDB) - parameterized ADO.NET";
+const BUSX=832, FIRST=N[TABLES[0]].y, LAST=N[TABLES[TABLES.length-1]].y;
+el('rect',{x:812,y:2,width:276,height:758,rx:16,fill:'none',stroke:'#475569','stroke-width':2,'stroke-dasharray':'8 6'});
+el('line',{class:'wire',x1:N.back.x+75,y1:N.back.y,x2:N.db.x-55,y2:N.db.y});
+el('line',{class:'wire',x1:N.db.x+55,y1:N.db.y,x2:BUSX,y2:N.db.y});
+el('line',{class:'wire',x1:BUSX,y1:FIRST,x2:BUSX,y2:LAST});
+TABLES.forEach(k=>el('line',{class:'wire',x1:BUSX,y1:N[k].y,x2:N[k].x-105,y2:N[k].y}));
+
 
 const nodeEl={};
 for(const id in N){
@@ -110,6 +123,9 @@ for(const id in N){
   el('rect',{width:n.w,height:n.h,rx:12},g);
   const t=el('text',{x:n.w/2,y:n.s?n.h/2-8:n.h/2},g);t.textContent=n.t;
   if(n.s){const s=el('text',{class:'sub',x:n.w/2,y:n.h/2+11},g);s.textContent=n.s;n.sub=s}
+  [['r','READ'],['w','WRITE'],['a','PROCESSING']].forEach(([c,t])=>{
+    const b=el('text',{class:'badge '+c,x:n.w-6,y:-5},g);b.textContent=t;
+  });
   nodeEl[id]=g;
 }
 const pkt=el('circle',{id:'pkt',r:11,cx:N.customer.x,cy:N.customer.y});
@@ -251,7 +267,8 @@ const SCENES=[
 
 // ---------- Engine ----------
 const $=id=>document.getElementById(id);
-let sc=0,playing=true,token=0;
+let sc=0,playing=true,token=0,speed=1;
+const SPEEDS=[{n:'Slow',f:1.6},{n:'Normal',f:1},{n:'Fast',f:.6}];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function setStock(v){N.StockProducts.sub.textContent="StockQuantity: "+v}
 function resetStock(){N.StockProducts.sub.textContent=PURPOSE.StockProducts}
@@ -260,13 +277,35 @@ function mark(ids,c){(ids||[]).forEach(i=>nodeEl[i].classList.add(c))}
 function showCols(ids,cls){
   $('cols').innerHTML=ids.filter(i=>SCHEMA[i]).map(i=>`<div class="t ${cls}"><b>${i}</b><code>${SCHEMA[i].map(c=>c.replace(/ (PK\/FK|PK|FK)\b/,' <i>$1</i>')).join(', ')}</code></div>`).join('');
 }
-function place(id){pkt.setAttribute('cx',N[id].x);pkt.setAttribute('cy',N[id].y)}
+const BUSPOS={};TABLES.forEach(k=>BUSPOS['bus_'+k]={x:BUSX,y:N[k].y});
+function place(id){const n=N[id]||BUSPOS[id];pkt.setAttribute('cx',n.x);pkt.setAttribute('cy',n.y)}
 
+const ISTABLE=id=>TABLES.includes(id);
+let at='customer';
+const wait=async(ms,my)=>{let left=ms;while(left>0){await sleep(100);if(my!==token)return false;if(playing)left-=100}return true};
+// Every trip to or from a table goes through the SQL Server box, and a
+// finished SQL step brings the result back to the Stores.
+function route(path){
+  const seq=path.slice();
+  if(seq.length&&ISTABLE(seq[0])&&(at==='back'||at==='db'||ISTABLE(at)))seq.shift();
+  if(seq.length&&seq[0]===at)seq.shift();
+  const out=[];let prev=at;
+  for(const id of seq){
+    if(ISTABLE(prev))out.push('bus_'+prev,'db');
+    if(ISTABLE(id)){
+      const last=out.length?out[out.length-1]:prev;
+      if(last!=='db')out.push('db');
+      out.push('bus_'+id);
+    }
+    out.push(id);prev=id;
+  }
+  return out;
+}
 async function runScene(i){
   const my=++token; sc=i;
   [...$('tabs').children].forEach((b,j)=>b.classList.toggle('on',j===i));
   const S=SCENES[i]; $('title').textContent=S.title;
-  resetStock(); clearFx(); place(S.steps[0].path[0]);
+  resetStock(); clearFx(); at=S.steps[0].path[0]; place(at);
   for(let k=0;k<S.steps.length;k++){
     if(my!==token)return;
     $('prog').firstChild.style.width=((k+1)/S.steps.length*100)+'%';
@@ -275,12 +314,22 @@ async function runScene(i){
     const writes=st.write||[], reads=st.read||[];
     pkt.classList.toggle('w',writes.length>0);
     showCols([...new Set([...reads,...writes])],writes.length?'w':'');
-    for(const id of st.path){ place(id); await sleep(650); if(my!==token)return; }
+    const trip=route(st.path);
+    const endsInDb=trip.length>0&&ISTABLE(trip[trip.length-1]);
+    for(const id of trip){
+      place(id); at=id; await sleep(800); if(my!==token)return;
+      if(id==='db'&&(reads.length||writes.length)) mark(['db'],writes.length?'write':'read');
+    }
     mark(reads,'read'); mark(writes,'write'); mark(st.active,'active');
+    if((reads.length||writes.length)&&!(st.active||[]).includes('back')) mark(['back'],'active');
     if(st.all)TABLES.forEach(t=>nodeEl[t].classList.add('read'));
     if(st.fx)st.fx();
-    await sleep(3600);
-    while(!playing && my===token) await sleep(200);
+    const total=(4500+60*st.cap.length)*SPEEDS[speed].f;
+    if(endsInDb){
+      if(!await wait(total*0.5,my))return;
+      for(const id of ['bus_'+trip[trip.length-1],'db','back']){ place(id); at=id; await sleep(800); if(my!==token)return; }
+      if(!await wait(total*0.5,my))return;
+    }else if(!await wait(total,my))return;
   }
   if(my!==token)return;
   while(!playing && my===token) await sleep(200);
@@ -290,6 +339,7 @@ async function runScene(i){
 SCENES.forEach((s,i)=>{const b=document.createElement('button');b.textContent=s.name;b.onclick=()=>runScene(i);$('tabs').appendChild(b)});
 $('next').onclick=()=>runScene((sc+1)%SCENES.length);
 $('prev').onclick=()=>runScene((sc-1+SCENES.length)%SCENES.length);
+$('speed').onclick=()=>{speed=(speed+1)%SPEEDS.length;$('speed').textContent='Speed: '+SPEEDS[speed].n};
 $('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'⏸':'▶'};
 addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')$('next').click();
