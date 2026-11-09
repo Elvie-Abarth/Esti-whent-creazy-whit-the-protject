@@ -32,16 +32,16 @@
     }
     else
     {
-        <table class="admin-table">
+        <table class="admin-table admin-table--tidy">
             <thead>
                 <tr>
                     <th data-en="Severity">Alvorlighed</th>
                     <th data-en="When">Hvornår</th>
                     <th data-en="Type">Type</th>
-                    <th data-en="Email">E-mail</th>
+                    <th class="col-wrap" data-en="Email">E-mail</th>
                     <th data-en="IP address">IP-adresse</th>
-                    <th data-en="Path">Sti</th>
-                    <th data-en="Detail">Detalje</th>
+                    <th class="col-wrap" data-en="Path">Sti</th>
+                    <th class="col-wrap" data-en="Detail">Detalje</th>
                 </tr>
             </thead>
             <tbody>
@@ -83,10 +83,10 @@
                         </td>
                         <td>@e.CreatedAt.ToString("d MMM yyyy HH:mm:ss")</td>
                         <td data-en="@e.Type.DisplayName(english: true)">@e.Type.DisplayName()</td>
-                        <td>@(string.IsNullOrEmpty(e.Email) ? "-" : e.Email)</td>
+                        <td class="col-wrap">@(string.IsNullOrEmpty(e.Email) ? "-" : e.Email)</td>
                         <td>@(string.IsNullOrEmpty(e.IpAddress) ? "-" : e.IpAddress)</td>
-                        <td>@(string.IsNullOrEmpty(e.Path) ? "-" : e.Path)</td>
-                        <td>@(string.IsNullOrEmpty(e.Detail) ? "-" : e.Detail)</td>
+                        <td class="col-wrap">@(string.IsNullOrEmpty(e.Path) ? "-" : e.Path)</td>
+                        <td class="col-wrap">@(string.IsNullOrEmpty(e.Detail) ? "-" : e.Detail)</td>
                     </tr>
                 }
             </tbody>

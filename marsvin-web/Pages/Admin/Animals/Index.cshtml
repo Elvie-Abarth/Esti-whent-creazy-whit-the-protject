@@ -20,10 +20,10 @@
         <a class="btn" asp-page="/Admin/Animals/Edit" asp-route-id="0" data-en="Add new">Tilføj ny</a>
     </div>
 
-    <table class="admin-table">
+    <table class="admin-table admin-table--tidy">
         <thead>
             <tr>
-                <th data-en="Name">Navn</th>
+                <th class="col-wrap" data-en="Name">Navn</th>
                 <th data-en="Breed">Race</th>
                 <th data-en="Price">Pris</th>
                 <th data-en="Status">Status</th>
@@ -34,7 +34,7 @@
             @foreach (var animal in Model.Items)
             {
                 <tr>
-                    <td>@animal.Name</td>
+                    <td class="col-wrap">@animal.Name</td>
                     <td>@animal.Breed</td>
                     <td>@animal.Price.ToString("N0") kr.</td>
                     <td>@animal.StatusText</td>

@@ -31,10 +31,10 @@
     </div>
 
     <div class="stock-panel" data-tab-panel="accessories">
-        <table class="admin-table">
+        <table class="admin-table admin-table--tidy">
             <thead>
                 <tr>
-                    <th data-en="Name">Navn</th>
+                    <th class="col-wrap" data-en="Name">Navn</th>
                     <th data-en="Category">Kategori</th>
                     <th data-en="Stock">Lager</th>
                     <th></th>
@@ -44,7 +44,7 @@
                 @foreach (var item in Model.Accessories)
                 {
                     <tr>
-                        <td>@item.Name</td>
+                        <td class="col-wrap">@item.Name</td>
                         <td>@item.CategoryName</td>
                         <td>
                             <form method="post" asp-page-handler="UpdateStock" class="inline-form">
@@ -61,10 +61,10 @@
     </div>
 
     <div class="stock-panel" data-tab-panel="animals" hidden>
-        <table class="admin-table">
+        <table class="admin-table admin-table--tidy">
             <thead>
                 <tr>
-                    <th data-en="Name">Navn</th>
+                    <th class="col-wrap" data-en="Name">Navn</th>
                     <th data-en="Breed">Race</th>
                     <th data-en="Status">Status</th>
                 </tr>
@@ -73,7 +73,7 @@
                 @foreach (var animal in Model.Animals)
                 {
                     <tr>
-                        <td>@animal.Name</td>
+                        <td class="col-wrap">@animal.Name</td>
                         <td>@animal.Breed</td>
                         <td>
                             <form method="post" asp-page-handler="UpdateStatus" class="inline-form">

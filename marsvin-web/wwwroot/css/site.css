@@ -1824,6 +1824,28 @@ img.cavy-photo { width: 100%; aspect-ratio: 240 / 160; object-fit: cover; border
    lines up, instead of shifting with the length of "Admin" vs "Employee". */
 .admin-table--accounts .inline-form select { width: 8.5rem; max-width: none; }
 
+/* ---- Tidy wide table (the same idea as the Accounts table above, reusable) --
+   A wide admin table reads as a mess when a long free-text column (an order's
+   items, a delivery address, a log detail) squeezes the short columns until a
+   date or an amount wraps one word per line. The fix is the Accounts recipe:
+   every column shrinks to exactly the width its content needs and stays on one
+   line, so dates, totals and status controls never break mid-value; the one or
+   two free-text columns are marked .col-wrap, take whatever width is left, and
+   are the only ones that wrap - breaking a long email or address rather than
+   forcing a horizontal scrollbar. Cells top-align so uneven rows stay even. */
+.admin-table--tidy td, .admin-table--tidy th { width: 1%; white-space: nowrap; vertical-align: top; }
+/* A flex column keeps its natural width (so the table reads like the Accounts
+   one, not a stack of starved columns) and only breaks a long word - an email,
+   a URL path - when the column genuinely can't hold it. break-word, NOT
+   overflow-wrap:anywhere: "anywhere" lets the browser treat the column's
+   minimum width as one character, which starves it and breaks text mid-word
+   even with empty space to spare. Headers stay on one line. */
+.admin-table--tidy .col-wrap { width: auto; white-space: normal; overflow-wrap: break-word; }
+.admin-table--tidy th.col-wrap { white-space: nowrap; }
+/* A message cell keeps the sender's own line breaks (pre-wrap) while still
+   wrapping and breaking long words like any other flex column. */
+.admin-table--tidy .message-body.col-wrap { white-space: pre-wrap; }
+
 /* Admin/Stock's Accessories/Guinea-pigs switch - two tables that used to sit
    stacked one under the other; only the tab picked is shown, so there's more
    breathing room and less scrolling to find the table you actually want. */

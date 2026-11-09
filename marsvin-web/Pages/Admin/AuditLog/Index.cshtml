@@ -27,23 +27,23 @@
     }
     else
     {
-        <table class="admin-table">
+        <table class="admin-table admin-table--tidy">
             <thead>
                 <tr>
                     <th data-en="When">Hvornår</th>
-                    <th data-en="Who">Hvem</th>
+                    <th class="col-wrap" data-en="Who">Hvem</th>
                     <th data-en="Action">Handling</th>
-                    <th data-en="Details">Detaljer</th>
+                    <th class="col-wrap" data-en="Details">Detaljer</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var entry in Model.Entries)
                 {
                     <tr>
-                        <td>@entry.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
-                        <td>@entry.ActorName</td>
+                        <td>@entry.CreatedAt.ToString("d MMM yyyy")<br /><span class="cavy-meta">@entry.CreatedAt.ToString("HH:mm")</span></td>
+                        <td class="col-wrap">@entry.ActorName</td>
                         <td>@entry.Action</td>
-                        <td>@entry.Details</td>
+                        <td class="col-wrap">@entry.Details</td>
                     </tr>
                 }
             </tbody>

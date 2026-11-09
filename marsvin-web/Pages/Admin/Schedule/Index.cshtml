@@ -46,12 +46,12 @@
             }
             else
             {
-                <table class="admin-table">
+                <table class="admin-table admin-table--tidy">
                     <thead>
                         <tr>
                             <th data-en="Staff">Medarbejder</th>
                             <th data-en="Period">Periode</th>
-                            <th data-en="Reason">Begrundelse</th>
+                            <th class="col-wrap" data-en="Reason">Begrundelse</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -61,7 +61,7 @@
                             <tr>
                                 <td>@request.StaffName</td>
                                 <td>@request.StartDate.ToString("d MMM") – @request.EndDate.ToString("d MMM yyyy")</td>
-                                <td>@request.Reason</td>
+                                <td class="col-wrap">@request.Reason</td>
                                 <td>
                                     <form method="post" asp-page-handler="DecideRequest" class="inline-form">
                                         <input type="hidden" name="requestId" value="@request.RequestId" />
@@ -96,7 +96,7 @@
         }
         else
         {
-            <table class="admin-table">
+            <table class="admin-table admin-table--tidy">
                 <thead>
                     <tr>
                         @if (isAdmin)
@@ -105,7 +105,7 @@
                         }
                         <th data-en="Date">Dato</th>
                         <th data-en="Time">Tidspunkt</th>
-                        <th data-en="Note">Note</th>
+                        <th class="col-wrap" data-en="Note">Note</th>
                         @if (isAdmin)
                         {
                             <th></th>
@@ -122,7 +122,7 @@
                             }
                             <td>@shift.StartAt.ToString("d MMM yyyy")</td>
                             <td>@shift.StartAt.ToString("HH:mm")–@shift.EndAt.ToString("HH:mm")</td>
-                            <td>@shift.Note</td>
+                            <td class="col-wrap">@shift.Note</td>
                             @if (isAdmin)
                             {
                                 <td>

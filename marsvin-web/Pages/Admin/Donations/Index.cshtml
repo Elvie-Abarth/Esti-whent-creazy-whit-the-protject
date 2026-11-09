@@ -29,21 +29,21 @@
     }
     else
     {
-        <table class="admin-table">
+        <table class="admin-table admin-table--tidy">
             <thead>
                 <tr>
                     <th data-en="When">Hvornår</th>
-                    <th data-en="Donation">Donation</th>
-                    <th data-en="From">Fra</th>
-                    <th data-en="Message">Hilsen</th>
+                    <th class="col-wrap" data-en="Donation">Donation</th>
+                    <th class="col-wrap" data-en="From">Fra</th>
+                    <th class="col-wrap" data-en="Message">Hilsen</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var donation in Model.Items)
                 {
                     <tr>
-                        <td>@donation.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
-                        <td>
+                        <td>@donation.CreatedAt.ToString("d MMM yyyy")<br /><span class="cavy-meta">@donation.CreatedAt.ToString("HH:mm")</span></td>
+                        <td class="col-wrap">
                             @if (donation.Kind == DonationKind.Money)
                             {
                                 <strong>@donation.AmountKr?.ToString("N0") kr.</strong>
@@ -53,7 +53,7 @@
                                 <strong data-en="Products">Varer</strong><br /><span class="message-body">@donation.ItemDescription</span>
                             }
                         </td>
-                        <td>
+                        <td class="col-wrap">
                             @if (donation.DonorName is null && donation.DonorEmail is null)
                             {
                                 <span class="cavy-meta" data-en="Anonymous">Anonym</span>
@@ -67,7 +67,7 @@
                                 }
                             }
                         </td>
-                        <td class="message-body">@donation.Message</td>
+                        <td class="message-body col-wrap">@donation.Message</td>
                     </tr>
                 }
             </tbody>
