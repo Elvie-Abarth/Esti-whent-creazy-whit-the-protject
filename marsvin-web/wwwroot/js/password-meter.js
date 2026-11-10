@@ -180,8 +180,8 @@
             ["circle", { cx: 51.5, cy: 18.5, r: 1.8, fill: "#23301F" }],
             ["circle", { cx: 52.1, cy: 17.9, r: 0.6, fill: "#fff" }],
             ["path", { d: "M52.5 24 q2.2 1.6 4 -0.4", fill: "none", stroke: "#23301F", "stroke-width": 1.1, "stroke-linecap": "round" }],
-            ["ellipse", { cx: 16, cy: 35, rx: 4.5, ry: 2.2, fill: "#D8C9A6" }],
-            ["ellipse", { cx: 38, cy: 35, rx: 4.5, ry: 2.2, fill: "#D8C9A6" }]
+            ["ellipse", { cx: 16, cy: 35, rx: 4.5, ry: 2.2, fill: "#D8C9A6", "class": "password-meter-foot password-meter-foot--a" }],
+            ["ellipse", { cx: 38, cy: 35, rx: 4.5, ry: 2.2, fill: "#D8C9A6", "class": "password-meter-foot password-meter-foot--b" }]
         ]);
     }
 
@@ -232,7 +232,21 @@
         wrap.appendChild(rules);
         input.insertAdjacentElement("afterend", wrap);
 
-        return { wrap: wrap, title: title, level: level, fill: fill, walker: walker, goal: goal, chips: chips, lastScore: -1 };
+        return { wrap: wrap, title: title, level: level, fill: fill, walker: walker, goal: goal, chips: chips, lastScore: -1, lastLeft: undefined, walkTimeout: null };
+    }
+
+    // The waddle plays only while the pig is actually travelling to a new spot.
+    // It is added when the target position changes and removed when the `left`
+    // transition finishes (transitionend, wired in build()), with a timeout
+    // fallback in case that event never fires (reduced motion, no pixel change).
+    function startWalking(meter) {
+        meter.walker.classList.add("is-walking");
+        if (meter.walkTimeout) clearTimeout(meter.walkTimeout);
+        meter.walkTimeout = setTimeout(function () { stopWalking(meter); }, 600);
+    }
+    function stopWalking(meter) {
+        meter.walker.classList.remove("is-walking");
+        if (meter.walkTimeout) { clearTimeout(meter.walkTimeout); meter.walkTimeout = null; }
     }
 
     function update(meter, input) {
@@ -263,19 +277,35 @@
         // pig. At "strong" the carrot is gone, so the guinea pig walks on to
         // the very end and the bar fills completely - a strong password
         // shouldn't leave a stretch of empty track behind it.
+        var newLeft, newWidth;
         if (strong) {
-            meter.walker.style.left = "calc(100% - 3.2rem)";
-            meter.fill.style.width = "100%";
+            newLeft = "calc(100% - 3.2rem)";
+            newWidth = "100%";
         } else {
-            meter.walker.style.left = "calc(" + t + " * (100% - 5.4rem))";
-            meter.fill.style.width = "calc(" + t + " * (100% - 5.4rem) + 1.4rem)";
+            newLeft = "calc(" + t + " * (100% - 5.4rem))";
+            newWidth = "calc(" + t + " * (100% - 5.4rem) + 1.4rem)";
         }
+        // Only a genuine move counts as a step - typing a character that doesn't
+        // change the score leaves the pig where it is. The very first render
+        // (lastLeft undefined) positions without waddling.
+        var positionChanged = meter.lastLeft !== undefined && newLeft !== meter.lastLeft;
+        meter.walker.style.left = newLeft;
+        meter.fill.style.width = newWidth;
+        meter.lastLeft = newLeft;
         meter.fill.style.background = color;
 
+        // The celebration hop plays once when "strong" is first reached.
+        var willCelebrate = strong && meter.lastScore !== RULES.length;
         meter.wrap.classList.toggle("is-strong", strong);
-        // The little celebration plays when "strong" is reached, not on every
-        // keystroke typed after that.
-        meter.walker.classList.toggle("is-celebrating", strong && meter.lastScore !== RULES.length);
+        meter.walker.classList.toggle("is-celebrating", willCelebrate);
+
+        // Waddle while walking to a new spot, but never under the hop - the two
+        // both animate the pig, so the walk stops the moment the hop takes over.
+        if (willCelebrate) {
+            stopWalking(meter);
+        } else if (positionChanged) {
+            startWalking(meter);
+        }
 
         meter.chips.forEach(function (chip, i) {
             chip.textContent = i === 0
@@ -319,6 +349,13 @@
             active.push({ meter: meter, input: input });
             update(meter, input);
             input.addEventListener("input", function () { update(meter, input); });
+
+            // The pig has arrived: the `left` transition finished, so stop the
+            // waddle. An interrupted transition (another keystroke mid-walk)
+            // doesn't fire this, so the pig keeps walking until it truly stops.
+            meter.walker.addEventListener("transitionend", function (e) {
+                if (e.propertyName === "left") stopWalking(meter);
+            });
 
             // The "not an obvious password" rule depends on the email and name
             // on the same form, so re-check when those change too.

@@ -22,4 +22,18 @@ public class IndexModelTests
         Assert.All(model.Essentials, item =>
             Assert.True(item.Category is AccessoryCategory.Hay or AccessoryCategory.Food or AccessoryCategory.Cage));
     }
+
+    [Fact]
+    public void OnGet_LeadsWithGuineaPigsThatHaveAPhoto()
+    {
+        var catalog = new DemoCatalog();
+        var model = new IndexModel(catalog);
+
+        model.OnGet();
+
+        // The front page should feature guinea pigs with a real photo, not the
+        // drawing fallback - every group shown has at least one photographed pig.
+        Assert.All(model.Groups, group =>
+            Assert.Contains(group, animal => !string.IsNullOrWhiteSpace(animal.PhotoUrl)));
+    }
 }
