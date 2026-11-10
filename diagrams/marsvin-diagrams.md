@@ -39,7 +39,7 @@ comparison.
 | `marsvin-sequence-inactivity-cleanup` | Sequence, GDPR account deletion | updated |
 | `marsvin-state-animal` | State machine, Animal | unchanged |
 | `marsvin-state-order` | State machine, Order | updated |
-| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 780 tests - 9 Nov** |
+| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 781 tests - 10 Nov** |
 | `marsvin-activity-checkout` | Activity diagram | updated |
 | `marsvin-ssd-place-order` | System sequence diagram | updated |
 | `marsvin-communication-checkout` | Communication diagram | updated |
@@ -60,6 +60,17 @@ All 24 PNGs from 12 October were rendered in one style.
   wrong-key / wrong-audience tokens, deactivated, password-changed and demoted accounts)
   and 4 on where the signing key comes from.
 - No database change: still 15 tables, so the ER and domain diagrams are unchanged.
+
+## What changed on 10 November
+
+- **Cosmetic front-of-shop polish only.** The front page now leads with guinea
+  pigs that have a real photo (same photo-first rule as `/Marsvin`); the Marsvin
+  logo pig gained little feet in the header, footer and favicon; and the
+  password strength meter's pig now visibly walks (a waddle + foot-step
+  animation while it travels). None of this touches a route, data flow, trust
+  boundary or table, so **no diagram changes** - the only ripple is one new
+  front-page test, so the test count is now **781** (shown only on the
+  deployment diagram).
 
 ## What changed on 9 November
 
