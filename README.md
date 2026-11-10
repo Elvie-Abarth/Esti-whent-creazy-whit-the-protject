@@ -207,119 +207,118 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 
 ## How the security-relevant parts work
 
-- **Passwords**: hashed with ASP.NET Core's `PasswordHasher<T>` (PBKDF2-HMAC-SHA512,
-  100k iterations, salted), and never stored or logged in plain text. One shared
-  policy (`Models/PasswordPolicy.cs`) is enforced server-side wherever a
-  password is set: at least 12 characters (15 for an Admin account, which can
-  change prices, roles and other accounts), upper and lower case, a digit, a
-  symbol, and not an obvious password - a shop-specific word (substring), a
-  common password (exact match against a list loaded from
-  `Data/CommonPasswords.txt`, ASVS 6.2.4), or one built from the account's own
-  email or name. The strength meter on the form
-  shows those exact five rules, so "strong" means a password the server will
-  actually accept.
+- **Passwords**: we hash them with ASP.NET Core's `PasswordHasher<T>`
+  (PBKDF2-HMAC-SHA512, 100k iterations, salted), and we never store or log them
+  in plain text. We keep one shared policy (`Models/PasswordPolicy.cs`) and
+  enforce it server-side wherever a password is set: at least 12 characters (15
+  for an Admin account, which can change prices, roles and other accounts),
+  upper and lower case, a digit, a symbol, and not an obvious password: a
+  shop-specific word (substring), a common password (exact match against a list
+  we load from `Data/CommonPasswords.txt`, ASVS 6.2.4), or one built from the
+  account's own email or name. The strength meter on the form shows those exact
+  five rules, so "strong" means a password the server will actually accept.
 - **Login and registration both require email confirmation**, not just a
-  password: a single-use, 15-minute link is emailed, and only opening it
+  password. We email a single-use, 15-minute link, and only opening it
   (`ConfirmLoginModel`) actually signs the session in: proof of inbox
-  access, not just of knowing (or guessing) a password. Only the SHA-256
-  hash of the token is ever stored (`PendingLogins`), the same way a
-  password never is. Forgot-password reuses the same mechanism.
+  access, not just of knowing (or guessing) a password. We only ever store
+  the SHA-256 hash of the token (`PendingLogins`), the same way we never store
+  a password. Forgot-password reuses the same mechanism.
 - **No account enumeration.** Login gives one "wrong email or password" for
   every failure, forgot-password answers the same whether or not the address
   exists, and registering with an already-registered email returns the same
-  "check your email" as a new sign-up. The "you already have an account"
-  notice goes to that inbox, never back to the browser. None of the three
+  "check your email" as a new sign-up. We send the "you already have an account"
+  notice to that inbox, never back to the browser. None of the three
   forms can be used to find out who has an account.
-- **Sessions**: cookie authentication (`HttpOnly`, `SameSite=Lax`, `Secure`
-  outside Development), checked server-side on every request via
+- **Sessions**: we use cookie authentication (`HttpOnly`, `SameSite=Lax`,
+  `Secure` outside Development), checked server-side on every request via
   `[Authorize]`.
 - **Sessions end when they should.** Changing or resetting a password ends
   every other session of that account, and so does "log out everywhere" on
-  the profile page (a per-account *security stamp* in the cookie, replaced
-  on those events and checked on every request) - so a stolen cookie stops
+  the profile page (a per-account *security stamp* in the cookie, which we
+  replace on those events and check on every request), so a stolen cookie stops
   working the moment the owner reacts. A session also ends after 30 minutes
-  of inactivity, and after 8 hours however active it is, logging out clears
-  the guest session too, and pages with personal data are sent `no-store`
+  of inactivity, and after 8 hours however active it is. Logging out clears
+  the guest session too, and we send `no-store` on pages with personal data
   so the Back button can't show them after logout.
-- **Authorization is server-side, not just hidden buttons.** Every role check
-  happens in the `PageModel` (`[Authorize(Roles = "...")]`), re-checked per
-  handler where a page is shared across roles (e.g. Admin/Schedule); an
+- **Authorization is server-side, not just hidden buttons.** We put every role
+  check in the `PageModel` (`[Authorize(Roles = "...")]`), re-checked per
+  handler where a page is shared across roles (e.g. Admin/Schedule). An
   Employee who navigates straight to an Admin-only URL gets redirected to
   `/Account/AccessDenied`, not just a missing link in the nav.
-- **Deny by default**: every page requires a signed-in user unless it's on
+- **Deny by default**: every page requires a signed-in user unless we put it on
   the explicit public list in `Program.cs` (`AddRazorPages`), so a new page
   that forgets its `[Authorize]` ends up behind the login page, not public.
 - **Role and account status are re-checked on every request**
   (`AuthCookiePrincipal.RevalidateAsync`): the auth cookie is only a snapshot
   from sign-in, so without this a deactivated, deleted, or demoted account
-  would keep its old access for as long as the session was kept alive. Now
-  it's gone on that account's very next request.
+  would keep its old access for as long as the session was kept alive. With it,
+  the access is gone on that account's very next request.
 - **IDOR guard on orders**: `/Cart/Confirmation/{orderId}` looks up the order
   *and* checks it belongs to the logged-in user in the same query
   (`IOrderStore.FindForUser`). You can't view someone else's order by
   guessing the ID. A guest checkout has no account for that ownership check
-  to use, so it's gated a different way instead: the new order's id is
-  stamped into that same browser's own session right after checkout, and
-  only an exact match is ever trusted, not just "any guest order".
+  to use, so we gate it a different way: we stamp the new order's id into that
+  same browser's own session right after checkout, and only an exact match is
+  ever trusted, not just "any guest order".
 - **Shipping is priced server-side, never from the form.** The payment page
   shows each carrier's price, destination (door or parcel shop), expected
-  delivery, total weight and parcel count (`ShippingCalculator` - demo rates,
+  delivery, total weight and parcel count (`ShippingCalculator`, demo rates,
   max. 20 kg per parcel), but `SqlOrderStore.Checkout` runs the same
   calculation itself from the catalog's own product weights and stores the
-  result on the order; a tampered POST can pick a carrier, not a price.
+  result on the order. A tampered POST can pick a carrier, not a price.
 - **Order status** (received → being prepared → sent/ready for pickup →
   delivered/picked up) is moved along by staff on `/Admin/Orders` (audit
   logged) and shown to the customer under Min konto.
 - **A guest order can be moved into an account** created right afterwards,
   but only when both hold: it's the same browser session that placed the
   order, and the account's email is the one the order was placed with
-  (`ClaimGuestOrderIntoAccount`) - so the next person at a shared computer
+  (`ClaimGuestOrderIntoAccount`), so the next person at a shared computer
   can't sign up and inherit someone else's order and address.
 - **Checkout re-validates inside a transaction, with row locks.** The cart
   can go stale between "add to cart" and "check out" (someone else buys the
-  last unit, an animal gets marked not-for-sale); `SqlOrderStore.Checkout`
+  last unit, an animal gets marked not-for-sale), so `SqlOrderStore.Checkout`
   re-checks stock/availability against the database inside the same
   transaction that records the order and decrements stock, using
   `UPDLOCK, HOLDLOCK` so two concurrent checkouts for the same last unit
-  can't both pass validation, and rolls back the whole checkout rather than
+  can't both pass validation, and it rolls back the whole checkout rather than
   partially fulfilling it.
 - **Self-protection on `/Admin/Users`**: an admin can't change their own role
   or deactivate their own account (only someone else's), and the last active
   admin account can't be demoted, deactivated, or deleted by anyone, so the
   shop can never end up with zero admins.
-- **Rate limiting + login throttling**: `/Account/Login`, `/Account/Register`,
-  and `/Account/ForgotPassword` are rate-limited per client IP (see the
+- **Rate limiting + login throttling**: we rate-limit `/Account/Login`,
+  `/Account/Register`, and `/Account/ForgotPassword` per client IP (see the
   `"auth"` policy in `Program.cs`), and 5 failed login attempts for one email
   locks it out for 5 minutes (in-memory, fine for a demo, but it would need to
   be persisted for a real multi-instance deployment).
-- **Security headers**: CSP, `X-Content-Type-Options`, `X-Frame-Options`, and
-  `Referrer-Policy` are set on every response (see `Program.cs`).
-- **Compression without BREACH**: the stylesheet, scripts and SVGs are
-  compressed; HTML pages are not, because each carries a secret (the
-  antiforgery token) next to text a visitor can influence, and compressing
-  that over HTTPS is what the BREACH attack exploits.
-- **Query parameters are allow-listed**: on `/Tilbehor` the category, brand,
-  price range, sort order and page number are each matched against known
-  values before use - nothing typed into the address bar is echoed back.
+- **Security headers**: we set CSP, `X-Content-Type-Options`, `X-Frame-Options`,
+  and `Referrer-Policy` on every response (see `Program.cs`).
+- **Compression without BREACH**: we compress the stylesheet, scripts and SVGs,
+  but not HTML pages, because each page carries a secret (the antiforgery token)
+  next to text a visitor can influence, and compressing that over HTTPS is what
+  the BREACH attack exploits.
+- **Query parameters are allow-listed**: on `/Tilbehor` we match the category,
+  brand, price range, sort order and page number against known values before
+  use, so nothing typed into the address bar is echoed back.
 - **Error pages say what happened, and nothing more**: an expired form
   ("nothing was saved, ordered or paid"), too many attempts, no access and
-  a missing page each have their own text; outside Development a crash
+  a missing page each have their own text. Outside Development a crash
   shows a plain "something went wrong", never a stack trace.
 - **The chat has nothing to leak**: no access to orders, accounts or staff,
   no knowledge of how the site is built, nothing stored, a rate limit, and
   answers written into the page as text, never as HTML.
 - **Data minimisation**: "I am 16 or older" is a yes/no, not an age or a
-  birth date; a phone number is kept with the order only.
+  birth date, and we keep a phone number with the order only.
 - **The language cookie is matched against two values**: `marsvin-lang`
-  counts only when it is exactly `da` or `en`, and is never printed
-  anywhere - it decides which of two fixed texts an email uses.
+  counts only when it is exactly `da` or `en`, and we never print it
+  anywhere. It decides which of two fixed texts an email uses.
 - **The donation thank-you can't carry someone else's words**: it goes to
-  an address the giver typed, so the wording is fixed, none of the giver's
-  free text is repeated, and the form is rate-limited.
+  an address the giver typed, so we fix the wording, repeat none of the
+  giver's free text, and rate-limit the form.
 - **No raw SQL string-building anywhere**: every query is a parameterised
   `SqlCommand`, including the admin CRUD forms.
 - **CSRF**: Razor Pages validates the antiforgery token on every POST handler
-  automatically; every form here uses `method="post"` with the framework's
+  automatically, and every form here uses `method="post"` with the framework's
   tag helpers, which include the token for free.
 - **No inline `onclick`/`onsubmit` with interpolated data.** A destructive
   action's confirmation dialog reads its message from a `data-confirm`
@@ -327,17 +326,17 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   (`confirm-delete.js`), rather than building a JavaScript string directly.
   The latter is decoded back to raw characters by the browser before being
   parsed as JS, which HTML-encoding alone doesn't protect against.
-- **Security monitoring**: attack *attempts* (failed logins, locked
-  accounts, wrong-role page requests, rate-limit hits, rejected forms) are
-  recorded as `SecurityEvent`s (metadata only, never a password or token),
+- **Security monitoring**: we record attack *attempts* (failed logins, locked
+  accounts, wrong-role page requests, rate-limit hits, rejected forms) as
+  `SecurityEvent`s (metadata only, never a password or token),
   readable by an admin on `/Admin/SecurityLog`. When a pattern crosses a
   threshold (e.g. a burst of failed logins from one IP across several
   accounts), `SecurityAlerter` emails the admins, with a cooldown so a
-  scanner can't flood them. It is deliberately honest: alerting on attempts
-  seen in the logs, **not** breach or data-leak detection, which no app can
-  truthfully do. The IP is pruned after 90 days (`/Privatliv`).
-- **Audit log**: every admin/employee write action (price/stock/role
-  changes, deletions, account creation) is recorded with who did it and when
+  scanner can't flood them. We kept it deliberately honest: it alerts on
+  attempts seen in the logs, **not** breach or data-leak detection, which no
+  app can truthfully do. We prune the IP after 90 days (`/Privatliv`).
+- **Audit log**: we record every admin/employee write action (price/stock/role
+  changes, deletions, account creation) with who did it and when
   (`/Admin/AuditLog`), read-only after writing.
 - **GDPR-style data retention**: a background service (`InactiveAccountCleanupService`)
   warns, then deletes, Customer accounts inactive for 2 years. See

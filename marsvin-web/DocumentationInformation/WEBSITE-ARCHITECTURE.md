@@ -794,58 +794,58 @@ RBAC, least privilege, session management, SQL injection, XSS, input
 validation, output sanitising, and the known gaps), see
 `SECURITY-NOTES.txt`.
 
-- **SQL injection**: every query is parameterised, no exceptions -
-  see `DATABASE-ARCHITECTURE.md` §5.
-- **Passwords**: PBKDF2 via `PasswordHasher<ApplicationUser>`, never
-  compared or stored as plain text. The strength rule itself is one shared
-  policy (`Models/PasswordPolicy.cs`): at least 12 characters - 15 for an
-  Admin account, the higher-value role that carries 2FA - upper and
+- **SQL injection**: every query is parameterised, no exceptions (see
+  `DATABASE-ARCHITECTURE.md` §5).
+- **Passwords**: we use PBKDF2 via `PasswordHasher<ApplicationUser>`, and
+  never compare or store them as plain text. The strength rule itself is one
+  shared policy (`Models/PasswordPolicy.cs`): at least 12 characters (15 for an
+  Admin account, the higher-value role that carries 2FA), upper and
   lower case, a digit, a symbol, and not an obvious password. "Not obvious"
   is two checks: a substring list of shop-specific words (marsvin, butik, ...)
   and a large EXACT-match list of common passwords (`CommonPasswordList`,
-  loaded from `Data/CommonPasswords.txt`, ASVS 6.2.4) - so a long passphrase
-  that merely contains a common word is still fine - plus a check that it
+  loaded from `Data/CommonPasswords.txt`, ASVS 6.2.4), so a long passphrase
+  that merely contains a common word is still fine, plus a check that it
   isn't built from the account's own email or name.
-  It's enforced server-side everywhere a password is set
+  We enforce it server-side everywhere a password is set
   (Register/ResetPassword/Profile/Admin create-staff), and the strength
   meter mirrors those exact five rules so it never promises more than the
   server accepts.
 - **No user enumeration on registration**: a sign-up with an email that's
   already taken returns the *same* "check your email" redirect as a new
   one and sends the notice to that address ("you already have an account"),
-  instead of telling the browser - the same thing `ForgotPassword` already
+  instead of telling the browser. It is the same thing `ForgotPassword` already
   does, so neither form can be used to map which addresses have accounts.
-- **Login tokens**: only ever stored as a SHA-256 hash
-  (`PendingLogins.TokenHash`) - the raw token exists only in the email.
+- **Login tokens**: we only ever store them as a SHA-256 hash
+  (`PendingLogins.TokenHash`), and the raw token exists only in the email.
 - **CSRF**: Razor Pages' built-in antiforgery token on every form
-  (`asp-validation-summary`/form tag helpers wire it in automatically) -
+  (`asp-validation-summary`/form tag helpers wire it in automatically), and
   the end-to-end HTTP tests (§10) specifically verify a request without a
   valid token is rejected.
 - **IDOR (Insecure Direct Object Reference)**: anywhere a request carries
   an ID for something owned by a user (an order to reorder, for instance),
   the store method takes *both* the ID and the current user's ID and only
-  returns a match if they agree (`IOrderStore.FindForUser(orderId, userId)`)
-  - a stranger's order ID just looks like "not found," never leaks its
+  returns a match if they agree (`IOrderStore.FindForUser(orderId, userId)`),
+  so a stranger's order ID just looks like "not found," never leaks its
   contents.
 - **Open-redirect prevention**: anywhere a `returnUrl` comes back from a
-  form/query string, it's checked against `PageModelExtensions.IsSafeLocalUrl`
+  form/query string, we check it against `PageModelExtensions.IsSafeLocalUrl`
   (exactly one leading slash, not `//host/evil` or `/\host/evil`) before
-  ever being used in a redirect - a plain `static` method rather than
-  `PageModel.Url.IsLocalUrl`, because the latter needs framework services
+  ever using it in a redirect. We wrote it as a plain `static` method rather
+  than `PageModel.Url.IsLocalUrl`, because the latter needs framework services
   that aren't available when a PageModel is constructed directly in a unit
   test (see §10).
 - **Self-protection on staff management**: an Admin can't change their own
   role, deactivate, or delete themselves from `/Admin/Users`; the *last*
   active Admin account can't be demoted, deactivated, or deleted by anyone,
-  full stop - the shop can never end up with zero admins.
+  full stop, so the shop can never end up with zero admins.
 - **GDPR**: `/Privatliv` documents what's collected and why; a customer can
   delete their own account at any time from `/Account/Profile` (right to
   erasure); inactive accounts are deleted automatically after 2 years, with
   warning emails first (see `DATABASE-ARCHITECTURE.md` §7); past orders
   survive account deletion but are orphaned, never personally identifiable
   again.
-- **Security headers + CSP**: set on every response by a small inline
-  middleware in `Program.cs` (see §3) - `X-Content-Type-Options`,
+- **Security headers + CSP**: we set these on every response with a small
+  inline middleware in `Program.cs` (see §3): `X-Content-Type-Options`,
   `X-Frame-Options: DENY`, `Referrer-Policy`, and a `Content-Security-Policy`
   with no `'unsafe-inline'`.
 - **Rate limiting**: `Login`/`Register`/`ForgotPassword` are throttled per
@@ -869,13 +869,13 @@ validation, output sanitising, and the known gaps), see
 - **Deny by default + per-request revalidation**: every page needs a
   signed-in user unless it is on the explicit public list, and the role in
   the auth cookie is re-checked against the database on every request (see
-  §4) - a deactivated or demoted account loses its access on its very next
+  §4), so a deactivated or demoted account loses its access on its very next
   click.
-- **Server-side pricing**: shipping cost, weight and parcel count are
-  calculated at checkout from the database, never read from the form (§5).
+- **Server-side pricing**: we calculate shipping cost, weight and parcel count
+  at checkout from the database, never read from the form (§5).
 - **Allow-listed query parameters**: on `/Tilbehor`, category, brand, price
   range, sort order and page number are each matched against known values
-  before use (§5) - none is ever echoed back as typed.
+  before use (§5), and none is ever echoed back as typed.
 - **No compression of pages that carry a secret** (BREACH), and long-lived
   caching only for files whose URL changes with their content (§3).
 - **Honest error pages**: a rejected form, a rate limit and a missing page
@@ -892,7 +892,7 @@ validation, output sanitising, and the known gaps), see
 - **The language cookie is an allow-list of two**: `marsvin-lang` is read in
   one place (`SiteLanguage.Read`) and only the exact values `da` and `en`
   count. It is never echoed into a page, a mail or a query, so a tampered
-  value has nowhere to go - it is simply treated as not set. It is
+  value has nowhere to go and is simply treated as not set. It is
   deliberately not `HttpOnly` (a script sets it) and holds nothing worth
   stealing.
 - **A public form that sends mail, kept narrow**: the donation thank-you
@@ -903,21 +903,21 @@ validation, output sanitising, and the known gaps), see
   `WITH (UPDLOCK, HOLDLOCK)` on its stock/availability read, closing a race
   where two concurrent checkouts could otherwise both pass validation for
   the same last unit (see `DATABASE-ARCHITECTURE.md` §5).
-- **Audit log**: every admin/employee write action (a price/stock/role
-  change, a deletion, a staff account being created) is recorded with who
-  did it and when (`/Admin/AuditLog`, `IAuditLogStore`) - the
+- **Audit log**: we record every admin/employee write action (a price/stock/role
+  change, a deletion, a staff account being created) with who
+  did it and when (`/Admin/AuditLog`, `IAuditLogStore`): the
   accountability half of the role-based access control described above.
 - **Security monitoring**: the audit log's counterpart for the *attacker*
   side. Failed logins, attempts on a locked account, wrong-role page
   requests, rate-limit hits and rejected (forged/expired) forms are each
-  recorded as a `SecurityEvent` (metadata only - never the attempted
+  recorded as a `SecurityEvent` (metadata only, never the attempted
   password or a token), readable by an admin on `/Admin/SecurityLog`. When
   a *pattern* crosses a threshold (e.g. 10+ failed logins from one IP
   across 3+ accounts in 10 minutes), `SecurityAlerter` emails the admins
-  once per pattern per 30 minutes. The hooks are small and central: the
+  once per pattern per 30 minutes. We kept the hooks small and central: the
   rate-limiter's `OnRejected`, cookie auth's `OnRedirectToAccessDenied`,
-  a 400-on-POST middleware, and `LoginModel` itself. This is honest about
-  what it is - alerting on *attempts* seen in the logs, **not** breach or
+  a 400-on-POST middleware, and `LoginModel` itself. We are honest about
+  what it is: alerting on *attempts* seen in the logs, **not** breach or
   data-leak detection, which no app can truthfully do. Rows hold an IP
   (personal data) and are pruned after 90 days (`/Privatliv`).
 

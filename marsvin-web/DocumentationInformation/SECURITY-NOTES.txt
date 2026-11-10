@@ -42,49 +42,49 @@ OVERVIEW
 
 1. AUTHENTICATION - PROVING WHO YOU ARE
 ---------------------------------------
-- Passwords must be at least 12 characters - 15 for an Admin account,
-  the role that can change prices, roles and other accounts - and contain
+- Passwords must be at least 12 characters (15 for an Admin account,
+  the role that can change prices, roles and other accounts) and contain
   upper- and lower-case letters, a digit and a symbol, and must not be an obvious
-  password - not a common one, not the shop's own words, and not built
-  from the person's own email or name. The rule lives in one place
-  (Models/PasswordPolicy.cs) and is enforced on the server everywhere a
+  password: not a common one, not the shop's own words, and not built
+  from the person's own email or name. We keep the rule in one place
+  (Models/PasswordPolicy.cs) and enforce it on the server everywhere a
   password is set: register, reset, the profile page, and an admin
   creating a staff account. The strength meter on the form shows those
   exact five requirements, so what it calls "strong" is precisely what
-  the server accepts - the meter no longer promises more than is enforced.
-  Passwords are hashed with ASP.NET Core's PasswordHasher (PBKDF2); the
-  plain password is never stored or logged.
+  the server accepts. We made sure the meter no longer promises more than is
+  enforced. We hash passwords with ASP.NET Core's PasswordHasher (PBKDF2), and
+  the plain password is never stored or logged.
 
 - Registration does not reveal whether an email is already in use. A taken
-  address gets the same "check your email" response as a brand-new one;
-  rather than telling the browser, a notice goes to that address instead
-  ("you already have an account - log in or reset your password"). This
+  address gets the same "check your email" response as a brand-new one.
+  Rather than telling the browser, we send a notice to that address instead
+  ("you already have an account, log in or reset your password"). This
   closes the same user-enumeration gap that "forgot password" already
-  avoids. The notice is written in the owner's language, never echoes what
-  the submitter typed, and is sent nowhere else.
+  avoids. We write the notice in the owner's language, never echo what
+  the submitter typed, and send it nowhere else.
 
 - A correct password alone does not log anyone in. It only proves the
-  first factor; the session is created at the second step.
+  first factor, and we create the session at the second step.
 
 - Second step, by default: a single-use link sent to the account's email
-  address, valid for 15 minutes. Only the hash of the token is stored in
+  address, valid for 15 minutes. We only store the hash of the token in
   the database (table PendingLogins), so a leaked database cannot be
   turned into working login links.
 
 - Second step, optional: a 6-digit code from an authenticator app (TOTP,
-  the standard behind Google and Microsoft Authenticator). The secret is
-  stored encrypted. When enabled, it replaces the email link.
+  the standard behind Google and Microsoft Authenticator). We store the
+  secret encrypted. When enabled, it replaces the email link.
 
-- Wrong passwords are slowed down and stopped: each failure adds a longer
+- We slow down and stop wrong passwords: each failure adds a longer
   delay, the third sends the account owner a warning email, and the fifth
   locks the account until the password is reset.
 
-- Login, registration and password reset are rate limited per IP address
+- We rate limit login, registration and password reset per IP address
   (50 requests a minute, one budget shared by the three pages). The
-  contact and donation forms use the same limit; the chat has its own (20).
+  contact and donation forms use the same limit, and the chat has its own (20).
 
 - Emails about the account are written in Danish or English. A mail you
-  trigger yourself follows the language of your browser; the warning about
+  trigger yourself follows the language of your browser, and the warning about
   failed logins follows the language stored on the account, not the
   language of whoever is guessing.
 
@@ -98,8 +98,8 @@ OVERVIEW
 
 2. AUTHORIZATION AND RBAC - WHAT YOU MAY DO
 -------------------------------------------
-Every account has exactly one role, stored on the Users table. Pages are
-restricted with [Authorize(Roles = "...")] on the page model, and the
+Every account has exactly one role, stored on the Users table. We restrict
+pages with [Authorize(Roles = "...")] on the page model, and the
 check runs on the server before any page code does.
 
   Role       Can do
@@ -132,24 +132,24 @@ Three things go beyond plain role checks:
   Program.cs. A new page that someone forgets to protect ends up behind
   the login page, not open to everyone.
 
-- Ownership checks. Being a Customer is not enough to see an order - it
+- Ownership checks. Being a Customer is not enough to see an order, it
   has to be your own order. The lookup takes both the order id and the
   user id (IOrderStore.FindForUser), so guessing another order number
-  just shows "not found". A guest's receipt is tied to that guest's own
+  just shows "not found". We tie a guest's receipt to that guest's own
   browser session instead.
 
 - Checks inside shared pages. /Admin/Schedule is open to both staff
   roles, but only an Admin may create or delete a shift or decide a
-  time-off request; the handler itself checks the role again.
+  time-off request, so the handler itself checks the role again.
 
-A wrong role is redirected to an "access denied" page; a visitor who is
+A wrong role is redirected to an "access denied" page, and a visitor who is
 not logged in is sent to the login page.
 
 
 2A. ACCESS CONTROL MODELS - WHERE MARSVIN SITS
 ----------------------------------------------
-The course describes four models. Marsvin is RBAC with owner checks on
-top. The others are not used, and here is why.
+The course describes four models. Ours is RBAC with owner checks on
+top. We don't use the others, and here is why.
 
   Model  Idea                              In Marsvin
   -----  --------------------------------  ---------------------------------
@@ -186,11 +186,11 @@ top. The others are not used, and here is why.
                                            There are no rules about time of
                                            day or network location.
 
-Why RBAC fits: a small shop with three clearly different kinds of people,
-staff who change rarely, and no data that needs graded secrecy. It is also
-the easiest model to test - one end-to-end test per role and page.
+Why RBAC fits for us: a small shop with three clearly different kinds of
+people, staff who change rarely, and no data that needs graded secrecy. It is
+also the easiest model to test, one end-to-end test per role and page.
 
-The limits the course names for RBAC apply here too: one role per account
+The limits the course names for RBAC apply to us too: one role per account
 (a person who is both Employee and Admin simply is an Admin), and no
 fine-grained permissions inside a role beyond the few handler checks
 described in section 2 (for example only an Admin may change a shift).
@@ -233,7 +233,7 @@ Notes on the matrix:
     removed by an Admin. An Admin cannot change their own role, so "own
     R W" for the Admin's profile excludes that field.
   - The matrix is the RBAC one. An ABAC matrix would add columns for the
-    attributes in the table above; Marsvin does not have one.
+    attributes in the table above, which we don't have.
 
 
 3. LEAST PRIVILEGE - NO MORE RIGHTS THAN NEEDED
@@ -246,7 +246,7 @@ Notes on the matrix:
 
 - An Admin cannot change their own role or deactivate their own account,
   and the last active Admin cannot be demoted, deactivated or deleted by
-  anyone - the shop can never end up with no administrator.
+  anyone, so the shop can never end up with no administrator.
 
 - Customers are shown "in stock / low stock / sold out", never the real
   stock number.
@@ -254,42 +254,42 @@ Notes on the matrix:
 - The support chat (Pip) has no access at all to orders, accounts,
   customers or staff, and knows nothing about how the site is built.
 
-- Only the data that is needed is collected: "I am 16 or older" is a
+- We collect only the data we need: "I am 16 or older" is a
   yes/no rather than a date of birth, and a phone number is stored with
   the order, not on the account.
 
-- Privilege comes with accountability: every change made by staff
-  (prices, stock, roles, deletions, order status) is written to an audit
+- Privilege comes with accountability: we write every change made by staff
+  (prices, stock, roles, deletions, order status) to an audit
   log that only an Admin can read and nobody can edit.
 
 
 3b. SECURITY MONITORING - SEEING THE ATTEMPTS
 ---------------------------------------------
-The audit log above records what *staff* do. A second log records what
-*attackers* try, so an admin can see it and be warned about it.
+The audit log above records what *staff* do. We added a second log that
+records what *attackers* try, so an admin can see it and be warned about it.
 
 - What is recorded (table SecurityEvents, page /Admin/SecurityLog, Admin
   only): failed logins, attempts on an already-locked account, requests to
   a page the signed-in user's role isn't allowed on, rate-limit hits, and
   rejected forms (a missing or invalid anti-forgery token, i.e. a forged or
   expired request). Each row has the time, the targeted email, the client
-  IP and the path - never the attempted password or any token. On the page
+  IP and the path, never the attempted password or any token. On the page
   each row is colour-coded by severity (derived from the type, not stored):
   high for a locked account or a wrong-role request, medium for rate limits
-  and rejected forms, low for a single failed login - so an admin sees which
+  and rejected forms, low for a single failed login, so an admin sees which
   rows to look at first.
 
-- Being warned: when a *pattern* crosses a threshold - for example 10+
+- Being warned: when a *pattern* crosses a threshold (for example 10+
   failed logins from one IP against 3+ different accounts in 10 minutes
   (credential stuffing), many wrong-role requests, or a sustained flood of
-  rate-limit hits - every active admin is emailed (SecurityAlerter), once
+  rate-limit hits), every active admin is emailed (SecurityAlerter), once
   per pattern per 30 minutes so a scanner can't bury them in mail. A single
   failed login emails no one.
 
-- An honest limit, stated plainly in the page and the email: this sees
-  attack *attempts* in the app's own logs. It is NOT breach or
-  data-leak detection - no application can truthfully tell that data has
-  been taken - and nothing here claims otherwise.
+- An honest limit, and we state it plainly in the page and the email: this
+  sees attack *attempts* in the app's own logs. It is NOT breach or
+  data-leak detection (no application can truthfully tell that data has
+  been taken), and nothing here claims otherwise.
 
 - The IP is personal data, so these rows are not kept forever: the daily
   cleanup job deletes them after 90 days, and /Privatliv documents this.
@@ -342,10 +342,10 @@ PART 2 - INJECTION
 An injection attack is when an attacker gets data that the application
 then treats as code or as a command: SQL sent on to the database
 (SQL injection), JavaScript sent on to another visitor's browser (XSS).
-Both come from the same mistake - input that is not validated on the way
+Both come from the same mistake: input that is not validated on the way
 in, or not made harmless on the way out.
 
-All data from outside - a form, a URL, a cookie, a header - is treated as
+We treat all data from outside (a form, a URL, a cookie, a header) as
 "tainted" until it has been checked. The two controls are:
 
   Input validation     at the entrance: does this make sense at all?
@@ -355,7 +355,7 @@ All data from outside - a form, a URL, a cookie, a header - is treated as
 
 5. SQL INJECTION
 ----------------
-The five defences from the course, and what Marsvin does:
+The five defences from the course, and what we do:
 
   Defence                              Marsvin
   -----------------------------------  ----------------------------------
@@ -373,8 +373,8 @@ The five defences from the course, and what Marsvin does:
   Least privilege                      Not for the database account - see
                                        "Where the project falls short".
 
-There is no ORM and no query builder - every query is hand-written SQL
-through ADO.NET - so parameters are the whole defence, and it is the same
+There is no ORM and no query builder (every query is hand-written SQL
+through ADO.NET), so parameters are the whole defence, and we use the same
 pattern in all ten Sql*Store classes:
 
     using var command = new SqlCommand(
@@ -418,16 +418,16 @@ How the attacks described in the course go against Marsvin
 XSS does not attack the server. It gets a script onto a page so that it
 runs in another visitor's browser, with that visitor's login.
 
-Reflected XSS - input that is sent straight back in the response.
-In Marsvin that is the search box on /Tilbehor, form fields redisplayed
+Reflected XSS: input that is sent straight back in the response.
+For us that is the search box on /Tilbehor, form fields redisplayed
 after an error, and messages shown after a redirect. All are printed by
 Razor, which HTML-encodes everything by default.
 
   Tested: searching for <script>alert(1)</script> gives a page that
-  contains &lt;script&gt;alert(1)&lt;/script&gt; - shown as text, three
+  contains &lt;script&gt;alert(1)&lt;/script&gt;, shown as text, three
   times, and never as a real script tag.
 
-Stored XSS - input that is saved and later shown to someone else. The
+Stored XSS: input that is saved and later shown to someone else. The
 more dangerous kind, because it hits everyone who opens the page. The
 places where one person's text is shown to another:
 
@@ -438,24 +438,24 @@ places where one person's text is shown to another:
                                                 to every visitor
   - display names in the audit log              read by admins
 
-All of them are HTML-encoded when displayed. There is no place where
+We HTML-encode all of them when they are displayed. There is no place where
 visitors can post HTML or rich text.
 
-Places that need more than the default, and how they are handled:
+Places that need more than the default, and how we handle them:
 
-  - Raw HTML is written in exactly one place (the brand logo's SVG text,
-    Pages/Shared/_BrandLogo.cshtml), and the text is encoded by hand
+  - We write raw HTML in exactly one place (the brand logo's SVG text,
+    Pages/Shared/_BrandLogo.cshtml), and we encode the text by hand
     first.
-  - Delete buttons put a name into a confirmation dialog. The name is
-    read from a data-confirm attribute by a script, never built into
-    JavaScript code - an attribute is decoded by the browser before it
+  - Delete buttons put a name into a confirmation dialog. We read the name
+    from a data-confirm attribute with a script, and never build it into
+    JavaScript code: an attribute is decoded by the browser before it
     would be parsed as script, so encoding alone would not be enough
     there.
   - The chat writes every answer with textContent, never innerHTML.
   - No script anywhere uses innerHTML, eval or document.write.
 
 The second layer: Content-Security-Policy. Every response carries a
-policy that allows scripts and styles only from the site's own files -
+policy that allows scripts and styles only from the site's own files:
 no inline <script>, no inline style="" and nothing from another site. So
 even if a script did get onto a page, the browser would refuse to run it.
 
@@ -520,8 +520,8 @@ Two levels of "is this valid":
     stock; an order of only guinea pigs cannot be shipped; a buyer of a
     guinea pig has confirmed being 16 or older
 
-Wherever the set of valid values is known, input is matched against that
-list (an allow-list) instead of being cleaned:
+Wherever the set of valid values is known, we match input against that
+list (an allow-list) instead of trying to clean it:
 
   - Filters on /Tilbehor: category, brand, price range, sort order and
     page number are each matched against known values. Anything else is
@@ -536,13 +536,12 @@ list (an allow-list) instead of being cleaned:
   - A photo address typed by an admin must point at an image inside the
     site's own /img folder (no other site, no "..", no query string).
 
-File uploads (product and guinea pig photos, admin only) are checked
+We check file uploads (product and guinea pig photos, admin only)
 three ways before anything is written: the declared type must be JPEG,
 PNG, WebP or GIF; the file's own first bytes must be those of that type
 (the declared type is only what the browser claims); and it must be at
-most 5 MB. The file is saved under a new random name - the name the
-browser sent is never used, so it cannot carry a path or a second
-extension.
+most 5 MB. We save the file under a new random name, and never use the name
+the browser sent, so it cannot carry a path or a second extension.
 
   Code: the InputModel classes in Pages/**, Data/PhotoUploadHelper.cs,
         Pages/Tilbehor/Index.cshtml.cs, Data/Sql/schema.sql (constraints)
@@ -550,8 +549,8 @@ extension.
 
 8. OUTPUT SANITISING
 --------------------
-Encoding is done where the data is used, and in the way that place
-needs - the same text is made safe differently for a page, a link, an
+We encode the data where it is used, and in the way that place
+needs, so the same text is made safe differently for a page, a link, an
 email and a log.
 
   Where the data goes     How it is made safe
@@ -656,41 +655,41 @@ WHERE THE PROJECT FALLS SHORT
 Honest gaps we think are worth knowing for a report or an exam:
 
 - The donation form can make the shop send an email to an address someone
-  else typed in. The form used to send no mail at all, precisely to avoid
-  that; a thank-you mail was added later. What bounds it: the wording is
-  fixed, none of the giver's own text is repeated, the form is rate
+  else typed in. We used to send no mail at all from the form, precisely to
+  avoid that, and we added a thank-you mail later. What bounds it: the wording
+  is fixed, none of the giver's own text is repeated, the form is rate
   limited and behind the optional reCAPTCHA. Guest checkout has the same
   property. A stricter design would confirm the address before writing
   to it.
 
 - The password policy is deliberately stricter and more visible than
   NIST 800-63B, which prefers length plus a breached-password check over
-  mandatory composition rules (upper/lower/digit/symbol). The project
-  chooses the stricter, meter-matching policy on purpose AND does the
+  mandatory composition rules (upper/lower/digit/symbol). We chose the
+  stricter, meter-matching policy on purpose AND do the
   breach-list check: "not an obvious password" is two parts (PasswordPolicy
-  and CommonPasswordList) - a short substring list of shop-specific words
+  and CommonPasswordList), a short substring list of shop-specific words
   (marsvin, guineapig, butik, ...) plus a large EXACT-match list of common
   passwords loaded at startup from Data/CommonPasswords.txt (ASVS 6.2.4).
   Exact match means a long passphrase that merely contains a common word is
   still allowed. The committed file is only a real STARTER list (~230
   entries); to meet ASVS 6.2.4 in full, replace it with a published top-10000
-  list (e.g. SecLists 10-million-password-list-top-10000.txt) - no code
-  change needed, it is copied to the output directory at build. A production
-  deployment could also add a live breach check (HaveIBeenPwned k-anonymity
-  range API) on top.
+  list (e.g. SecLists 10-million-password-list-top-10000.txt), with no code
+  change needed, since it is copied to the output directory at build. A
+  production deployment could also add a live breach check (HaveIBeenPwned
+  k-anonymity range API) on top.
 
 - The scripts in wwwroot/js have no automated tests. There is no browser
   test setup, so the language toggle, the cart and the payment form are
   checked by hand.
 
 - The security log sees attack *attempts*, not a breach. It cannot tell
-  that data was actually read or taken - no application can from its own
-  logs - so it must not be mistaken for intrusion/exfiltration detection.
+  that data was actually read or taken (no application can from its own
+  logs), so it must not be mistaken for intrusion/exfiltration detection.
   The client IP it records is whatever reached the app; behind a reverse
   proxy or load balancer that would be the proxy's address unless the app
   is configured to read a forwarded-for header (it isn't here). The alert
   cooldown is in memory, so it resets on restart and isn't shared across
-  several servers - the same limitation as the login lockout above.
+  several servers, the same limitation as the login lockout above.
 
 - The Admin role is all-or-nothing. There are no finer permissions, so
   an admin who only needs to edit products can also manage accounts.
@@ -724,8 +723,8 @@ Honest gaps we think are worth knowing for a report or an exam:
 
 - Fixed along the way: deleting an account that still had an unused login
   or password-reset link used to fail (a foreign key from PendingLogins).
-  It mattered for security too - it would have blocked a customer's right
-  to have their account erased, and the automatic 2-year clean-up.
+  It mattered for security too, because it would have blocked a customer's
+  right to have their account erased, and the automatic 2-year clean-up.
 
 - An uploaded photo is recognised by its first bytes, not fully decoded.
   That stops a file that merely claims to be an image; it does not prove
