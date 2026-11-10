@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marsvin Data Flow</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--txt:#e2e8f0;--mut:#94a3b8;--read:#22d3ee;--write:#4ade80;--warn:#fbbf24}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{padding:12px 24px 6px;display:flex;align-items:baseline;gap:16px}
+header h1{margin:0;font-size:22px}
+header span{color:var(--mut);font-size:14px}
+#tabs{display:flex;gap:5px;padding:0 24px;flex-wrap:wrap}
+#tabs button{background:var(--card);color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:12px}
+#tabs button.on{color:#0f172a;background:var(--read);border-color:var(--read);font-weight:600}
+main{flex:1;display:flex;gap:16px;padding:10px 24px;min-height:0}
+#stage{flex:1;min-width:0}
+svg{width:100%;height:100%}
+.node rect{fill:var(--card);stroke:var(--line);stroke-width:2;transition:all .3s}
+.node text{fill:var(--txt);font-size:14px;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.node .sub{fill:var(--mut);font-size:10px}
+.node.read rect{fill:#0c3a47;stroke:var(--read);stroke-width:4;filter:drop-shadow(0 0 14px var(--read))}
+.node.write rect{fill:#0f3d24;stroke:var(--write);stroke-width:4;filter:drop-shadow(0 0 16px var(--write))}
+.node.active rect{fill:#4a3a0a;stroke:var(--warn);stroke-width:4;filter:drop-shadow(0 0 14px var(--warn))}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.node.read,.node.write,.node.active{animation:pulse 1.1s ease-in-out infinite}
+.node .badge{display:none;font-size:11px;font-weight:700;text-anchor:end}
+.node.read .badge.r,.node.write .badge.w,.node.active .badge.a{display:block}
+.badge.r{fill:var(--read)}.badge.w{fill:var(--write)}.badge.a{fill:var(--warn)}
+.wire{stroke:#475569;stroke-width:2;fill:none}
+.link{stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 6;fill:none;opacity:.7}
+#pkt{fill:var(--read);filter:drop-shadow(0 0 8px var(--read));transition:cx .8s ease-in-out,cy .8s ease-in-out,fill .3s}
+#pkt.w{fill:var(--write)}
+aside{width:390px;background:#111827;border-radius:14px;padding:18px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+aside>*{flex-shrink:0}
+aside h2{margin:0;font-size:17px}
+#cap{color:var(--txt);font-size:14.5px;line-height:1.5;min-height:66px}
+pre{margin:0;background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;color:#a5f3fc;min-height:70px}
+#cols .t{background:#0b1220;border-radius:10px;padding:10px;margin-bottom:8px;font-size:12px;border-left:4px solid var(--read)}
+#cols .t.w{border-left-color:var(--write)}
+#cols b{display:block;margin-bottom:4px;font-size:13px}
+#cols code{color:var(--mut)}
+#cols code i{color:var(--warn);font-style:normal}
+.legend{font-size:12px;color:var(--mut)}
+.legend span{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 10px}
+footer{padding:8px 24px 14px;display:flex;justify-content:center;gap:10px;align-items:center}
+footer button{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:15px}
+footer button:hover{border-color:var(--read)}
+#prog{width:200px;height:6px;background:var(--card);border-radius:3px;overflow:hidden}
+#prog div{height:100%;width:0;background:var(--read);transition:width .4s}
+@media(max-width:900px){body{height:auto;min-height:100vh}main{flex-direction:column}#stage{height:70vw;min-height:320px;flex:none}aside{width:auto;overflow:visible}}
+</style>
+</head>
+<body>
+<header><h1>Marsvin</h1><span>Data flow: browser → Razor Pages → Stores → SQL Server (plain ADO.NET, no ORM)</span></header>
+<div id="tabs"></div>
+<main>
+  <div id="stage"><svg id="svg" viewBox="0 0 1200 770" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <aside>
+    <h2 id="title"></h2>
+    <div id="cap"></div>
+    <pre id="sql"></pre>
+    <div class="legend"><span style="background:var(--read)"></span>read<span style="background:var(--write)"></span>write<span style="background:var(--warn)"></span>processing</div>
+    <div id="cols"></div>
+  </aside>
+</main>
+<footer>
+  <button id="speed" title="Autoplay speed">Speed: Normal</button><button id="prev">◀</button><button id="play">⏸</button><button id="next">▶</button>
+  <div id="prog"><div></div></div>
+</footer>
+
+<script>
+// ---------- Real schema (Data/Sql/schema.sql) ----------
+const SCHEMA={
+  Users:["UserId PK","Email (unique)","PasswordHash","DisplayName","Role (0 Customer, 1 Employee, 2 Admin)","IsActive","CreatedAt","LastActiveAt","InactivityWarningStage","TotpSecret (encrypted)","TotpEnabled","SecurityStamp","PrefersEnglish"],
+  PendingLogins:["PendingLoginId PK","UserId FK","TokenHash (SHA-256)","ReturnUrl","ExpiresAt","CreatedAt"],
+  Products:["ProductId PK","ProductType (1 Animal, 2 Stock)","Name / NameEn","Description / DescriptionEn","Price"],
+  Animals:["ProductId PK/FK","Breed","Sex","DateOfBirth","Colour","Status (Available, Reserved, Sold, NotForSale)","BondedWithId","Personality","PhotoUrl"],
+  StockProducts:["ProductId PK/FK","Sku (unique)","Category","StockQuantity (CHECK >= 0)","Unit","PhotoUrl","WeightGrams","Brand"],
+  CartItems:["CartItemId PK","UserId FK","ProductId","Quantity (CHECK > 0)","AddedAt","UNIQUE(UserId, ProductId)"],
+  Orders:["OrderId PK","UserId FK (NULL for guest / deleted account)","TotalPrice","CreatedAt","DeliveryMethod","ShippingAddress","ShippingCarrier","PaymentMethod","GuestName","GuestEmail","Status (Placed...Cancelled)","ShippingCost","ShippingWeightGrams","ParcelCount","ContactPhone","AgeConfirmed","TrackingNumber","CompanyName / CompanyCvr","PlacedInEnglish"],
+  OrderItems:["OrderItemId PK","OrderId FK","ProductId (snapshot)","ProductName (snapshot)","UnitPrice (snapshot)","Quantity","IsAnimal"],
+  Promotions:["PromotionId PK","Title","Description","DiscountPercent (1-100)","ProductId","StartDate","EndDate","IsActive"],
+  Shifts:["ShiftId PK","UserId FK","StartAt","EndAt","Note","CreatedAt"],
+  TimeOffRequests:["RequestId PK","UserId FK","StartDate","EndDate","Reason","Status (Pending, Approved, Denied)","RequestedAt","DecidedAt","DecidedByName"],
+  AuditLog:["AuditLogId PK","ActorUserId","ActorName (snapshot)","Action e.g. Product.Deleted","Details","CreatedAt"],
+  SecurityEvents:["SecurityEventId PK","Type (LoginFailed, AccountLocked, AccessDenied, RateLimited, AntiforgeryRejected)","Email","IpAddress","Path","Detail","CreatedAt"],
+  ContactMessages:["ContactMessageId PK","Name","Email","Topic","OrderId (typed by sender, not FK)","Message","CreatedAt"],
+  Donations:["DonationId PK","Kind (Money / Products)","AmountKr","ItemDescription","DonorName","DonorEmail","Message","CreatedAt"]
+};
+const TABLES=Object.keys(SCHEMA);
+const PURPOSE={Users:"accounts & roles",PendingLogins:"email-link tokens",Products:"base catalog",Animals:"guinea pigs",StockProducts:"accessories & stock",CartItems:"logged-in carts",Orders:"orders & status",OrderItems:"order lines (snapshot)",Promotions:"discounts",Shifts:"staff schedule",TimeOffRequests:"day-off requests",AuditLog:"admin actions",SecurityEvents:"attack attempts",ContactMessages:"contact form",Donations:"demo donations"};
+
+// ---------- Layout ----------
+const N={
+  customer:{x:80,y:385,w:116,h:56,t:"👤 Customer"},
+  web:{x:270,y:385,w:150,h:66,t:"🌐 Razor Pages",s:"PageModels (.cshtml.cs)"},
+  back:{x:510,y:385,w:150,h:66,t:"⚙️ Stores",s:"IXxxStore → SqlXxxStore"},
+  captcha:{x:510,y:150,w:150,h:50,t:"🛡️ reCAPTCHA",s:"bot check"},
+  mail:{x:510,y:620,w:150,h:50,t:"✉️ Email",s:"MailKit / logging"}
+};
+N.db={x:735,y:385,w:110,h:76,t:"🗄️ SQL Server",s:"the database"};
+TABLES.forEach((k,i)=>N[k]={x:960,y:36+i*49,w:210,h:42,t:"🗄️ "+k,s:PURPOSE[k]});
+
+const svg=document.getElementById('svg');
+const NS="http://www.w3.org/2000/svg";
+function el(n,a,p=svg){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e}
+
+[["customer","web"],["web","back"]].forEach(([a,b])=>el('line',{class:'link',x1:N[a].x+N[a].w/2,y1:N[a].y,x2:N[b].x-N[b].w/2,y2:N[b].y}));
+["captcha","mail"].forEach(k=>el('line',{class:'link',x1:N.back.x,y1:N.back.y+(k==="captcha"?-33:33),x2:N[k].x,y2:N[k].y+(k==="captcha"?25:-25)}));
+const BUSX=832, FIRST=N[TABLES[0]].y, LAST=N[TABLES[TABLES.length-1]].y;
+el('rect',{x:812,y:2,width:276,height:758,rx:16,fill:'none',stroke:'#475569','stroke-width':2,'stroke-dasharray':'8 6'});
+el('line',{class:'wire',x1:N.back.x+75,y1:N.back.y,x2:N.db.x-55,y2:N.db.y});
+el('line',{class:'wire',x1:N.db.x+55,y1:N.db.y,x2:BUSX,y2:N.db.y});
+el('line',{class:'wire',x1:BUSX,y1:FIRST,x2:BUSX,y2:LAST});
+TABLES.forEach(k=>el('line',{class:'wire',x1:BUSX,y1:N[k].y,x2:N[k].x-105,y2:N[k].y}));
+
+
+const nodeEl={};
+for(const id in N){
+  const n=N[id],g=el('g',{class:'node',transform:`translate(${n.x-n.w/2},${n.y-n.h/2})`});
+  el('rect',{width:n.w,height:n.h,rx:12},g);
+  const t=el('text',{x:n.w/2,y:n.s?n.h/2-8:n.h/2},g);t.textContent=n.t;
+  if(n.s){const s=el('text',{class:'sub',x:n.w/2,y:n.h/2+11},g);s.textContent=n.s;n.sub=s}
+  [['r','READ'],['w','WRITE'],['a','PROCESSING']].forEach(([c,t])=>{
+    const b=el('text',{class:'badge '+c,x:n.w-6,y:-5},g);b.textContent=t;
+  });
+  nodeEl[id]=g;
+}
+const pkt=el('circle',{id:'pkt',r:11,cx:N.customer.x,cy:N.customer.y});
+
+// ---------- Scenes (all based on the real Marsvin code) ----------
+const SCENES=[
+ {name:"Overview",title:"The big picture",steps:[
+  {path:["customer","web"],cap:"The customer uses the webshop in the browser. Every click is an HTTP request to a Razor Page (ASP.NET Core 9, no JavaScript framework).",sql:"GET /Marsvin\nPOST /Cart\nPOST /Cart/Payment"},
+  {path:["web","back"],cap:"The PageModel calls a Store through an interface (ICatalog, ICartStore, IOrderStore, IUserAccountStore ...). Stores are registered in Program.cs.",sql:"catalog.GetAnimals()\ncart.Add(...)\norders.Checkout(...)"},
+  {path:["back"],cap:"Stores are the only code that talks to SQL. Plain ADO.NET with parameters, no ORM (course requirement). 15 tables.",sql:"SqlCommand + @parameters\nBEGIN TRANSACTION where needed",all:"read"},
+  {path:["back","web","customer"],cap:"The result is rendered as HTML by Razor (output is encoded) and sent back with security headers and a CSP.",sql:"200 OK  (HTML)"}
+ ]},
+ {name:"Browse",title:"Browse guinea pigs and accessories",steps:[
+  {path:["customer","web"],cap:"Customer opens /Marsvin, /Tilbehor or the home page. No login needed.",sql:"GET /Marsvin"},
+  {path:["web","back"],cap:"The page asks ICatalog (SqlCatalog) for data.",sql:"catalog.GetAnimals()\ncatalog.GetAccessories()"},
+  {path:["back","Products"],read:["Products","Animals"],cap:"Products is the base table, Animals holds the guinea-pig-specific fields (breed, sex, birth date, status).",sql:"SELECT p.ProductId, p.Name, p.Description,\n       p.DescriptionEn, p.Price,\n       a.Breed, a.Sex, a.DateOfBirth, a.Colour,\n       a.Status, a.BondedWithId,\n       a.Personality, a.PhotoUrl ...\nFROM dbo.Products p\nJOIN dbo.Animals a\n  ON a.ProductId = p.ProductId\nORDER BY p.ProductId;"},
+  {path:["Products","back","Promotions"],read:["Promotions"],cap:"Promotions are read so discounted prices can be shown (the active/date check is applied in the store code).",sql:"SELECT PromotionId, Title, Description,\n       DiscountPercent, ProductId,\n       StartDate, EndDate, IsActive\nFROM dbo.Promotions\nORDER BY StartDate DESC;"},
+  {path:["Promotions","back","web","customer"],cap:"The listing is rendered, with Danish/English text switched client-side (data-en attributes).",sql:"200 OK  (list)"}
+ ]},
+ {name:"Search",title:"Search accessories (/Tilbehor)",steps:[
+  {path:["customer","web"],cap:"Customer types a search word and picks a category.",sql:"GET /Tilbehor?Query=hay&Category=..."},
+  {path:["web","back","StockProducts"],read:["Products","StockProducts"],cap:"The accessory catalog is read from the database with fixed SQL - the search text never goes into a query.",sql:"SELECT p.ProductId, p.Name, p.NameEn,\n       p.Description, p.DescriptionEn, p.Price,\n       s.Sku, s.Category, s.StockQuantity,\n       s.Unit, s.PhotoUrl\nFROM dbo.Products p\nJOIN dbo.StockProducts s\n  ON s.ProductId = p.ProductId\nORDER BY p.ProductId;"},
+  {path:["StockProducts","back"],active:["back","web"],cap:"The page model then filters the list in C# (name or description contains the term). Because it never becomes SQL, SQL injection is not possible.",sql:"a.Name.Contains(Query,\n   OrdinalIgnoreCase) ||\na.Description.Contains(Query, ...)"},
+  {path:["back","web","customer"],cap:"Results are HTML-encoded by Razor, so a search term like <script> cannot run (XSS). CSP blocks inline scripts anyway.",sql:"200 OK  (filtered list)"}
+ ]},
+ {name:"Register",title:"Create account (user story 1)",steps:[
+  {path:["customer","web"],cap:"Customer fills in the form. The password field has a live strength meter (client-side guidance, not validation).",sql:"POST /Account/Register\n[rate limited per IP]"},
+  {path:["web","back","captcha"],active:["captcha"],cap:"Google reCAPTCHA is verified on the server before anything else happens.",sql:"recaptcha.VerifyAsync(response)"},
+  {path:["captcha","back"],active:["back"],cap:"PasswordPolicy.Validate: min 12 characters (15 for admins), upper + lower case, a digit and a symbol, and not an obvious password: not on the common-password list (exact match, so a long passphrase containing a common word is fine), no shop words like “marsvin” or “guineapig”, and not built from the user’s own e-mail or name. The same rules drive the strength meter. Then PBKDF2 hashing (PasswordHasher) - never stored or logged in plain text.",sql:"PasswordPolicy.Validate(\n  password, email, displayName, english)\nhash = new PasswordHasher<..>()\n        .HashPassword(null, pw)"},
+  {path:["back","Users"],write:["Users"],cap:"New account is created as Role 0 (Customer) - the form can never create staff. If the e-mail already exists the page answers exactly the same (“check your email”) and the owner gets a notice instead, so nobody can test which addresses are registered. A fresh SecurityStamp is generated for the account.",sql:"INSERT INTO dbo.Users\n(Email, PasswordHash, DisplayName,\n Role, IsActive)\nVALUES (@Email,@Hash,@Name, 0, 1);\n-- SecurityStamp default NEWID()"},
+  {path:["Users","back","PendingLogins"],write:["PendingLogins"],cap:"A random 256-bit token is created. Only its SHA-256 hash is stored, so a leaked database cannot be turned into working links.",sql:"INSERT INTO dbo.PendingLogins\n(UserId, TokenHash, ExpiresAt)\nVALUES (@u, @sha256, NOW + 15 min);"},
+  {path:["PendingLogins","back","mail"],active:["mail"],cap:"A confirmation link is e-mailed. Opening it is what signs the new account in for the first time (proves the e-mail address is theirs).",sql:"/Account/ConfirmLogin?token=...\n-> /Account/CheckEmail"},
+  {path:["mail","back","web","customer"],cap:"The customer sees “check your email”. A small script polls and continues automatically once the link is opened.",sql:"302 → /Account/CheckEmail"}
+ ]},
+ {name:"Login",title:"Login: password + e-mail link (or TOTP)",steps:[
+  {path:["customer","web","back"],cap:"Email and password are posted over HTTPS. reCAPTCHA is checked, and LoginLockoutTracker adds an increasing delay after each failure.",sql:"POST /Account/Login\n[EnableRateLimiting(\"auth\")]"},
+  {path:["back","Users"],read:["Users"],cap:"The user is read by email (parameterized).",sql:"SELECT UserId, PasswordHash, Role,\n       IsActive, TotpEnabled\nFROM dbo.Users\nWHERE Email = @Email;"},
+  {path:["Users","back","SecurityEvents"],write:["SecurityEvents"],active:["back"],cap:"The password is verified against the stored PBKDF2 hash. A wrong password (or an attempt on a locked account) is written to SecurityEvents with IP and path - never the password. Delay 3^n seconds, 3rd failure e-mails the owner, 5th hard-locks until a password reset.",sql:"hasher.VerifyHashedPassword(...)\n!= Failed\n-- else:\nmonitor.RecordAsync(LoginFailed,\n  email, ip, path);"},
+  {path:["back","PendingLogins"],write:["PendingLogins"],cap:"Correct password is NOT a login yet. A single-use token (hash only, 15 min) is stored. With TOTP enabled the user goes to the 6-digit code page instead (5 min token, no email).",sql:"INSERT INTO dbo.PendingLogins\n(UserId, TokenHash, ReturnUrl, ExpiresAt)\n-- one row per user, replaces older"},
+  {path:["PendingLogins","back","mail"],active:["mail"],cap:"The login link is e-mailed to the account owner.",sql:"/Account/ConfirmLogin?token=..."},
+  {path:["mail","web","back","PendingLogins"],read:["PendingLogins"],write:["PendingLogins"],cap:"Clicking the link: the token is hashed, looked up and consumed (single use, expiry checked).",sql:"-- Consume(token)\nDELETE FROM dbo.PendingLogins\nWHERE TokenHash = @hash\n  AND ExpiresAt > NOW;"},
+  {path:["PendingLogins","back","Users"],write:["Users"],cap:"Only now the session is created: HttpOnly, SameSite=Lax cookie (Secure in production). It carries the account’s SecurityStamp, ends after 30 min idle or 8 h at most, and is re-checked against Users on every request. LastActiveAt is refreshed (2-year inactivity rule).",sql:"UPDATE dbo.Users\nSET LastActiveAt = NOW,\n    InactivityWarningStage = 0\nWHERE UserId = @u;\n-- cookie claim: marsvin:stamp"},
+  {path:["Users","back","web","customer"],cap:"A guest cart from before login is merged into the account cart.",sql:"302 → returnUrl\n(IsSafeLocalUrl checked)"}
+ ]},
+ {name:"Cart",title:"Add to cart (user story 4)",steps:[
+  {path:["customer","web","back"],cap:"Customer clicks “Add to cart”. Guests are allowed: their cart lives in the server session (SessionCartStore), logged-in users use SQL (SqlCartStore).",sql:"POST /Cart\nProductId=15, Quantity=2"},
+  {path:["back","Products"],read:["Products"],cap:"The product is looked up in the catalog. Name and price are never trusted from the browser. Adding one of a bonded guinea-pig pair adds its partner too.",sql:"SELECT ProductType FROM dbo.Products\nWHERE ProductId = @ProductId;"},
+  {path:["Products","back","CartItems"],write:["CartItems"],cap:"Logged-in cart row is inserted, or its quantity increased if it already exists. A guinea pig stays at quantity 1. The database also enforces Quantity > 0 and one row per user+product.",sql:"MERGE dbo.CartItems AS target\nUSING (SELECT @UserId AS UserId,\n              @ProductId AS ProductId) AS source\n  ON target.UserId = source.UserId\n AND target.ProductId = source.ProductId\nWHEN MATCHED THEN\n  UPDATE SET Quantity = target.Quantity + @Quantity\nWHEN NOT MATCHED THEN\n  INSERT (UserId, ProductId, Quantity)\n  VALUES (@UserId, @ProductId, @Quantity);"},
+  {path:["CartItems","back","CartItems"],read:["CartItems","Products"],cap:"The cart page reads the lines joined with Products, so prices always come from the catalog.",sql:"SELECT c.ProductId, c.Quantity, p.Name, p.Price,\n  CASE WHEN a.ProductId IS NULL\n       THEN 0 ELSE 1 END AS IsAnimal,\n  COALESCE(a.PhotoUrl, sp.PhotoUrl) AS PhotoUrl\nFROM dbo.CartItems c\nJOIN dbo.Products p ON p.ProductId = c.ProductId\nLEFT JOIN dbo.Animals a ...\nLEFT JOIN dbo.StockProducts sp ...\nWHERE c.UserId = @UserId\nORDER BY c.CartItemId;"},
+  {path:["CartItems","back","web","customer"],cap:"The cart is tied to the user id from the session cookie, so nobody else can change it.",sql:"200 OK  (cart page)"}
+ ]},
+ {name:"Checkout",title:"Checkout (SqlOrderStore.Checkout)",steps:[
+  {path:["customer","web","back"],cap:"Customer chooses delivery (pickup or shipping with PostNord / GLS / DAO), payment and contact phone on /Cart/Payment. Guests enter name and e-mail, companies can add name + CVR, and an order with a guinea pig needs an “I am 16 or older” tick. Payment is a demo (Card / MobilePay), no real card data is processed.",sql:"POST /Cart/Payment"},
+  {path:["back"],active:["back"],cap:"One SQL transaction is opened. If anything fails, everything is rolled back.",sql:"connection.BeginTransaction();"},
+  {path:["back","CartItems"],read:["CartItems","Products","Animals"],cap:"1. Cart lines are loaded inside the transaction, joined with Products and Animals (IsAnimal).",sql:"SELECT c.ProductId, c.Quantity, p.Name, p.Price,\n  CASE WHEN a.ProductId IS NULL\n       THEN 0 ELSE 1 END AS IsAnimal\nFROM dbo.CartItems c\nJOIN dbo.Products p ...\nLEFT JOIN dbo.Animals a ...\nWHERE c.UserId = @UserId;"},
+  {path:["CartItems","back","StockProducts"],read:["StockProducts","Animals"],cap:"2. Every line is re-validated with UPDLOCK, HOLDLOCK so two buyers cannot take the last unit or the same guinea pig. Animals must be Available and at least 4 weeks old. Shipping is rejected if only animals are in the order.",sql:"SELECT StockQuantity\nFROM dbo.StockProducts\nWITH (UPDLOCK, HOLDLOCK)\nWHERE ProductId = @ProductId;"},
+  {path:["StockProducts","back","Orders"],write:["Orders"],cap:"3. The server calculates shipping from the products’ WeightGrams (parcel count, carrier price) and the total from database prices. The order is created with Status = Placed. UserId is NULL for a guest.",sql:"INSERT INTO dbo.Orders\n(UserId, TotalPrice, ShippingCost,\n ParcelCount, DeliveryMethod,\n ShippingAddress, ShippingCarrier,\n PaymentMethod, ContactPhone,\n AgeConfirmed, CompanyName, CompanyCvr,\n GuestName, GuestEmail, ...)\nOUTPUT INSERTED.OrderId ..."},
+  {path:["Orders","back","OrderItems"],write:["OrderItems"],cap:"4. Each line is saved as a snapshot (name, unit price). History stays correct even if the product is edited or deleted later.",sql:"INSERT INTO dbo.OrderItems\n(OrderId, ProductId, ProductName,\n UnitPrice, Quantity, IsAnimal)\nVALUES (...);"},
+  {path:["OrderItems","back","StockProducts"],write:["StockProducts"],cap:"5. Stock goes down (20 → 17). An animal is instead set to Sold. A CHECK constraint keeps stock from going negative.",sql:"UPDATE dbo.StockProducts\nSET StockQuantity = StockQuantity - 3\nWHERE ProductId = 15;\n-- animals: SET Status = Sold",fx:()=>setStock(17)},
+  {path:["StockProducts","back","CartItems"],write:["CartItems"],cap:"6. The cart is emptied, then the transaction is committed.",sql:"DELETE FROM dbo.CartItems\nWHERE UserId = @UserId;\nCOMMIT;"},
+  {path:["CartItems","back","mail"],active:["mail"],cap:"A receipt e-mail goes to the buyer, in the language the site was in (PlacedInEnglish).",sql:"emailSender.SendAsync(...)"}
+ ]},
+ {name:"Order history",title:"Confirmation and order history (user story 8)",steps:[
+  {path:["mail","back","web"],cap:"The customer is redirected to /Cart/Confirmation. A guest can only view it because the order id is stamped in their own session.",sql:"Session[\"GuestOrderId\"] == orderId"},
+  {path:["web","back","Orders"],read:["Orders","OrderItems"],cap:"The receipt is read. For a signed-in user the store needs BOTH the order id and the session user id, so guessing another order id returns “not found” (IDOR protection).",sql:"order = FindById(orderId);\nreturn order.UserId == userId\n   ? order : null;"},
+  {path:["Orders","back","OrderItems"],read:["OrderItems"],cap:"“My orders” on /Account/Profile lists only this user’s orders, newest first, with their lines.",sql:"SELECT OrderId, TotalPrice, CreatedAt ...\nFROM dbo.Orders\nWHERE UserId = @UserId\nORDER BY CreatedAt DESC, OrderId DESC;"},
+  {path:["OrderItems","back","web","customer"],cap:"The page is rendered with the order Status (Placed, Processing, Sent, Delivered, Cancelled) and tracking number. IX_Orders_UserId makes this lookup fast.",sql:"200 OK  (orders)"}
+ ]},
+ {name:"Password",title:"Change / reset password (user stories 6 + 11)",steps:[
+  {path:["customer","web","back"],cap:"Change: the user must enter the current password again. Reset: the user clicks “forgot password” on the login page.",sql:"POST /Account/Profile  (change)\nPOST /Account/ForgotPassword"},
+  {path:["back","Users"],read:["Users"],cap:"Change: the current password is verified against the stored hash first. Reset: the account is looked up, but the answer looks the same whether it exists or not (no user enumeration).",sql:"SELECT PasswordHash FROM dbo.Users\nWHERE UserId = @sessionUserId;"},
+  {path:["Users","back","PendingLogins"],write:["PendingLogins"],cap:"Reset only: the same hashed single-use token mechanism as login, link valid for a limited time.",sql:"INSERT INTO dbo.PendingLogins ..."},
+  {path:["PendingLogins","back","mail"],active:["mail"],cap:"Reset link is e-mailed. The new password is never sent by e-mail.",sql:"/Account/ResetPassword?token=..."},
+  {path:["mail","back","Users"],write:["Users"],cap:"The new password must pass PasswordPolicy (12+ chars, 15 for admins, mixed case, digit, symbol, not on the common-password list or built from shop words / own name), then gets a fresh PBKDF2 hash. The SecurityStamp is replaced, so every other logged-in session (also a thief’s) stops working. A reset also clears the login lockout.",sql:"UPDATE dbo.Users\nSET PasswordHash = @NewHash,\n    SecurityStamp = NEWID()\nWHERE UserId = @u;"},
+  {path:["Users","back","mail"],active:["mail"],cap:"The account owner is notified that the password changed, so a takeover is noticed (ASVS 2.5.5).",sql:"\"Your password was changed\""}
+ ]},
+ {name:"TOTP",title:"Optional second factor (authenticator app)",steps:[
+  {path:["customer","web","back"],cap:"On /Account/Profile the user starts enrolling an authenticator app (RFC 6238, same as Google / Microsoft Authenticator).",sql:"POST Profile?handler=StartTotpEnrollment"},
+  {path:["back","Users"],write:["Users"],cap:"A secret is generated and stored ENCRYPTED (ASP.NET Data Protection), because it must be recoverable but must not leak with the database. TotpEnabled is still 0.",sql:"UPDATE dbo.Users\nSET TotpSecret = @encrypted\nWHERE UserId = @u;"},
+  {path:["Users","back"],active:["back"],cap:"The user must enter one valid 6-digit code first. This proves the QR code really works, so nobody is locked out.",sql:"Totp.Validate(secret, code)"},
+  {path:["back","Users"],write:["Users"],cap:"TotpEnabled is switched on. From now on login skips the e-mail link and asks for the code (wrong codes count toward the same lockout).",sql:"UPDATE dbo.Users\nSET TotpEnabled = 1\nWHERE UserId = @u;"}
+ ]},
+ {name:"Admin shop",title:"Shop administration (user story 9)",steps:[
+  {path:["customer","web","back"],cap:"An Admin or Employee edits stock, or an Admin edits a product price.",sql:"POST /Admin/Products/Edit\nPOST /Admin/Stock"},
+  {path:["back","Users"],read:["Users"],cap:"Role is checked on every request: [Authorize(Roles=\"Admin\")] or \"Admin,Employee\". Wrong role is redirected to /Account/AccessDenied. The cart pages also block staff accounts from buying.",sql:"[Authorize(Roles = \"Admin\")]\n-- claim Role from cookie"},
+  {path:["Users","back","Products"],write:["Products","StockProducts"],cap:"The catalog row is updated with parameters.",sql:"UPDATE dbo.Products\nSET Price = @Price, Name = @Name ...\nWHERE ProductId = @id;"},
+  {path:["Products","back","AuditLog"],write:["AuditLog"],cap:"Every admin write is logged with who did it and what (price, stock, status, deletion, role change). ActorName is a snapshot, so the entry survives if the account is deleted.",sql:"audit.Record(userId, name,\n  \"Product.Updated\", product.Name);"},
+  {path:["AuditLog","back","web","customer"],cap:"The admin sees the updated list. A last active Admin cannot be demoted or deleted, so the shop always has an admin.",sql:"302 → /Admin/Products"}
+ ]},
+ {name:"Admin orders",title:"Order handling by staff",steps:[
+  {path:["customer","web","back"],cap:"Staff open /Admin/Orders and move an order forward, and type in the carrier’s tracking number.",sql:"POST /Admin/Orders\n[Authorize(Roles = \"Admin,Employee\")]"},
+  {path:["back","Orders"],read:["Orders","OrderItems"],cap:"All orders are listed with buyer (account or guest), delivery, parcels and status.",sql:"SELECT o.OrderId, o.Status, o.TotalPrice,\n       o.TrackingNumber, u.DisplayName ...\nFROM dbo.Orders o\nLEFT JOIN dbo.Users u ON u.UserId = o.UserId;"},
+  {path:["Orders","back","Orders"],write:["Orders"],cap:"Status moves Placed → Processing → Sent / ready for pickup → Delivered (or Cancelled).",sql:"UPDATE dbo.Orders\nSET Status = @Status,\n    TrackingNumber = @Tracking\nWHERE OrderId = @OrderId;"},
+  {path:["Orders","back","mail"],active:["mail"],cap:"The buyer gets a “your order was sent” e-mail in the language the order was placed in (a guest has no account to remember it on).",sql:"OrderEmails ... PlacedInEnglish"}
+ ]},
+ {name:"Security log",title:"Attack monitoring (SecurityEvents)",steps:[
+  {path:["customer","web"],cap:"Attempts the app sees are recorded: failed logins, locked accounts, wrong-role page requests, rate-limit hits, rejected forged/expired forms.",sql:"LoginFailed, AccountLocked, AccessDenied,\nRateLimited, AntiforgeryRejected"},
+  {path:["web","back","SecurityEvents"],write:["SecurityEvents"],cap:"SecurityMonitor writes one row per event: type, e-mail, IP, path. Never a password or token. A logging failure can never break the request.",sql:"INSERT INTO dbo.SecurityEvents\n(Type, Email, IpAddress, Path, Detail)\nVALUES (...);"},
+  {path:["SecurityEvents","back","SecurityEvents"],read:["SecurityEvents"],cap:"SecurityAlerter counts events in a 10-minute window (e.g. many failed logins from one IP across several accounts). A single failed login never alerts anyone.",sql:"SELECT COUNT(*) FROM dbo.SecurityEvents\nWHERE IpAddress = @ip\n  AND CreatedAt > @windowStart;"},
+  {path:["SecurityEvents","back","mail"],active:["mail"],cap:"Over the threshold, admins get an e-mail (max one per category per 30 minutes). It says honestly that these are attempts, not a confirmed breach.",sql:"alert -> all active Admins"},
+  {path:["mail","back","web","customer"],cap:"Admins read the events on /Admin/SecurityLog. Old rows are pruned by the daily cleanup job, because an IP address is personal data.",sql:"GET /Admin/SecurityLog"}
+ ]},
+ {name:"JWT API",title:"JSON API with JWT (/api)",steps:[
+  {path:["customer","web","back"],cap:"A signed-in user (cookie, so e-mail link / TOTP already done) asks for a token.",sql:"POST /api/auth/token"},
+  {path:["back","Users"],read:["Users"],cap:"The account is looked up again so a deleted or deactivated user gets no token.",sql:"users.FindById(userId)"},
+  {path:["Users","back","web","customer"],cap:"A short-lived JWT is returned. The API accepts only a bearer token, never the cookie, and the pages ignore bearer tokens - so a forged form from another site cannot act through /api.",sql:"Authorization: Bearer eyJ..."},
+  {path:["customer","web","back","Users"],read:["Users"],cap:"API policies check the role claim: any user, staff, or admin only.",sql:"ApiAnyUser / ApiStaff / ApiAdmin"}
+ ]},
+ {name:"Contact & donations",title:"Contact form and donations",steps:[
+  {path:["customer","web","back","ContactMessages"],write:["ContactMessages"],cap:"A public visitor sends a message. The order number is just text the sender typed - not proof the order is theirs.",sql:"INSERT INTO dbo.ContactMessages\n(Name, Email, Topic, OrderId, Message)\nVALUES (...);"},
+  {path:["ContactMessages","back","Donations"],write:["Donations"],cap:"A donation for rehomed guinea pigs is a demo: recorded, never charged. Staff read both on /Admin/Messages and /Admin/Donations.",sql:"INSERT INTO dbo.Donations\n(Kind, AmountKr, DonorName, Message)\nVALUES (...);"}
+ ]},
+ {name:"Logbog",title:"Audit log and monitoring (user story 10)",steps:[
+  {path:["customer","web","back"],cap:"An Admin opens /Admin/AuditLog (“Logbog”). Admin only.",sql:"GET /Admin/AuditLog\n[Authorize(Roles = \"Admin\")]"},
+  {path:["back","AuditLog"],read:["AuditLog"],cap:"The log is read newest first. The application never edits or deletes log rows.",sql:"SELECT ActorName, Action, Details, CreatedAt\nFROM dbo.AuditLog\nORDER BY CreatedAt DESC;"},
+  {path:["AuditLog","back","web","customer"],cap:"Admins can see who changed what and when. Passwords are never written to logs.",sql:"200 OK  (log table)"}
+ ]},
+ {name:"Staff",title:"Staff schedule and day off",steps:[
+  {path:["customer","web","back"],cap:"An Employee requests a day off on /Account/Profile. An Admin plans shifts on /Admin/Schedule.",sql:"POST Profile?handler=RequestTimeOff"},
+  {path:["back","TimeOffRequests"],write:["TimeOffRequests"],cap:"The request is saved as Pending. Every active Admin gets an e-mail.",sql:"INSERT INTO dbo.TimeOffRequests\n(UserId, StartDate, EndDate, Reason)\nVALUES (...);"},
+  {path:["TimeOffRequests","back","mail"],active:["mail"],cap:"Admins are notified.",sql:"emailSender -> all active Admins"},
+  {path:["mail","back","Shifts"],write:["Shifts","TimeOffRequests"],cap:"Admin approves or denies, and creates shifts. Overlapping shifts or shifts on approved time off are rejected. The employee gets an e-mail for new or removed shifts.",sql:"INSERT INTO dbo.Shifts\n(UserId, StartAt, EndAt, Note) ...\nUPDATE dbo.TimeOffRequests\nSET Status = 1, DecidedByName = @admin ..."}
+ ]},
+ {name:"GDPR",title:"Privacy: deletion and inactivity",steps:[
+  {path:["customer","web","back"],cap:"A customer can delete their own account from /Account/Profile (right to erasure). /Privatliv explains what is collected.",sql:"POST Profile?handler=DeleteAccount"},
+  {path:["back","Orders"],write:["Orders"],cap:"Past orders survive as history but the link to the person is cut, so they are no longer personally identifiable.",sql:"UPDATE dbo.Orders\nSET UserId = NULL\nWHERE UserId = @u;"},
+  {path:["Orders","back","Users"],write:["Users","CartItems"],cap:"The account and cart rows are deleted.",sql:"DELETE FROM dbo.CartItems WHERE UserId=@u;\nDELETE FROM dbo.Users WHERE UserId=@u;"},
+  {path:["Users","back","mail"],read:["Users"],active:["mail"],cap:"A background job (InactiveAccountCleanupService) runs daily. After 2 years of inactivity accounts are deleted automatically, with warning e-mails 2 months and 1 month before. SecurityEvents (with IP addresses) are pruned after a retention window.",sql:"WHERE LastActiveAt < NOW - 2 years\nInactivityWarningStage 0 → 1 → 2"}
+ ]},
+ {name:"Security",title:"Security overlay (STRIDE)",steps:[
+  {path:["customer","web"],cap:"Spoofing: strong password policy + PBKDF2, e-mail link or TOTP as second factor, reCAPTCHA, lockout escalation, rate limiting per IP, HttpOnly/SameSite cookie with SecurityStamp, 30 min idle timeout, HTTPS + HSTS.",sql:"PasswordHasher, PendingLogins,\nLoginLockoutTracker, RateLimiter"},
+  {path:["web","back"],cap:"Tampering: antiforgery token on every form (CSRF), server-side validation, prices and stock always re-read from the database, open-redirect check on returnUrl, parameterized SQL only.",sql:"IsSafeLocalUrl(returnUrl)\ncmd.Parameters.AddWithValue(...)"},
+  {path:["back","AuditLog"],write:["AuditLog"],cap:"Repudiation: every admin/employee write is recorded in AuditLog with actor and time, attack attempts in SecurityEvents; order lines are snapshots.",sql:"audit.Record(...)"},
+  {path:["AuditLog","back","Orders"],read:["Orders"],cap:"Information disclosure: IDOR checks (order id + user id), same reply for unknown e-mail on reset AND on register (no user enumeration), only hashes of tokens stored, TOTP secret encrypted, CSP and security headers, no passwords in logs.",sql:"FindForUser(orderId, userId)"},
+  {path:["Orders","back","web"],active:["web","back"],cap:"Denial of service: sliding-window rate limiter on Login, Register and ForgotPassword (50 per minute per IP), login delay escalation, rate-limit hits recorded and alerted, UPDLOCK keeps checkout consistent under load.",sql:"429 Too Many Requests"},
+  {path:["web","back","Users"],read:["Users"],cap:"Elevation of privilege: role claim checked with [Authorize(Roles)] on every staff page, extra checks inside shared pages, staff cannot buy, nobody can promote themselves, the last Admin cannot be removed.",sql:"[Authorize(Roles = \"Admin\")]\nif (!User.IsInRole(\"Admin\")) return Forbid();"}
+ ]}
+];
+
+// ---------- Engine ----------
+const $=id=>document.getElementById(id);
+let sc=0,playing=true,token=0,speed=1;
+const SPEEDS=[{n:'Slow',f:1.6},{n:'Normal',f:1},{n:'Fast',f:.6}];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function setStock(v){N.StockProducts.sub.textContent="StockQuantity: "+v}
+function resetStock(){N.StockProducts.sub.textContent=PURPOSE.StockProducts}
+function clearFx(){for(const k in nodeEl)nodeEl[k].setAttribute('class','node');pkt.classList.remove('w')}
+function mark(ids,c){(ids||[]).forEach(i=>nodeEl[i].classList.add(c))}
+function showCols(ids,cls){
+  $('cols').innerHTML=ids.filter(i=>SCHEMA[i]).map(i=>`<div class="t ${cls}"><b>${i}</b><code>${SCHEMA[i].map(c=>c.replace(/ (PK\/FK|PK|FK)\b/,' <i>$1</i>')).join(', ')}</code></div>`).join('');
+}
+const BUSPOS={};TABLES.forEach(k=>BUSPOS['bus_'+k]={x:BUSX,y:N[k].y});
+function place(id){const n=N[id]||BUSPOS[id];pkt.setAttribute('cx',n.x);pkt.setAttribute('cy',n.y)}
+
+const ISTABLE=id=>TABLES.includes(id);
+let at='customer';
+const wait=async(ms,my)=>{let left=ms;while(left>0){await sleep(100);if(my!==token)return false;if(playing)left-=100}return true};
+// Every trip to or from a table goes through the SQL Server box, and a
+// finished SQL step brings the result back to the Stores.
+function route(path){
+  const seq=path.slice();
+  if(seq.length&&ISTABLE(seq[0])&&(at==='back'||at==='db'||ISTABLE(at)))seq.shift();
+  if(seq.length&&seq[0]===at)seq.shift();
+  const out=[];let prev=at;
+  for(const id of seq){
+    if(ISTABLE(prev))out.push('bus_'+prev,'db');
+    if(ISTABLE(id)){
+      const last=out.length?out[out.length-1]:prev;
+      if(last!=='db')out.push('db');
+      out.push('bus_'+id);
+    }
+    out.push(id);prev=id;
+  }
+  return out;
+}
+async function runScene(i){
+  const my=++token; sc=i;
+  [...$('tabs').children].forEach((b,j)=>b.classList.toggle('on',j===i));
+  const S=SCENES[i]; $('title').textContent=S.title;
+  resetStock(); clearFx(); at=S.steps[0].path[0]; place(at);
+  for(let k=0;k<S.steps.length;k++){
+    if(my!==token)return;
+    $('prog').firstChild.style.width=((k+1)/S.steps.length*100)+'%';
+    const st=S.steps[k]; clearFx();
+    $('cap').textContent=st.cap; $('sql').textContent=st.sql;
+    const writes=st.write||[], reads=st.read||[];
+    pkt.classList.toggle('w',writes.length>0);
+    showCols([...new Set([...reads,...writes])],writes.length?'w':'');
+    const trip=route(st.path);
+    const endsInDb=trip.length>0&&ISTABLE(trip[trip.length-1]);
+    for(const id of trip){
+      place(id); at=id; await sleep(800); if(my!==token)return;
+      if(id==='db'&&(reads.length||writes.length)) mark(['db'],writes.length?'write':'read');
+    }
+    mark(reads,'read'); mark(writes,'write'); mark(st.active,'active');
+    if((reads.length||writes.length)&&!(st.active||[]).includes('back')) mark(['back'],'active');
+    if(st.all)TABLES.forEach(t=>nodeEl[t].classList.add('read'));
+    if(st.fx)st.fx();
+    const total=(4500+60*st.cap.length)*SPEEDS[speed].f;
+    if(endsInDb){
+      if(!await wait(total*0.5,my))return;
+      for(const id of ['bus_'+trip[trip.length-1],'db','back']){ place(id); at=id; await sleep(800); if(my!==token)return; }
+      if(!await wait(total*0.5,my))return;
+    }else if(!await wait(total,my))return;
+  }
+  if(my!==token)return;
+  while(!playing && my===token) await sleep(200);
+  if(my===token) runScene((i+1)%SCENES.length);
+}
+
+SCENES.forEach((s,i)=>{const b=document.createElement('button');b.textContent=s.name;b.onclick=()=>runScene(i);$('tabs').appendChild(b)});
+$('next').onclick=()=>runScene((sc+1)%SCENES.length);
+$('prev').onclick=()=>runScene((sc-1+SCENES.length)%SCENES.length);
+$('speed').onclick=()=>{speed=(speed+1)%SPEEDS.length;$('speed').textContent='Speed: '+SPEEDS[speed].n};
+$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'⏸':'▶'};
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')$('next').click();
+  if(e.key==='ArrowLeft')$('prev').click();
+  if(e.key===' '){e.preventDefault();$('play').click()}
+});
+resetStock();
+runScene(0);
+</script>
+</body>
+</html>
