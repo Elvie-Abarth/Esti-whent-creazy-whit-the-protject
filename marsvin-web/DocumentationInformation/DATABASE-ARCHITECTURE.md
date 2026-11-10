@@ -1,21 +1,21 @@
 # Marsvin database architecture
 
-This document explains **how the database is built and how it hangs together** -
-the schema, the tables, why they're shaped the way they are, and how the
+This document explains **how we built the database and how it hangs together**:
+the schema, the tables, why we shaped them the way we did, and how the
 application code talks to them. For operational how-tos (starting the project,
-resetting the database, login credentials), see `DATABASE-NOTES.txt` instead -
-this document is about the design, not the day-to-day commands.
+resetting the database, login credentials), see `DATABASE-NOTES.txt` instead.
+This document is about the design, not the day-to-day commands.
 
 ## 1. The big picture
 
-Marsvin uses **SQL Server LocalDB** - a real SQL Server engine, not a toy
+We use **SQL Server LocalDB**, a real SQL Server engine, not a toy
 in-memory database, but one that runs privately under your Windows user
 account instead of as a shared server. There is **no ORM** (no Entity
-Framework, no Dapper) - every single query in this project is hand-written
-SQL executed through raw ADO.NET (`Microsoft.Data.SqlClient`). That's a
+Framework, no Dapper). Every single query in this project is hand-written
+SQL that we run through raw ADO.NET (`Microsoft.Data.SqlClient`). That was a
 deliberate constraint of the assignment this project is for, not an
-oversight, and it shapes everything else described below: there's no
-`DbContext`, no LINQ-to-SQL, no automatic migrations - just SQL strings,
+oversight, and it shapes everything else described below: there is no
+`DbContext`, no LINQ-to-SQL, no automatic migrations, just SQL strings,
 parameters, and manual `SqlConnection`/`SqlCommand` objects.
 
 The chain from a browser click to a database row looks like this:
@@ -34,21 +34,21 @@ Browser
 Every `SqlXxxStore` class follows the same shape: a constructor that takes a
 connection string, a private `Open()` helper that creates and opens a fresh
 `SqlConnection`, and one method per operation that opens a connection, runs
-one parameterised `SqlCommand`, and disposes everything via `using`. There is
-no connection pooling code of our own - ADO.NET/SQL Server already pool
-connections internally by connection string, so opening a new `SqlConnection`
-per call is cheap and is what the whole codebase does throughout.
+one parameterised `SqlCommand`, and disposes everything via `using`. We wrote
+no connection pooling code of our own, because ADO.NET and SQL Server already
+pool connections internally by connection string, so opening a new
+`SqlConnection` per call is cheap and is what we do throughout the codebase.
 
 ## 2. Schema-as-code: `Data/Sql/schema.sql`
 
-There's no migrations framework (no EF Migrations, no Flyway). Instead,
-**the entire schema lives in one plain SQL script**,
-`Data/Sql/schema.sql`, and it is re-run in full on *every single app
+We did not use a migrations framework (no EF Migrations, no Flyway). Instead
+**we keep the entire schema in one plain SQL script**,
+`Data/Sql/schema.sql`, and we re-run it in full on *every single app
 startup* (see `DbInitializer.RunSchemaScript`). See
 `DATABASE-CREATION-SCRIPT.md` for the full script inline and the equivalent
 `sqlcmd` commands to build the database by hand, outside the app. That only
-works safely because every statement in it is written to be a no-op once
-it's already been applied:
+works safely because we wrote every statement in it to be a no-op once
+it has already been applied:
 
 - **New tables** are wrapped in `IF OBJECT_ID('dbo.TableName', 'U') IS NULL
   BEGIN ... END` - created the first time the table is missing, skipped

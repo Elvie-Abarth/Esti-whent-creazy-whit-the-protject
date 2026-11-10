@@ -3,9 +3,9 @@ MARSVIN DATABASE - NOTES
 
 WHAT IT IS
 ----------
-This project uses SQL Server LocalDB (a lightweight SQL Server instance
-that runs under your Windows user account) as its database. It is NOT a
-file inside this project folder - it's managed by SQL Server itself.
+We use SQL Server LocalDB (a lightweight SQL Server instance that runs under
+your Windows user account) as the database for this project. It is NOT a
+file inside this project folder, it is managed by SQL Server itself.
 
 Database name:  MarsvinDb
 Server name:    (localdb)\MSSQLLocalDB
@@ -17,8 +17,8 @@ C:\Users\estib\MarsvinDb.mdf       (the data)
 C:\Users\estib\MarsvinDb_log.ldf   (the transaction log)
 
 The schema script (Data\Sql\schema.sql) and the connection string
-(appsettings.json) ARE part of this project - those are the source of
-truth. The .mdf/.ldf files are just the running database's storage and
+(appsettings.json) ARE part of this project, and those are our source of
+truth. The .mdf/.ldf files are just the running database's storage, and they
 get recreated automatically if they ever go missing (see below).
 
 HOW TO OPEN / BROWSE THE DATABASE
@@ -90,12 +90,12 @@ On startup, the app automatically:
 You do NOT need to manually create the database or run any SQL scripts
 yourself - just running the project handles it.
 
-NOTE: earlier versions of this project dropped and recreated the catalog
-tables on every startup. That stopped being safe once admin/employee
-pages could edit the catalog live - it would have erased their changes
-on every restart. Every table is now create-once. If you want a fully
-fresh database, delete it yourself (see below) and let the app recreate
-and reseed it.
+NOTE: in earlier versions we dropped and recreated the catalog tables on
+every startup. That stopped being safe once the admin/employee pages could
+edit the catalog live, because it would have erased their changes on every
+restart. So every table is now create-once. If you want a fully fresh
+database, delete it yourself (see below) and let the app recreate and
+reseed it.
 
 IF THE DATABASE WON'T CONNECT / SEEMS DISCONNECTED
 -----------------------------------------------------

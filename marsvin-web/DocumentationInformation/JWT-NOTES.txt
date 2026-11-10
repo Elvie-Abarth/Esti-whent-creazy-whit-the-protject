@@ -3,11 +3,11 @@ MARSVIN AND JWT - COOKIES FOR THE WEBSITE, JWT FOR THE API
 
 SHORT ANSWER
 ------------
-The website itself logs in with a cookie, not a JWT (JSON Web Token) - the
-reasons are below. Next to it there is a small JSON API under /api that
-uses JWT bearer tokens, so both are in the project and each is used where
-it fits. The cookie login was left alone: the API was ADDED beside it, the
-way the last section of this file always recommended.
+The website itself logs in with a cookie, not a JWT (JSON Web Token), and we
+explain why below. Next to it we built a small JSON API under /api that uses
+JWT bearer tokens, so both are in the project and each is used where it fits.
+We left the cookie login alone and ADDED the API beside it, the way the last
+section of this file always recommended.
 
   Website pages   cookie login (email link, optional authenticator code)
   /api/*          "Authorization: Bearer <JWT>"
@@ -37,17 +37,17 @@ holds the token can read them.
 
 WHY MARSVIN IS NOT BUILT THAT WAY
 ---------------------------------
-Marsvin is an ASP.NET Core Razor Pages site. The server builds the
-finished HTML page and sends it to the browser; there is no separate
-frontend application and no API for one to call. In that setup the
-browser only needs a login cookie, which it sends by itself on every
-request. A token that JavaScript has to store and attach by hand would
-add work and risk without solving anything.
+We built Marsvin as an ASP.NET Core Razor Pages site. The server builds the
+finished HTML page and sends it to the browser. There is no separate
+frontend application and no API for one to call. In that setup the browser
+only needs a login cookie, which it sends by itself on every request. A token
+that JavaScript has to store and attach by hand would add work and risk
+without solving anything for us.
 
 
 THE SAME IDEAS, IN COOKIE FORM
 ------------------------------
-Everything a JWT carries has a counterpart in Marsvin's login cookie:
+Everything a JWT carries has a counterpart in our login cookie:
 
   JWT concept                         What Marsvin does
   ----------------------------------  ------------------------------------------
@@ -73,7 +73,7 @@ WHERE THE COOKIE APPROACH IS STRONGER HERE
 ------------------------------------------
 1. Logging out actually works.
    A JWT is stateless: once issued it stays valid until it expires, and
-   the server has no way to take it back. Marsvin looks the account up in
+   the server has no way to take it back. We look the account up in
    the database on every request (AuthCookiePrincipal.RevalidateAsync),
    so these take effect on the very next click:
      - an admin deactivates or deletes the account
@@ -96,12 +96,12 @@ WHERE THE COOKIE APPROACH IS STRONGER HERE
 THE TRADE-OFF
 A cookie is sent automatically, which is what makes cross-site request
 forgery (CSRF) possible; a token in a header is not sent automatically
-and does not have that problem. Marsvin covers it with the antiforgery
-token that every form post requires, and SameSite=Lax on the cookie.
+and does not have that problem. We cover it with the antiforgery token
+that every form post requires, and SameSite=Lax on the cookie.
 
 Neither approach is "the secure one". JWT fits an API used by a separate
 frontend, a mobile app or another service. Cookies fit a server-rendered
-site. Marsvin is the second kind.
+site. Ours is the second kind.
 
 
 WHAT IS WRONG WITH THE TYPICAL EXAMPLE CODE
@@ -206,7 +206,7 @@ copy the auth cookie from the browser's developer tools, then
         -Headers @{ Cookie = ".AspNetCore.Cookies=<value>" }).token
   Invoke-RestMethod http://localhost:5080/api/me -Headers @{ Authorization = "Bearer $t" }
 
-Still true, and honest: this is a small demonstration API. There is no
-CORS configuration (so a browser frontend on another origin cannot call it),
+Still true, and honest: this is a small demonstration API we built. There is
+no CORS configuration (so a browser frontend on another origin cannot call it),
 no token revocation list beyond the account checks above, and no refresh
 tokens.

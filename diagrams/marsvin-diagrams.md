@@ -1,11 +1,11 @@
 # Marsvin - diagram set, 12 October 2026
 
-Twenty-five diagrams. Twenty-four were redrawn on 12 October 2026 (commit `03c9513`);
-the JWT API added on 28 October changed four of them and added one (see "What changed
-since 12 October" below). Each `.mermaid` file renders at
+We have twenty-five diagrams. We redrew twenty-four of them on 12 October 2026
+(commit `03c9513`); the JWT API we added on 28 October changed four of them and
+added one (see "What changed since 12 October" below). Each `.mermaid` file renders at
 <https://mermaid.live>, or paste it into a ```` ```mermaid ```` block. Ready-made PNGs
-are in `png/`, and `marsvin-diagrams.pdf` has them all in one file. The five 28 October
-diagrams (four changed, one new) had their PNGs rendered again, and the PDF was rebuilt, so
+are in `png/`, and `marsvin-diagrams.pdf` has them all in one file. For the five 28 October
+diagrams (four changed, one new) we rendered the PNGs again and rebuilt the PDF, so
 images, PDF and sources agree.
 
 > **Pending re-export (9 November).** Three sources changed on 9 November - `marsvin-navigation`,
@@ -13,7 +13,7 @@ images, PDF and sources agree.
 > Their `.mermaid` sources here are current; re-export their PNGs in `png/` and rebuild
 > `marsvin-diagrams.pdf` to bring the images back in step with the sources.
 
-The previous sets (`diagrams 09102026`, `diagrams 02102026`) are left untouched for
+We left the previous sets (`diagrams 09102026`, `diagrams 02102026`) untouched for
 comparison.
 
 | File | Diagram | Status vs 9 Oct |

@@ -1,8 +1,8 @@
 HOW TO START THE MARSVIN PROJECT
 ==================================
-A plain step-by-step guide. If you get stuck, the deeper reference docs
-are in marsvin-web\DocumentationInformation\ - but this file alone should
-be enough to get the site running.
+We wrote this as a plain step-by-step guide. If you get stuck, our deeper
+reference docs are in marsvin-web\DocumentationInformation\, but this file by
+itself should be enough to get the site running.
 
 
 STEP 0 - WHAT YOU NEED INSTALLED (one-time check)
@@ -73,8 +73,8 @@ folder:
 Open that file to get the passwords. Then go to
 http://localhost:5080/Account/Login and sign in with one of those.
 
-IMPORTANT: logging in here is a TWO-STEP process on purpose (that's a
-security feature, not a bug) - after you enter the password, it does NOT
+IMPORTANT: we made login here a TWO-STEP process on purpose (it is a
+security feature, not a bug). After you enter the password, it does NOT
 immediately log you in. Instead:
   1. Look back at your PowerShell terminal window (the one running
      "dotnet run"). Real emails aren't sent unless you've set up SMTP
@@ -126,8 +126,8 @@ Want a completely fresh/empty database?
 
 WANT MORE DETAIL?
 ----------------------
-- README.md (repo root) - full feature list, page-by-page map, and how
-  the security features work.
+- README.md (repo root) - our full feature list, page-by-page map, and how
+  we built the security features.
 - marsvin-web\DocumentationInformation\DATABASE-NOTES.txt - everything
   about the database: where it lives, demo credentials, resetting it,
   fixing LocalDB connection problems.

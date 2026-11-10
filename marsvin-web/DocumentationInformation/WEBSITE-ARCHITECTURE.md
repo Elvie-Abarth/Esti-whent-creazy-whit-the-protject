@@ -1,9 +1,9 @@
 # Marsvin website architecture
 
-This is the companion to `DATABASE-ARCHITECTURE.md` - that one explains the
-data layer, this one explains **the web application itself**: how a request
-becomes a response, how the site is organised, how login/roles/security
-work, how the bilingual DA/EN toggle works, and how it's tested. For
+This is the companion to `DATABASE-ARCHITECTURE.md`. That one explains the
+data layer, and this one explains **the web application itself**: how a request
+becomes a response, how we organised the site, how login, roles and security
+work, how the bilingual DA/EN toggle works, and how we test it. For
 operational how-tos (starting the project, credentials, resetting the DB),
 see `DATABASE-NOTES.txt`.
 
@@ -789,9 +789,9 @@ the language of the footer the sender adds itself.
 
 ## 9. Security practices (a summary - see the code comments for the "why")
 
-For the same ground organised by concept - authentication, authorization,
+For the same ground organised by concept (authentication, authorization,
 RBAC, least privilege, session management, SQL injection, XSS, input
-validation, output sanitising, and the known gaps - see
+validation, output sanitising, and the known gaps), see
 `SECURITY-NOTES.txt`.
 
 - **SQL injection**: every query is parameterised, no exceptions -

@@ -4,11 +4,11 @@
 resetting, credentials); `DATABASE-ARCHITECTURE.md` explains the *design*
 behind the schema. This is the missing piece: the literal commands that
 build `MarsvinDb` from nothing, both the ones the app runs itself and the
-equivalent you'd type by hand.
+equivalent you would type by hand.
 
-**The authoritative copy is `Data/Sql/schema.sql`** - the SQL below is a
-snapshot of it for easy reading here; if the two ever disagree, the file in
-`Data/Sql/` is the one the app actually runs. It's re-executed on every
+**The authoritative copy is `Data/Sql/schema.sql`.** The SQL below is a
+snapshot of it for easy reading here, and if the two ever disagree, the file
+in `Data/Sql/` is the one the app actually runs. We re-execute it on every
 `dotnet run`, guarded by `IF OBJECT_ID(...) IS NULL` / `IF COL_LENGTH(...)
 IS NULL` / `IF NOT EXISTS (...)` checks, so a table, column, or constraint
 is only ever created once and nothing is ever dropped.

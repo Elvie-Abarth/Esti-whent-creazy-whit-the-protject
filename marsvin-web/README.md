@@ -1,13 +1,12 @@
 # Marsvin — webpage example build
 
-A working ASP.NET Core 9 Razor Pages webshop for a guinea pig store, backed
-by real ADO.NET + SQL Server (no ORM). This folder is the whole app — the
-earlier "inspiration-only, no cart/checkout/login/admin/database" starter
-scaffold this project began as has since grown into a complete build with
-all of that. For the full picture (every route, the security write-up, how
-the tests are laid out, the documentation index), see the
-[top-level README](../README.md) one folder up; this file is just the
-quick-start for working inside `marsvin-web/` itself.
+This is our ASP.NET Core 9 Razor Pages webshop for a guinea pig store, backed
+by real ADO.NET and SQL Server (no ORM). This folder is the whole app. It
+started as an inspiration-only scaffold with no cart, checkout, login, admin or
+database, and we grew it into a complete build with all of that. For the full
+picture (every route, the security write-up, how we laid out the tests, the
+documentation index), see the [top-level README](../README.md) one folder up.
+This file is just the quick-start for working inside `marsvin-web/` itself.
 
 ## Run it
 
@@ -19,8 +18,8 @@ dotnet run
 
 Open <http://localhost:5080>. Press Ctrl+C to stop.
 
-On first run this creates a `MarsvinDb` database on
-`(localdb)\MSSQLLocalDB`, runs the schema, and seeds it with demo data — see
+On the first run the app creates a `MarsvinDb` database on
+`(localdb)\MSSQLLocalDB`, runs the schema, and seeds it with demo data. See
 `DocumentationInformation/DATABASE-NOTES.txt` for where the files live, how
 to browse the database, and how to recover if LocalDB gets disconnected.
 
@@ -42,8 +41,8 @@ You need the **.NET 9 SDK**, for VS Code the **C# Dev Kit** extension, and
 | Kvittering | `/Cart/Confirmation/{orderId}` | The buyer | Order receipt with status and cancel, and a confetti animation on load |
 | Personale / admin | `/Admin/*` | Employee, Admin | Schedule, stock, orders (status + tracking), messages, donations, catalog/promotions CRUD, accounts, audit log |
 
-The guinea pig in the corner of every page is the support chat ("Pip") - a
-keyword lookup inside the app, not an AI service.
+The guinea pig in the corner of every page is our support chat ("Pip"). We
+made it a keyword lookup inside the app, not an AI service.
 
 (The full route table with every admin sub-page lives in the top-level
 README and in `DocumentationInformation/WEBSITE-ARCHITECTURE.md`.)
@@ -61,25 +60,26 @@ wwwroot/js/      lang-toggle, confirm-delete, cart-quantity, password-meter, con
 
 ## Design notes
 
-The palette comes from the shop's own materials rather than a generic template:
-dried hay (`#F0E7D2`), meadow green (`#2C4327`), and the bright fleece
+We took the palette from the shop's own materials instead of a generic
+template: dried hay (`#F0E7D2`), meadow green (`#2C4327`), and the bright fleece
 (`#B83C6E`) that guinea pig owners actually line cages with.
 
-Two structural decisions worth keeping if you rebuild the styling yourself:
+Two structural decisions we think are worth keeping if you rebuild the styling
+yourself:
 
 **Animals are bordered, accessories are not.** A guinea pig gets a full border
-and its own profile because it is an individual; a bag of hay gets a hairline
-rule because it's stock. The visual difference carries the same information as
+and its own profile because it is an individual. A bag of hay gets a hairline
+rule because it is stock. The visual difference carries the same information as
 the class hierarchy.
 
 **Bonded pairs are drawn as one unit** with a shared header strip, and adding
-one half of a pair to the cart automatically adds the other — the rule that
-guinea pigs are sold in pairs is the shop's whole character, so both the
-layout and the checkout state it rather than burying it in a paragraph.
+one half of a pair to the cart automatically adds the other. The rule that
+guinea pigs are sold in pairs is the shop's whole character, so we let both the
+layout and the checkout state it instead of burying it in a paragraph.
 
-Each animal without an uploaded photo is drawn as inline SVG tinted from its
+We draw each animal without an uploaded photo as inline SVG, tinted from its
 own `CoatPrimary` and `CoatSecondary` values, so a missing photo never looks
 like a broken image or generic stock art.
 
-Responsive down to mobile, visible keyboard focus, and `prefers-reduced-motion`
-respected.
+The site is responsive down to mobile, keyboard focus is visible, and we respect
+`prefers-reduced-motion`.

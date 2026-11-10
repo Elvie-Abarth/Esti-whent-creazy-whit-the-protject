@@ -4,8 +4,8 @@ MARSVIN SECURITY NOTES
 WHAT THIS FILE IS
 -----------------
 This file follows the security topics of the course and says, for each
-one, how Marsvin implements it, where in the code, and where the project
-falls short of the ideal.
+one, how we built it in Marsvin, where in the code it lives, and where the
+project falls short of the ideal.
 
   Part 1 - Access: authentication, authorization, role-based access
            control (RBAC), least privilege and session management
@@ -13,7 +13,7 @@ falls short of the ideal.
            validation and output sanitising
   Then   - How it is tested, and where the project falls short
 
-It is an overview; the full technical walk-through is in
+It is an overview. We put the full technical walk-through in
 WEBSITE-ARCHITECTURE.md (section 4 for login and sessions, section 9 for
 the security summary).
 
@@ -576,8 +576,8 @@ email and a log.
 
 HOW IT IS TESTED
 ================
-"dotnet test" runs 761 automated tests. The ones that pin down a claim
-made in this file:
+When we run "dotnet test" it runs 761 automated tests. The ones that pin
+down a claim we make in this file:
 
   Claim                                 Test
   ------------------------------------  ---------------------------------
@@ -653,7 +653,7 @@ mail through SMTP.
 
 WHERE THE PROJECT FALLS SHORT
 =============================
-Honest gaps, worth knowing for a report or an exam:
+Honest gaps we think are worth knowing for a report or an exam:
 
 - The donation form can make the shop send an email to an address someone
   else typed in. The form used to send no mail at all, precisely to avoid

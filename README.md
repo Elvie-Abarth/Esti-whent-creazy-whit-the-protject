@@ -1,20 +1,20 @@
 # Marsvin — webpage example build
 
-A working ASP.NET Core 9 Razor Pages guinea pig shop, backed by a real SQL
-Server LocalDB database via plain ADO.NET — with accounts, roles, a cart and
-checkout, staff scheduling, and an admin panel.
+This is our guinea pig shop. We built it with ASP.NET Core 9 and Razor Pages,
+and it keeps everything in a real SQL Server LocalDB database. We chose plain
+ADO.NET to talk to the database, so there is no ORM in the way. It has accounts
+and roles, a cart and checkout, a staff schedule, and an admin panel.
 
-> Created with the help of Claude (AI).
+> We built this with help from Claude (AI).
 
-**A note on scope.** This repo started as visual/structural inspiration only,
-deliberately stopping short of the graded assignment (no cart, no login, no
-admin — "you learn nothing from me handing them over"). The auth, cart, and
-admin panel described below were added later, at explicit request, after
-being told directly that this is most of the graded work for a *secure
-coding* course. If this is your assignment: the point of that course is very
-likely the security decisions in here (password hashing, session handling,
-role-based authorization, preventing IDOR) — copying this in defeats that.
-Read it to see one way it can be done, then build your own.
+**A note on scope.** We started this repo as visual and structural inspiration
+only. At first we left out the graded parts on purpose: no cart, no login, no
+admin. You learn nothing from someone handing those over. We added the auth,
+cart, and admin panel later, when we decided to take the project further for our
+secure coding course. If this is your assignment too: the point of that course
+is probably the security choices in here, like password hashing, session
+handling, role based authorization, and stopping IDOR. Copying this in defeats
+that. Read it to see one way it can be done, then build your own.
 
 ## Run it
 
@@ -26,15 +26,16 @@ dotnet run
 
 Open <http://localhost:5080>. Press Ctrl+C to stop.
 
-On first run this automatically creates a `MarsvinDb` database on
-`(localdb)\MSSQLLocalDB`, runs the schema, and seeds it with demo data — see
+On the first run the app creates a `MarsvinDb` database on
+`(localdb)\MSSQLLocalDB`, runs the schema, and seeds it with demo data. See
 `marsvin-web/DocumentationInformation/DATABASE-NOTES.txt` for where the files
 live, how to browse the database, and how to recover if LocalDB gets
 disconnected.
 
-Login here is email-confirmation-only (see below) — without real SMTP
-credentials configured, confirmation links are logged to the console instead
-of emailed, so the app is fully usable out of the box. To send real mail, set
+Login here is email confirmation only (see below). We did not want to depend on
+a real mail server to try the app, so without SMTP credentials configured the
+confirmation links are written to the console instead of emailed, and the app
+still works out of the box. To send real mail, set
 `dotnet user-secrets set Email:Username ...` / `Email:Password ...` from the
 `marsvin-web` folder (see `DocumentationInformation/DATABASE-NOTES.txt`).
 
@@ -47,22 +48,22 @@ turn it on, get a reCAPTCHA v2 ("I'm not a robot" checkbox) key pair from
 into the page), and set the secret key with
 `dotnet user-secrets set Recaptcha:SecretKey ...` (never commit that one).
 
-The support chat ("Pip", the guinea pig in the corner) needs no setup and
-no key: it is a keyword lookup inside the app, not an AI service, so it
-costs nothing to run. It knows the shop's public content - animals,
-accessories and brands, the care guide and food list, delivery, returns, and
-the FAQ (`Data/ShopKnowledge.cs`) - and tolerates misspellings (one or two
-wrong letters, or aa/ae/oe typed for the Danish letters). It can also work a
-few things out: whether the shop is open right now, what a parcel of a
-given weight costs to send, how big a cage a number of guinea pigs needs,
-which animals are for sale, and a yes or no on a food. It understands a
-follow-up ("what does she cost?") and several questions in one message, and
-the "i" button in the chat shows what can be asked. It knows nothing about
-people (orders, accounts, customers, staff) and nothing about how the site
-is built or secured, and turns such questions away - there is nothing
-private in its knowledge for any wording to dig out. It also refuses a
-message containing an email address or a long number, and answers anything
-that sounds like a sick animal with "contact a vet", never a diagnosis.
+The support chat ("Pip", the guinea pig in the corner) needs no setup and no
+key. We made it a keyword lookup inside the app, not an AI service, so it costs
+nothing to run and there is nothing to bill or call out. It knows the shop's
+public content: animals, accessories and brands, the care guide and food list,
+delivery, returns, and the FAQ (`Data/ShopKnowledge.cs`). It copes with
+misspellings too (one or two wrong letters, or aa/ae/oe typed for the Danish
+letters). It can also work a few things out: whether the shop is open right now,
+what a parcel of a given weight costs to send, how big a cage a number of guinea
+pigs needs, which animals are for sale, and a yes or no on a food. It follows up
+("what does she cost?") and takes several questions in one message, and the "i"
+button in the chat shows what can be asked. It knows nothing about people
+(orders, accounts, customers, staff) and nothing about how the site is built or
+secured, and it turns those questions away. There is nothing private in its
+knowledge for any wording to dig out. It also refuses a message that contains an
+email address or a long number, and it answers anything that sounds like a sick
+animal with "contact a vet", never a diagnosis.
 
 Nothing in this project costs money to run: the database is LocalDB, email
 is logged to the console unless you add your own SMTP account, reCAPTCHA is
@@ -80,12 +81,12 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-779 tests, three layers:
+779 tests, in three layers:
 
-- **In-memory unit tests** — models, bilingual text handling, page logic that
+- **In-memory unit tests**: models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
 - **Integration tests against a disposable `MarsvinDb_Test` LocalDB
-  database** — the SQL data layer (`SqlUserAccountStore`, `SqlCartStore`,
+  database**: the SQL data layer (`SqlUserAccountStore`, `SqlCartStore`,
   `SqlOrderStore`, `SqlPromotionStore`, `SqlCatalog`, `SqlShiftStore`,
   `SqlTimeOffRequestStore`, `SqlAuditLogStore`), plus security-critical
   `PageModel` logic called directly: the checkout transaction (stock
@@ -93,10 +94,10 @@ dotnet test
   admin self-protection guard, cart validation, login lockout, the
   email-confirmation login/register flow, and the GDPR inactivity-cleanup job.
 - **End-to-end HTTP tests against a disposable `MarsvinDb_WebTest`
-  database**, driving the real app in-process via `WebApplicationFactory<Program>`
-  — the layer above can't see actual antiforgery/CSRF behavior or cookie
-  flags, since calling a `PageModel` method directly skips the middleware
-  pipeline entirely. These prove: a POST without an antiforgery token is
+  database**, driving the real app in-process via `WebApplicationFactory<Program>`.
+  We needed this layer because the one above it can't see actual
+  antiforgery/CSRF behavior or cookie flags: calling a `PageModel` method
+  directly skips the middleware pipeline entirely. These prove: a POST without an antiforgery token is
   rejected (400), a token from a different session is rejected (400) even
   though it's validly-formed, the auth cookie is `HttpOnly`, logging out
   actually expires that cookie and blocks a subsequent request to a protected
@@ -108,8 +109,8 @@ dotnet test
 
 The admin pages' own logic (what each handler saves, refuses and writes to
 the audit log) and the language of every email are covered in the middle
-layer. Not covered: the JavaScript in `wwwroot/js` - there is no browser
-test setup - and actually delivering mail through SMTP.
+layer. Two things we did not test: the JavaScript in `wwwroot/js`, because we
+never set up a browser test, and actually delivering mail through SMTP.
 
 All three require LocalDB installed and running (`sqllocaldb info`).
 
@@ -145,18 +146,18 @@ All three require LocalDB installed and running (`sqllocaldb info`).
 | Logbog | `/Admin/AuditLog/Index` | Admin | Who changed what, and when — every admin/employee write action |
 | Sikkerhedslog | `/Admin/SecurityLog/Index` | Admin | Recorded attack *attempts* — failed logins, locked accounts, wrong-role requests, rate limits, rejected forms; admins are emailed when a pattern crosses a threshold (attempt alerting, not breach detection) |
 
-Every page also has an **EN / DA** toggle in the header — the site defaults
-to Danish and switches to English client-side, remembering the choice per
-browser. Emails follow it: every mail the shop sends is written in Danish
-or English, after the language the reader has the site in (kept in a small
-`marsvin-lang` cookie, and on the account and the order for mails the
-reader does not trigger themselves).
+Every page also has an **EN / DA** toggle in the header. The site defaults to
+Danish and switches to English client-side, and it remembers the choice per
+browser. Emails follow it: every mail the shop sends is written in Danish or
+English, after the language the reader has the site in (kept in a small
+`marsvin-lang` cookie, and on the account and the order for mails the reader
+does not trigger themselves).
 
 Demo accounts (seeded once, on a fresh database): `admin@marsvin.dk` and
 `employee@marsvin.dk` … `employee4@marsvin.dk`. **Their passwords are not in
-this repo.** On first run a random password is generated and written to
-`demo-credentials.local.txt` (git-ignored) in the app folder — open that file to
-sign in. To set your own instead, before first run:
+this repo.** On the first run a random password is generated and written to
+`demo-credentials.local.txt` (git-ignored) in the app folder. Open that file to
+sign in. To set your own instead, before the first run:
 
 ```
 dotnet user-secrets set "Demo:AdminPassword" <your-value>
@@ -207,7 +208,7 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 ## How the security-relevant parts work
 
 - **Passwords**: hashed with ASP.NET Core's `PasswordHasher<T>` (PBKDF2-HMAC-SHA512,
-  100k iterations, salted) — never stored or logged in plain text. One shared
+  100k iterations, salted), and never stored or logged in plain text. One shared
   policy (`Models/PasswordPolicy.cs`) is enforced server-side wherever a
   password is set: at least 12 characters (15 for an Admin account, which can
   change prices, roles and other accounts), upper and lower case, a digit, a
@@ -219,14 +220,14 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   actually accept.
 - **Login and registration both require email confirmation**, not just a
   password: a single-use, 15-minute link is emailed, and only opening it
-  (`ConfirmLoginModel`) actually signs the session in — proof of inbox
+  (`ConfirmLoginModel`) actually signs the session in: proof of inbox
   access, not just of knowing (or guessing) a password. Only the SHA-256
   hash of the token is ever stored (`PendingLogins`), the same way a
   password never is. Forgot-password reuses the same mechanism.
 - **No account enumeration.** Login gives one "wrong email or password" for
   every failure, forgot-password answers the same whether or not the address
   exists, and registering with an already-registered email returns the same
-  "check your email" as a new sign-up — the "you already have an account"
+  "check your email" as a new sign-up. The "you already have an account"
   notice goes to that inbox, never back to the browser. None of the three
   forms can be used to find out who has an account.
 - **Sessions**: cookie authentication (`HttpOnly`, `SameSite=Lax`, `Secure`
@@ -255,11 +256,11 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   it's gone on that account's very next request.
 - **IDOR guard on orders**: `/Cart/Confirmation/{orderId}` looks up the order
   *and* checks it belongs to the logged-in user in the same query
-  (`IOrderStore.FindForUser`) — you can't view someone else's order by
+  (`IOrderStore.FindForUser`). You can't view someone else's order by
   guessing the ID. A guest checkout has no account for that ownership check
   to use, so it's gated a different way instead: the new order's id is
   stamped into that same browser's own session right after checkout, and
-  only an exact match is ever trusted — not just "any guest order".
+  only an exact match is ever trusted, not just "any guest order".
 - **Shipping is priced server-side, never from the form.** The payment page
   shows each carrier's price, destination (door or parcel shop), expected
   delivery, total weight and parcel count (`ShippingCalculator` - demo rates,
@@ -284,13 +285,13 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   partially fulfilling it.
 - **Self-protection on `/Admin/Users`**: an admin can't change their own role
   or deactivate their own account (only someone else's), and the last active
-  admin account can't be demoted, deactivated, or deleted by anyone — so the
+  admin account can't be demoted, deactivated, or deleted by anyone, so the
   shop can never end up with zero admins.
 - **Rate limiting + login throttling**: `/Account/Login`, `/Account/Register`,
   and `/Account/ForgotPassword` are rate-limited per client IP (see the
   `"auth"` policy in `Program.cs`), and 5 failed login attempts for one email
-  locks it out for 5 minutes (in-memory — fine for a demo, would need to be
-  persisted for a real multi-instance deployment).
+  locks it out for 5 minutes (in-memory, fine for a demo, but it would need to
+  be persisted for a real multi-instance deployment).
 - **Security headers**: CSP, `X-Content-Type-Options`, `X-Frame-Options`, and
   `Referrer-Policy` are set on every response (see `Program.cs`).
 - **Compression without BREACH**: the stylesheet, scripts and SVGs are
@@ -315,7 +316,7 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 - **The donation thank-you can't carry someone else's words**: it goes to
   an address the giver typed, so the wording is fixed, none of the giver's
   free text is repeated, and the form is rate-limited.
-- **No raw SQL string-building anywhere** — every query is a parameterised
+- **No raw SQL string-building anywhere**: every query is a parameterised
   `SqlCommand`, including the admin CRUD forms.
 - **CSRF**: Razor Pages validates the antiforgery token on every POST handler
   automatically; every form here uses `method="post"` with the framework's
@@ -323,12 +324,12 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
 - **No inline `onclick`/`onsubmit` with interpolated data.** A destructive
   action's confirmation dialog reads its message from a `data-confirm`
   attribute (HTML-encoded by Razor) via a small delegated script
-  (`confirm-delete.js`), rather than building a JavaScript string directly —
-  the latter is decoded back to raw characters by the browser before being
+  (`confirm-delete.js`), rather than building a JavaScript string directly.
+  The latter is decoded back to raw characters by the browser before being
   parsed as JS, which HTML-encoding alone doesn't protect against.
 - **Security monitoring**: attack *attempts* (failed logins, locked
   accounts, wrong-role page requests, rate-limit hits, rejected forms) are
-  recorded as `SecurityEvent`s — metadata only, never a password or token —
+  recorded as `SecurityEvent`s (metadata only, never a password or token),
   readable by an admin on `/Admin/SecurityLog`. When a pattern crosses a
   threshold (e.g. a burst of failed logins from one IP across several
   accounts), `SecurityAlerter` emails the admins, with a cooldown so a
@@ -339,75 +340,75 @@ marsvin-web.Tests/  xUnit tests for models, pages, and the SQL layer
   changes, deletions, account creation) is recorded with who did it and when
   (`/Admin/AuditLog`), read-only after writing.
 - **GDPR-style data retention**: a background service (`InactiveAccountCleanupService`)
-  warns, then deletes, Customer accounts inactive for 2 years — see
+  warns, then deletes, Customer accounts inactive for 2 years. See
   `/Privatliv` for the policy.
 
-The database layer (`SqlCatalog`, `SqlUserAccountStore`, `SqlCartStore`,
+Our database layer (`SqlCatalog`, `SqlUserAccountStore`, `SqlCartStore`,
 `SqlOrderStore`, `SqlPromotionStore`, `SqlShiftStore`, `SqlTimeOffRequestStore`,
 `SqlAuditLogStore`, `SqlPendingLoginStore`) uses plain ADO.NET with
-parameterised `SqlCommand` throughout — no ORM. The `Product` / `StockProduct`
-/ `Animal` hierarchy is shaped for the `ProductType` discriminator column.
+parameterised `SqlCommand` throughout, and no ORM. We shaped the `Product` /
+`StockProduct` / `Animal` hierarchy around the `ProductType` discriminator column.
 
 ## Design notes
 
-The palette comes from the shop's own materials rather than a generic template:
-dried hay (`#F0E7D2`), meadow green (`#2C4327`), and the bright fleece
+We took the palette from the shop's own materials instead of a generic
+template: dried hay (`#F0E7D2`), meadow green (`#2C4327`), and the bright fleece
 (`#B83C6E`) that guinea pig owners actually line cages with.
 
-Two structural decisions worth keeping if you rebuild the styling yourself:
+Two structural decisions we think are worth keeping if you rebuild the styling
+yourself:
 
 **Animals get a profile, accessories get a shelf.** A guinea pig has its own
-page, its name, age and personality, because it is an individual; a bag of
+page, with its name, age and personality, because it is an individual. A bag of
 hay is a card in a filterable grid with a photo, a price and a stock level,
-because it's stock. The visual difference carries the same information as
-the class hierarchy.
+because it is stock. The visual difference carries the same information as the
+class hierarchy.
 
 **Bonded pairs are drawn as one unit** with a shared header strip. The rule that
-guinea pigs are sold in pairs is the shop's whole character, so the layout states
-it rather than burying it in a paragraph.
+guinea pigs are sold in pairs is the shop's whole character, so we let the layout
+state it instead of burying it in a paragraph.
 
-Each animal without a photo is drawn as inline SVG tinted from its own
+We draw each animal without a photo as inline SVG, tinted from its own
 `CoatPrimary` and `CoatSecondary` values, so a missing photo never looks like a
-broken image. Set an animal's `PhotoUrl` to swap in a real photo — the
-illustration stays as the fallback for every animal that doesn't have one yet,
+broken image. Set an animal's `PhotoUrl` to swap in a real photo. The
+illustration stays as the fallback for every animal that does not have one yet,
 and animals with a photo are listed first.
 
-Photos are saved at the size they are shown, and nothing is loaded from another
+We save photos at the size they are shown, and nothing is loaded from another
 site (no web fonts, no CDN), so pages stay light. The product photos, brand
-names and logos belong to their owners — this is a school project that is not
-online; don't reuse them in anything that is.
+names and logos belong to their owners. This is a school project that is not
+online, so do not reuse them in anything that is.
 
-Responsive down to mobile, visible keyboard focus, and `prefers-reduced-motion`
-respected.
+The site is responsive down to mobile, keyboard focus is visible, and we respect
+`prefers-reduced-motion`.
 
 ## More documentation
 
-Deeper reference docs live in `marsvin-web/DocumentationInformation/`:
+We put the deeper reference docs in `marsvin-web/DocumentationInformation/`:
 
-- **`DATABASE-NOTES.txt`** — operational how-tos: starting the project,
+- **`DATABASE-NOTES.txt`**: operational how-tos. Starting the project,
   demo credentials, where the LocalDB files live, resetting the database.
-- **`DATABASE-ARCHITECTURE.md`** — the data layer: schema-as-code, all 15
-  tables and why they are shaped as they are, the store pattern,
-  transactions/locking, seeding.
-- **`DATABASE-CREATION-SCRIPT.md`** — the literal commands that build the
-  database: what `dotnet run` does automatically, the full schema script,
+- **`DATABASE-ARCHITECTURE.md`**: the data layer. Schema-as-code, all 15
+  tables and why we shaped them the way we did, the store pattern,
+  transactions and locking, seeding.
+- **`DATABASE-CREATION-SCRIPT.md`**: the literal commands that build the
+  database. What `dotnet run` does automatically, the full schema script,
   and the equivalent `sqlcmd` steps to do it by hand.
-- **`SECURITY-NOTES.txt`** — the course's security topics one by one:
-  authentication, authorization, RBAC, least privilege, sessions, SQL
-  injection, XSS, input validation and output sanitising - how each is
-  implemented here, with test results, which automated test backs which
-  claim, and where the project falls short.
-- **Diagrams** — the ER diagram, class diagrams, data flow diagram with
+- **`SECURITY-NOTES.txt`**: the course's security topics one by one.
+  Authentication, authorization, RBAC, least privilege, sessions, SQL
+  injection, XSS, input validation and output sanitising, with how we did each
+  one here, test results, which automated test backs which claim, and where the
+  project falls short.
+- **Diagrams**: the ER diagram, class diagrams, data flow diagram with
   trust boundaries, navigation map, sequence and state diagrams live in
-  `diagrams/` (the 12 October set; the
-  earlier sets are still kept outside the repository): 25 Mermaid sources, PNGs
-  (`png/`) and one PDF. Two were added on 12 October: which language an email is
-  written in, and the donation flow. The JWT API sequence
-  (`marsvin-sequence-jwt-api`) was added on 28 October, when the class, data flow,
-  navigation and deployment diagrams were also updated for it.
-- **`JWT-NOTES.txt`** — why the website uses cookie authentication, how
+  `diagrams/` (the 12 October set; the earlier sets are still kept outside the
+  repository). 25 Mermaid sources, PNGs (`png/`) and one PDF. Two were added on
+  12 October: which language an email is written in, and the donation flow. The
+  JWT API sequence (`marsvin-sequence-jwt-api`) was added on 28 October, when the
+  class, data flow, navigation and deployment diagrams were also updated for it.
+- **`JWT-NOTES.txt`**: why the website uses cookie authentication, how
   cookies and JWT compare, and the small JWT-secured JSON API under `/api`
   that sits next to it (how to get and use a token, what makes one useless).
-- **`WEBSITE-ARCHITECTURE.md`** — the web app itself: request pipeline,
+- **`WEBSITE-ARCHITECTURE.md`**: the web app itself. Request pipeline,
   auth flow, site map, checkout and shipping, the bilingual DA/EN system,
   security practices, testing strategy, and how the support chat works.
