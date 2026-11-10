@@ -575,7 +575,7 @@ email and a log.
 
 HOW IT IS TESTED
 ================
-When we run "dotnet test" it runs 761 automated tests. The ones that pin
+When we run "dotnet test" it runs 779 automated tests. The ones that pin
 down a claim we make in this file:
 
   Claim                                 Test
