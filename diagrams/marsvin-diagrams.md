@@ -10,11 +10,10 @@ images, PDF and sources agree.
 
 > **Re-export status (10 November).** Three sources changed on 9 November -
 > `marsvin-navigation`, `marsvin-sequence-login` and `marsvin-deployment` (see
-> "What changed on 9 November" below). We re-rendered the PNGs for
-> `marsvin-navigation` and `marsvin-deployment` on 10 November, so those two
-> images match their sources again. Still pending: the `marsvin-sequence-login`
-> PNG, and a rebuild of the combined `marsvin-diagrams.pdf` (all `.mermaid`
-> sources here are current and render fresh at <https://mermaid.live>).
+> "What changed on 9 November" below). We re-rendered all three PNGs on
+> 10 November, so every image in `png/` matches its source again. Still pending:
+> a rebuild of the combined `marsvin-diagrams.pdf` (all `.mermaid` sources here
+> are current and render fresh at <https://mermaid.live>).
 
 We left the previous sets (`diagrams 09102026`, `diagrams 02102026`) untouched for
 comparison.
