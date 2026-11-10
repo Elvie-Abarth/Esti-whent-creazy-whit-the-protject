@@ -202,7 +202,7 @@ public class EndToEndAuthTests(MarsvinWebAppFactory factory)
         {
             ["__RequestVerificationToken"] = loginToken,
             ["Input.Email"] = "employee@marsvin.dk",
-            ["Input.Password"] = "Clover-Meadow-8!"
+            ["Input.Password"] = MarsvinWebAppFactory.DemoStaffPassword
         });
         await HttpTestHelpers.CompleteEmailConfirmation(client, jar, "employee@marsvin.dk");
 

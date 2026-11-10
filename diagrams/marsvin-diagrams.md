@@ -39,7 +39,7 @@ comparison.
 | `marsvin-sequence-inactivity-cleanup` | Sequence, GDPR account deletion | updated |
 | `marsvin-state-animal` | State machine, Animal | unchanged |
 | `marsvin-state-order` | State machine, Order | updated |
-| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 781 tests - 10 Nov** |
+| `marsvin-deployment` | Deployment | updated, **/api, Jwt:Key - 28 Oct; 779 tests - 10 Nov** |
 | `marsvin-activity-checkout` | Activity diagram | updated |
 | `marsvin-ssd-place-order` | System sequence diagram | updated |
 | `marsvin-communication-checkout` | Communication diagram | updated |
@@ -69,8 +69,16 @@ All 24 PNGs from 12 October were rendered in one style.
   password strength meter's pig now visibly walks (a waddle + foot-step
   animation while it travels). None of this touches a route, data flow, trust
   boundary or table, so **no diagram changes** - the only ripple is one new
-  front-page test, so the test count is now **781** (shown only on the
-  deployment diagram).
+  front-page test (shown only on the deployment diagram).
+- **Demo-account passwords removed from source and docs.** The seed no longer
+  hard-codes a password: `DemoCredentials` reads `Demo:AdminPassword` /
+  `Demo:StaffPassword` from user-secrets/env, or generates a random
+  policy-passing password per account on a fresh database and writes it ONLY to
+  a git-ignored local file (`demo-credentials.local.txt`) - never logged, never
+  committed. Tests inject a throwaway value through the harness, exactly like
+  the Jwt key. No diagram changes (the deployment diagram already shows secrets
+  coming from User Secrets / env). Net test count after both 10 Nov changes:
+  **779**.
 
 ## What changed on 9 November
 
@@ -92,8 +100,8 @@ All 24 PNGs from 12 October were rendered in one style.
 - **Common-password blocklist + fixed demo seed.** "Not an obvious password" is
   now two checks: a substring list of shop words, and a large EXACT-match list of
   common passwords (`CommonPasswordList`, loaded from `Data/CommonPasswords.txt`,
-  ASVS 6.2.4). The seeded demo accounts got policy-passing passwords (the old
-  `Admin123!`/`Employee123!` were too short / blocklisted). 11 new tests
+  ASVS 6.2.4). The seeded demo accounts got policy-passing passwords instead of
+  the old short/blocklisted ones. 11 new tests
   (**780 total**) - again only the test count in the **deployment** diagram moves.
 - No database or access-control change: the role checks on every `/Admin` page are
   unchanged, so only the two diagrams above moved.

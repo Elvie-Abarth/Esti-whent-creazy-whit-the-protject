@@ -154,7 +154,7 @@ var connectionString = builder.Configuration.GetConnectionString("MarsvinDb")
 // reseeded from DemoCatalog every run; Users/Orders/CartItems/Promotions are
 // created once and never touched again - see DbInitializer.cs). Every
 // request after that reads and writes through plain ADO.NET, parameterised.
-DbInitializer.EnsureCreatedAndSeeded(connectionString);
+DbInitializer.EnsureCreatedAndSeeded(connectionString, builder.Configuration, builder.Environment.ContentRootPath);
 
 // SqlCatalog is scoped, not singleton: ICatalogAdmin lets admin/employee
 // edit the catalog mid-run, and a cached singleton would go stale until

@@ -241,7 +241,7 @@ public class EndToEndJwtApiTests(MarsvinWebAppFactory factory)
     public async Task AnEmployeeToken_ReachesTheOrders_ButNotTheAccounts()
     {
         var client = MakeClient();
-        var token = await TokenFor(client, "employee@marsvin.dk", "Clover-Meadow-8!");
+        var token = await TokenFor(client, "employee@marsvin.dk", MarsvinWebAppFactory.DemoStaffPassword);
 
         Assert.Equal(HttpStatusCode.OK, (await GetWithBearer(client, "/api/admin/orders", token)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await GetWithBearer(client, "/api/admin/users", token)).StatusCode);
@@ -251,7 +251,7 @@ public class EndToEndJwtApiTests(MarsvinWebAppFactory factory)
     public async Task AnAdminToken_ReachesEverything_AndTheAccountListNeverShowsPasswords()
     {
         var client = MakeClient();
-        var token = await TokenFor(client, "admin@marsvin.dk", "Hay-Carrot-Oak-River-7!");
+        var token = await TokenFor(client, "admin@marsvin.dk", MarsvinWebAppFactory.DemoAdminPassword);
 
         Assert.Equal(HttpStatusCode.OK, (await GetWithBearer(client, "/api/admin/orders", token)).StatusCode);
         var users = await GetWithBearer(client, "/api/admin/users", token);

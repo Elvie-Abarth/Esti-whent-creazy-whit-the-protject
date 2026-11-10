@@ -53,10 +53,10 @@ public class EndToEndAdminAccessTests(MarsvinWebAppFactory factory)
     }
 
     private static Task SignInAsEmployee(HttpClient client, CookieJar jar) =>
-        SignInAs(client, jar, "employee@marsvin.dk", "Clover-Meadow-8!");
+        SignInAs(client, jar, "employee@marsvin.dk", MarsvinWebAppFactory.DemoStaffPassword);
 
     private static Task SignInAsAdmin(HttpClient client, CookieJar jar) =>
-        SignInAs(client, jar, "admin@marsvin.dk", "Hay-Carrot-Oak-River-7!");
+        SignInAs(client, jar, "admin@marsvin.dk", MarsvinWebAppFactory.DemoAdminPassword);
 
     private static async Task SignInAsNewCustomer(HttpClient client, CookieJar jar)
     {

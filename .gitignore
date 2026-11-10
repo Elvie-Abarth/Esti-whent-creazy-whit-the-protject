@@ -17,3 +17,6 @@ TestResults/
 
 ## Generated directory tree dump (editor/IDE artefact, not source)
 structure.txt
+
+## Local demo-account credentials, generated on first run - never committed
+demo-credentials.local.txt

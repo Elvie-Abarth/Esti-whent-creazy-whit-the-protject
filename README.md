@@ -80,7 +80,7 @@ From the `marsvin-webpage-example` folder (the solution root):
 dotnet test
 ```
 
-781 tests, three layers:
+779 tests, three layers:
 
 - **In-memory unit tests** — models, bilingual text handling, page logic that
   needs no database (e.g. cart-line totals, catalog grouping).
@@ -152,18 +152,19 @@ or English, after the language the reader has the site in (kept in a small
 `marsvin-lang` cookie, and on the account and the order for mails the
 reader does not trigger themselves).
 
-Demo login credentials (seeded once, on a fresh database — see
-`marsvin-web/DocumentationInformation/DATABASE-NOTES.txt`):
+Demo accounts (seeded once, on a fresh database): `admin@marsvin.dk` and
+`employee@marsvin.dk` … `employee4@marsvin.dk`. **Their passwords are not in
+this repo.** On first run a random password is generated and written to
+`demo-credentials.local.txt` (git-ignored) in the app folder — open that file to
+sign in. To set your own instead, before first run:
 
 ```
-Admin:    admin@marsvin.dk     / Hay-Carrot-Oak-River-7!
-Employee: employee@marsvin.dk  / Clover-Meadow-8!
-Employee: employee2@marsvin.dk / Clover-Meadow-8!
-Employee: employee3@marsvin.dk / Clover-Meadow-8!
-Employee: employee4@marsvin.dk / Clover-Meadow-8!
+dotnet user-secrets set "Demo:AdminPassword" <your-value>
+dotnet user-secrets set "Demo:StaffPassword" <your-value>
 ```
 
-Customers always self-register; there's no seeded customer account.
+See `marsvin-web/DocumentationInformation/DATABASE-NOTES.txt`. Customers always
+self-register; there's no seeded customer account.
 
 ```
 Models/          Product → StockProduct, Animal; ApplicationUser, CartLine, Order,

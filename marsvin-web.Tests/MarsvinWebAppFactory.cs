@@ -37,11 +37,22 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
     public const string ConnectionString =
         "Server=(localdb)\\MSSQLLocalDB;Database=MarsvinDb_WebTest;Trusted_Connection=True;TrustServerCertificate=True;";
 
+    // Throwaway, test-only demo-account passwords, injected the same way the Jwt
+    // key is below: the real passwords are never in source or docs (DbInitializer
+    // generates a random one per machine). The seed reads Demo:AdminPassword /
+    // Demo:StaffPassword from configuration, so these env vars make the seeded
+    // admin/employee logins deterministic for the end-to-end tests. They are
+    // chosen to pass PasswordPolicy for their role (admin >= 15 characters).
+    public const string DemoAdminPassword = "Barn-Hay-Fleece-7?";
+    public const string DemoStaffPassword = "Clover-Meadow-8!";
+
     public MarsvinWebAppFactory()
     {
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", ConnectionString);
         Environment.SetEnvironmentVariable("Email__Username", "");
         Environment.SetEnvironmentVariable("Recaptcha__SecretKey", "");
+        Environment.SetEnvironmentVariable("Demo__AdminPassword", DemoAdminPassword);
+        Environment.SetEnvironmentVariable("Demo__StaffPassword", DemoStaffPassword);
         // The whole end-to-end suite runs from one address within seconds -
         // far more Login/Register requests than the 50 a minute the real
         // limit allows any single client.
@@ -59,6 +70,8 @@ public sealed class MarsvinWebAppFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("ConnectionStrings__MarsvinDb", null);
         Environment.SetEnvironmentVariable("Email__Username", null);
         Environment.SetEnvironmentVariable("Recaptcha__SecretKey", null);
+        Environment.SetEnvironmentVariable("Demo__AdminPassword", null);
+        Environment.SetEnvironmentVariable("Demo__StaffPassword", null);
         Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", null);
         Environment.SetEnvironmentVariable("Jwt__Key", null);
 

@@ -36,27 +36,34 @@ Using SQL Server Management Studio (SSMS):
 From the command line:
   sqlcmd -S "(localdb)\MSSQLLocalDB" -d MarsvinDb
 
-DEMO LOGIN CREDENTIALS
+DEMO LOGIN ACCOUNTS
 ------------------------
 Seeded automatically the first time the database is created (see
 DbInitializer.SeedAccountsIfEmpty). Demo-only - not fit for anything else:
 
-  Admin:    admin@marsvin.dk     / Hay-Carrot-Oak-River-7!
-  Employee: employee@marsvin.dk  / Clover-Meadow-8!
-  Employee: employee2@marsvin.dk / Clover-Meadow-8!
-  Employee: employee3@marsvin.dk / Clover-Meadow-8!
-  Employee: employee4@marsvin.dk / Clover-Meadow-8!
+  Admin:    admin@marsvin.dk
+  Employee: employee@marsvin.dk, employee2@..employee4@marsvin.dk
 
-These demo passwords are chosen to pass the password policy for their role
-(Models/PasswordPolicy.cs): the admin one is 15+ characters, both have upper
-and lower case, a digit and a symbol, and none contains a shop/common word or
-the account's own name. The old demo passwords (Admin123! / Employee123!) were
-too short and "admin" is itself blocklisted, so they are gone.
+THE PASSWORDS ARE NOT STORED IN THIS REPO OR IN ANY COMMITTED FILE.
+Where they come from (see Data/DemoCredentials.cs):
 
-NOTE: these are seeded only into an EMPTY database (SeedAccountsIfEmpty checks
-that dbo.Users is empty first). A database created before this change keeps its
-old password hashes until it is reset - drop MarsvinDb (or delete the rows in
-dbo.Users) and run the app again to re-seed with the new credentials.
+  1. Configuration - Demo:AdminPassword / Demo:StaffPassword from user-secrets
+     or environment variables, if you set them:
+         dotnet user-secrets set "Demo:AdminPassword" <value>
+         dotnet user-secrets set "Demo:StaffPassword" <value>
+  2. Otherwise a fresh, cryptographically-random password is generated on the
+     first run and written ONLY to a git-ignored local file in the app folder:
+         marsvin-web/demo-credentials.local.txt
+     Open it to read the passwords. It is never logged and never committed.
+
+Either way the generated/supplied passwords satisfy the password policy for
+their role (Models/PasswordPolicy.cs): admin >= 15 characters, both cases, a
+digit, a symbol, and not a shop/common word or the account's own name.
+
+NOTE: accounts are seeded only into an EMPTY database (SeedAccountsIfEmpty
+checks that dbo.Users is empty first). A database seeded earlier keeps its old
+password hashes until it is reset - drop MarsvinDb (or delete the rows in
+dbo.Users) and run the app again to re-seed (which writes a fresh local file).
 
 Customers always register themselves at /Account/Register - there is no
 seeded customer account. Admins can create additional Employee/Admin

@@ -1,6 +1,7 @@
 using MarsvinWebExample.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 
 namespace MarsvinWebExample.Data;
 
@@ -15,7 +16,13 @@ namespace MarsvinWebExample.Data;
 /// </summary>
 public static class DbInitializer
 {
-    public static void EnsureCreatedAndSeeded(string connectionString)
+    // config/contentRootPath feed the demo-account seeding only: the demo
+    // passwords are read from Demo:AdminPassword / Demo:StaffPassword, or - when
+    // unset - generated at random and written to a git-ignored local file (see
+    // DemoCredentials). Both are optional, so callers that only need the schema
+    // and catalog (tests) can pass the connection string alone.
+    public static void EnsureCreatedAndSeeded(
+        string connectionString, IConfiguration? config = null, string? contentRootPath = null)
     {
         EnsureDatabaseExists(connectionString);
 
@@ -29,7 +36,7 @@ public static class DbInitializer
         if (brandsNeedBackfill) BackfillDemoBrands(connection);
         SeedIfEmpty(connection);
         AddSecondAccessoryBatchOnce(connection);
-        SeedAccountsIfEmpty(connection);
+        SeedAccountsIfEmpty(connection, config, contentRootPath);
     }
 
     private static void EnsureDatabaseExists(string connectionString)
@@ -186,23 +193,16 @@ public static class DbInitializer
     /// so the "assign a shift" staff picker on Admin/Schedule has more than
     /// one real choice to demonstrate.
     ///
-    /// DEMO CREDENTIALS - not fit for anything but a local demo (and chosen to
-    /// pass PasswordPolicy for their role: the admin one is 15+ characters):
-    ///   admin@marsvin.dk     / Hay-Carrot-Oak-River-7!
-    ///   employee@marsvin.dk  / Clover-Meadow-8!
-    ///   employee2@marsvin.dk / Clover-Meadow-8!
-    ///   employee3@marsvin.dk / Clover-Meadow-8!
-    ///   employee4@marsvin.dk / Clover-Meadow-8!
+    /// DEMO ACCOUNTS (local demo only): admin@marsvin.dk plus employee@,
+    /// employee2@..employee4@marsvin.dk. Their passwords are NOT stored here or
+    /// in any committed file - see <see cref="DemoCredentials"/>: they come from
+    /// Demo:AdminPassword / Demo:StaffPassword, or are generated at random on a
+    /// fresh database and written to a git-ignored local file to read once.
     /// </summary>
-    // Demo-only credentials, seeded into an empty database. They are chosen to
-    // satisfy PasswordPolicy.Validate for each role (admin >= 15 chars, both
-    // cases, a digit, a symbol, no shop/common/own-name words) so the seed can
-    // never break our own policy; a test pins this (PasswordPolicyTests). An
-    // existing database keeps whatever hashes it already has until it is reset.
-    public const string DemoAdminPassword = "Hay-Carrot-Oak-River-7!";
-    public const string DemoEmployeePassword = "Clover-Meadow-8!";
-
-    private static void SeedAccountsIfEmpty(SqlConnection connection)
+    // Seeded only into an empty database. An existing database keeps whatever
+    // hashes it already has until it is reset. The passwords satisfy
+    // PasswordPolicy for each role (DemoCredentials guarantees it).
+    private static void SeedAccountsIfEmpty(SqlConnection connection, IConfiguration? config, string? contentRootPath)
     {
         using (var check = new SqlCommand("SELECT COUNT(*) FROM dbo.Users;", connection))
         {
@@ -210,18 +210,19 @@ public static class DbInitializer
             if (count > 0) return;
         }
 
+        var (adminPassword, staffPassword) = DemoCredentials.Resolve(config, contentRootPath);
         var hasher = new PasswordHasher<ApplicationUser>();
 
         InsertUser(connection, "admin@marsvin.dk",
-            hasher.HashPassword(null!, DemoAdminPassword), "Butiksejer", UserRole.Admin);
+            hasher.HashPassword(null!, adminPassword), "Butiksejer", UserRole.Admin);
         InsertUser(connection, "employee@marsvin.dk",
-            hasher.HashPassword(null!, DemoEmployeePassword), "Medarbejder", UserRole.Employee);
+            hasher.HashPassword(null!, staffPassword), "Medarbejder", UserRole.Employee);
         InsertUser(connection, "employee2@marsvin.dk",
-            hasher.HashPassword(null!, DemoEmployeePassword), "Sofie", UserRole.Employee);
+            hasher.HashPassword(null!, staffPassword), "Sofie", UserRole.Employee);
         InsertUser(connection, "employee3@marsvin.dk",
-            hasher.HashPassword(null!, DemoEmployeePassword), "Mikkel", UserRole.Employee);
+            hasher.HashPassword(null!, staffPassword), "Mikkel", UserRole.Employee);
         InsertUser(connection, "employee4@marsvin.dk",
-            hasher.HashPassword(null!, DemoEmployeePassword), "Freja", UserRole.Employee);
+            hasher.HashPassword(null!, staffPassword), "Freja", UserRole.Employee);
     }
 
     private static void InsertUser(

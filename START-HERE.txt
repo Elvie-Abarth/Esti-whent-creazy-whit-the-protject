@@ -61,10 +61,17 @@ STEP 4 - LOG IN (optional, if you want to see the admin/staff side)
 -------------------------------------------------------------------
 These demo accounts are created automatically the first time you run it:
 
-    Admin:    admin@marsvin.dk     / Hay-Carrot-Oak-River-7!
-    Employee: employee@marsvin.dk  / Clover-Meadow-8!
+    Admin:    admin@marsvin.dk
+    Employee: employee@marsvin.dk   (also employee2..employee4@marsvin.dk)
 
-Go to http://localhost:5080/Account/Login and sign in with one of those.
+Their passwords are NOT written anywhere in this project. On the first run a
+random password is generated and saved to a local, git-ignored file in the app
+folder:
+
+    marsvin-web/demo-credentials.local.txt
+
+Open that file to get the passwords. Then go to
+http://localhost:5080/Account/Login and sign in with one of those.
 
 IMPORTANT: logging in here is a TWO-STEP process on purpose (that's a
 security feature, not a bug) - after you enter the password, it does NOT

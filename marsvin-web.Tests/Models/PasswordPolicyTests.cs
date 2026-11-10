@@ -117,23 +117,22 @@ public class PasswordPolicyTests
         Assert.True(PasswordPolicy.IsObvious("MARSVIN-is-best", null, null));
     }
 
-    // ---- the seeded demo credentials must not break our own policy ----------
+    // ---- the generated demo credentials must not break our own policy -------
 
     [Theory]
-    [InlineData("admin@marsvin.dk", "Butiksejer", UserRole.Admin)]
-    [InlineData("employee@marsvin.dk", "Medarbejder", UserRole.Employee)]
-    [InlineData("employee2@marsvin.dk", "Sofie", UserRole.Employee)]
-    [InlineData("employee3@marsvin.dk", "Mikkel", UserRole.Employee)]
-    [InlineData("employee4@marsvin.dk", "Freja", UserRole.Employee)]
-    public void SeededDemoPassword_PassesThePolicyForItsRole(string email, string name, UserRole role)
+    [InlineData(UserRole.Admin)]
+    [InlineData(UserRole.Employee)]
+    [InlineData(UserRole.Customer)]
+    public void DemoCredentials_Generate_AlwaysPassesThePolicyForItsRole(UserRole role)
     {
-        // Pin the demo seed to the policy so it can never drift back to
-        // something the server would itself reject (DbInitializer).
-        var password = role == UserRole.Admin
-            ? DbInitializer.DemoAdminPassword
-            : DbInitializer.DemoEmployeePassword;
-
-        Assert.Null(PasswordPolicy.Validate(password, email, name, english: false, role));
+        // The seed's random demo passwords (DemoCredentials.Generate) must never
+        // produce something the server would itself reject - run it many times
+        // so a rare bad draw can't slip through unnoticed.
+        for (var i = 0; i < 100; i++)
+        {
+            var password = DemoCredentials.Generate(role);
+            Assert.Null(PasswordPolicy.Validate(password, null, null, english: false, role));
+        }
     }
 
     // ---- the large exact-match common-password list (ASVS 6.2.4) ------------
